@@ -40,8 +40,8 @@ MODULE_DESCRIPTION("Aeonsemi AS21XX PHY api drivers");
 MODULE_AUTHOR("Aeonsemi");
 MODULE_LICENSE("GPL");
 
-unsigned short aeon_mdio_read_reg(struct phy_device *phydev,
-				  unsigned int reg_addr)
+static unsigned short aeon_mdio_read_reg(struct phy_device *phydev,
+					 unsigned int reg_addr)
 {
 	unsigned short val = 0;
 	unsigned short dev_addr = (reg_addr >> 17) & 0x1F;
@@ -51,8 +51,8 @@ unsigned short aeon_mdio_read_reg(struct phy_device *phydev,
 	return val;
 }
 
-void aeon_mdio_write_reg(struct phy_device *phydev, unsigned int reg_addr,
-			 unsigned short value)
+static void aeon_mdio_write_reg(struct phy_device *phydev, unsigned int reg_addr,
+				unsigned short value)
 {
 	unsigned short dev_addr = (reg_addr >> 17) & 0x1F;
 	unsigned short phy_reg = (reg_addr >> 1) & 0xFFFF;
@@ -60,8 +60,8 @@ void aeon_mdio_write_reg(struct phy_device *phydev, unsigned int reg_addr,
 	aeon_cl45_write(phydev, dev_addr, phy_reg, value);
 }
 
-unsigned short aeon_mdio_read_reg_field(struct phy_device *phydev, unsigned int reg_addr,
-					unsigned short field)
+static unsigned short aeon_mdio_read_reg_field(struct phy_device *phydev, unsigned int reg_addr,
+					       unsigned short field)
 {
 	unsigned short val = aeon_mdio_read_reg(phydev, reg_addr);
 	unsigned short width = (field & 0xFF);
@@ -71,8 +71,8 @@ unsigned short aeon_mdio_read_reg_field(struct phy_device *phydev, unsigned int 
 	return ((val >> offset) & mask);
 }
 
-void aeon_mdio_write_reg_field(struct phy_device *phydev, unsigned int reg_addr,
-			       unsigned short field, unsigned short value)
+static void aeon_mdio_write_reg_field(struct phy_device *phydev, unsigned int reg_addr,
+				      unsigned short field, unsigned short value)
 {
 	unsigned short val = aeon_mdio_read_reg(phydev, reg_addr);
 	unsigned short width = (field & 0xFF);
@@ -83,13 +83,13 @@ void aeon_mdio_write_reg_field(struct phy_device *phydev, unsigned int reg_addr,
 	aeon_mdio_write_reg(phydev, reg_addr, val);
 }
 
-void aeon_send_ipc_cmd(struct phy_device *phydev, unsigned short cmd)
+static void aeon_send_ipc_cmd(struct phy_device *phydev, unsigned short cmd)
 {
 	aeon_mdio_write_reg(phydev, IPC_CMD_BASEADDR, cmd);
 }
 
-void aeon_set_ipc_data_reg(struct phy_device *phydev, unsigned int len,
-			   unsigned short *val)
+static void aeon_set_ipc_data_reg(struct phy_device *phydev, unsigned int len,
+				  unsigned short *val)
 {
 	int ii;
 
@@ -101,7 +101,7 @@ void aeon_set_ipc_data_reg(struct phy_device *phydev, unsigned int len,
 	}
 }
 
-unsigned short aeon_get_ipc_status(struct phy_device *phydev)
+static unsigned short aeon_get_ipc_status(struct phy_device *phydev)
 {
 	unsigned short val;
 
@@ -110,9 +110,9 @@ unsigned short aeon_get_ipc_status(struct phy_device *phydev)
 	return val;
 }
 
-void aeon_ipc_parse_sts(unsigned short sts, unsigned short *status,
-			unsigned short *opcode, unsigned short *size,
-			unsigned short *parity)
+static void aeon_ipc_parse_sts(unsigned short sts, unsigned short *status,
+			       unsigned short *opcode, unsigned short *size,
+			       unsigned short *parity)
 {
 	/*
 	 * """Parse the 16-bit full status into components.
@@ -160,7 +160,7 @@ void aeon_send_ipc_msg(struct phy_device *phydev, unsigned int len,
 
 /* IPC Layer functions */
 static unsigned int ipc_cmd_num;
-unsigned int get_par(void)
+static unsigned int get_par(void)
 {
 	return ipc_cmd_num & 0x1;
 }
@@ -360,8 +360,8 @@ void aeon_ipc_cfg_param_direct(unsigned int data_len, unsigned short *data,
 	}
 }
 
-unsigned short aeon_ipc_dbg_cmd(struct phy_device *phydev, unsigned short dbg_sec,
-				unsigned short dbg_cmd, unsigned short size)
+static unsigned short aeon_ipc_dbg_cmd(struct phy_device *phydev, unsigned short dbg_sec,
+				       unsigned short dbg_cmd, unsigned short size)
 {
 	unsigned short data[8] = {0}, status, ret_size;
 
@@ -376,9 +376,10 @@ unsigned short aeon_ipc_dbg_cmd(struct phy_device *phydev, unsigned short dbg_se
 	return IPC_STS_CMD_SUCCESS;
 }
 
-unsigned short aeon_ipc_wbuf(struct phy_device *phydev, void *write_data,
-			     unsigned short write_size, ipc_data_type_t write_type,
-			     unsigned short write_size_bytes, unsigned short write_size_words)
+static unsigned short aeon_ipc_wbuf(struct phy_device *phydev, void *write_data,
+				    unsigned short write_size, ipc_data_type_t write_type,
+				    unsigned short write_size_bytes,
+				    unsigned short write_size_words)
 {
 	unsigned short write_ipc_data_array[8] = {0};
 	unsigned short *write_ipc_data = (unsigned short *)write_ipc_data_array;
@@ -423,7 +424,7 @@ unsigned short aeon_ipc_wbuf(struct phy_device *phydev, void *write_data,
 	return IPC_STS_CMD_SUCCESS;
 }
 
-unsigned short aeon_ipc_poll(struct phy_device *phydev)
+static unsigned short aeon_ipc_poll(struct phy_device *phydev)
 {
 	unsigned short done = 0, iter = 0, status = 0, ret_size = 0, cmd = 0;
 
@@ -443,8 +444,8 @@ unsigned short aeon_ipc_poll(struct phy_device *phydev)
 	return IPC_STS_CMD_SUCCESS;
 }
 
-unsigned short aeon_ipc_recv(struct phy_device *phydev, void *recv_buf, unsigned short recv_size,
-			     ipc_data_type_t recv_type)
+static unsigned short aeon_ipc_recv(struct phy_device *phydev, void *recv_buf,
+				    unsigned short recv_size, ipc_data_type_t recv_type)
 {
 	unsigned char *temp_buf = NULL;
 	unsigned char *read_target, *p_data;
@@ -505,11 +506,11 @@ unsigned short aeon_ipc_recv(struct phy_device *phydev, void *recv_buf, unsigned
 	return IPC_STS_CMD_SUCCESS;
 }
 
-unsigned short aeon_ipc_operation(struct phy_device *phydev, unsigned short dbg_sec,
-				  unsigned short dbg_cmd, void *write_data,
-				  unsigned short write_size, ipc_data_type_t write_type,
-				  void *recv_buf, unsigned short recv_size,
-				  ipc_data_type_t recv_type)
+static unsigned short aeon_ipc_operation(struct phy_device *phydev, unsigned short dbg_sec,
+					 unsigned short dbg_cmd, void *write_data,
+					 unsigned short write_size, ipc_data_type_t write_type,
+					 void *recv_buf, unsigned short recv_size,
+					 ipc_data_type_t recv_type)
 {
 	unsigned short ret;
 	unsigned short write_size_bytes = 0;
@@ -665,14 +666,14 @@ void aeon_cu_an_enable_downshift(unsigned short enable,
 void aeon_sds_pcs_set_cfg(unsigned short pcs_mode, unsigned short sds_spd,
 			  struct phy_device *phydev)
 {
-	unsigned short data[8], reg_num = 4;
-	// the order should match firmware cfg parameter sequence.
-	data[0] = CFG_SDS_PCS;
-	data[1] = CFG_SDS_PCS;
-	data[2] = pcs_mode;
-	data[3] = sds_spd;
+	unsigned char data[8], data_size;
 
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+	data[0] = pcs_mode;
+	data[1] = sds_spd;
+	data_size = 2;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_DPC, CFG_DPC_SDS_SET_CFG, data,
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }
 
 void aeon_sds_pma_set_cfg(unsigned short vga_adapt, unsigned short slc_adapt,
@@ -703,6 +704,32 @@ void aeon_cu_an_enable_aeon_oui(unsigned short nstd_pbo,
 	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 }
 
+void aeon_ipc_eye_scan(unsigned char sds_id, unsigned char grp,
+		       unsigned char *revc_buf, struct phy_device *phydev)
+{
+	unsigned char data[8], data_size;
+
+	data[0] = sds_id;
+	data[1] = grp;
+	data_size = 2;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_EYE_SCAN, data,
+			   data_size, IPC_DATA_UINT8, revc_buf, EYE_STRIDE, IPC_DATA_UINT8);
+}
+
+#ifndef AEON_SEI2
+void aeon_pkt_chk_cfg(unsigned short enable, struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 4;
+
+	data[0] = CFG_DPC_PKT_CHK;
+	data[1] = CFG_DPC_PKT_CHK;
+	data[2] = enable;
+	data[3] = 0;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
 void aeon_auto_eee_cfg(unsigned short enable, unsigned int idle_th,
 		       struct phy_device *phydev)
 {
@@ -716,6 +743,130 @@ void aeon_auto_eee_cfg(unsigned short enable, unsigned int idle_th,
 
 	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 }
+
+void aeon_sds_wait_eth_cfg(unsigned short sds_wait_eth_delay,
+			   struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 5;
+
+	data[0] = CFG_DPC_SDS_WAIT_ETH;
+	data[1] = CFG_DPC_SDS_WAIT_ETH;
+	data[2] = sds_wait_eth_delay;
+	data[3] = 2;
+	data[4] = 1;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
+void aeon_sds_restart_an(struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 1;
+
+	data[0] = CFG_SDS_RESTART_AN;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
+void aeon_ipc_set_tx_power_lvl(unsigned short gain, struct phy_device *phydev)
+{
+	unsigned short data[8], data_size;
+
+	data[0] = gain;
+	data_size = 1;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_TM5_GAIN_IDX, data,
+			   data_size, IPC_DATA_UINT16, NULL, 0, 1);
+}
+
+void aeon_sds2nd_enable(unsigned short enable, struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 3;
+	// the order should match firmware cfg parameter sequence.
+	data[0] = CFG_SDS2ND_EN;
+	data[1] = CFG_SDS2ND_EN;
+	data[2] = enable;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
+void aeon_sds2nd_eq_cfg(unsigned short vga, unsigned short slc, unsigned short ctle,
+			unsigned short dfe,
+			struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 6;
+	// the order should match firmware cfg parameter sequence.
+	data[0] = CFG_SDS2ND_EQ;
+	data[1] = CFG_SDS2ND_EQ;
+	data[2] = vga;
+	data[3] = slc;
+	data[4] = ctle;
+	data[5] = dfe;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
+void aeon_sds2nd_mode_cfg(unsigned short pcs_mode, unsigned short sds_spd, unsigned short op_mode,
+			  struct phy_device *phydev)
+{
+	unsigned short data[8], reg_num = 5;
+	// the order should match firmware cfg parameter sequence.
+	data[0] = CFG_SDS2ND_MODE;
+	data[1] = CFG_SDS2ND_MODE;
+	data[2] = pcs_mode;
+	data[3] = sds_spd;
+	data[4] = op_mode;
+
+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
+}
+
+void aeon_normal_retrain_cfg(unsigned short enable, struct phy_device *phydev)
+{
+	unsigned short data[8], data_size;
+
+	data[0] = enable;
+	data_size = 1;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_NORMAL_RETRAIN_ABI, data,
+			   data_size, IPC_DATA_UINT16, NULL, 0, 1);
+}
+
+void aeon_ipc_auto_link_ena(unsigned char enable, struct phy_device *phydev)
+{
+	unsigned char data[8], data_size;
+
+	data[0] = enable;
+	data_size = 1;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_ENA, data,
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
+}
+
+void aeon_ipc_auto_link_cfg(unsigned char link_type, struct phy_device *phydev)
+{
+	unsigned char data[8], data_size;
+
+	data[0] = link_type;
+	data_size = 1;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_CFG, data,
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
+}
+
+void aeon_ipc_sds_txfir(unsigned char sds_id, unsigned char pre, unsigned char main,
+			unsigned char post, struct phy_device *phydev)
+{
+	unsigned char data[8], data_size;
+
+	data[0] = sds_id;
+	data[1] = pre;
+	data[2] = main;
+	data[3] = post;
+	data_size = 4;
+
+	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_TXFIR_SET, data,
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
+}
+#endif
 
 void aeon_ipc_temp_monitor(unsigned short sub_cmd, unsigned short params,
 			   unsigned short *temperature,
@@ -822,32 +973,6 @@ void aeon_ipc_set_sys_reboot(struct phy_device *phydev)
 	unsigned short data = IPC_CMD_SYS_REBOOT;
 
 	aeon_send_ipc_msg(phydev, 1, &data, IPC_CMD_SYS_CPU, 2);
-}
-
-void aeon_pkt_chk_cfg(unsigned short enable, struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 4;
-
-	data[0] = CFG_DPC_PKT_CHK;
-	data[1] = CFG_DPC_PKT_CHK;
-	data[2] = enable;
-	data[3] = 0;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
-void aeon_sds_wait_eth_cfg(unsigned short sds_wait_eth_delay,
-			   struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 5;
-
-	data[0] = CFG_DPC_SDS_WAIT_ETH;
-	data[1] = CFG_DPC_SDS_WAIT_ETH;
-	data[2] = sds_wait_eth_delay;
-	data[3] = 2;
-	data[4] = 1;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 }
 
 void aeon_ipc_phy_enable_mode(unsigned short enable, struct phy_device *phydev)
@@ -1069,15 +1194,6 @@ void aeon_burn_image(unsigned char include_bootloader,
 }
 #endif
 
-void aeon_sds_restart_an(struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 1;
-
-	data[0] = CFG_SDS_RESTART_AN;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
 void aeon_ipc_ng_test_mode(unsigned short test_mode, unsigned short tone,
 			   struct phy_device *phydev)
 {
@@ -1136,17 +1252,6 @@ void aeon_set_man_duplex(unsigned short duplex, struct phy_device *phydev)
 	data[3] = duplex;
 
 	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
-void aeon_ipc_set_tx_power_lvl(unsigned short gain, struct phy_device *phydev)
-{
-	unsigned short data[8], data_size;
-
-	data[0] = gain;
-	data_size = 1;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_TM5_GAIN_IDX, data,
-			   data_size, 2, NULL, 0, 1);
 }
 
 void aeon_ng_test_mode(unsigned short top_spd, unsigned short test_mode,
@@ -1392,19 +1497,6 @@ void aeon_ipc_set_wdt(unsigned short en, struct phy_device *phydev)
 	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 }
 
-void aeon_ipc_eye_scan(unsigned char sds_id, unsigned char grp,
-		       unsigned char *revc_buf, struct phy_device *phydev)
-{
-	unsigned char data[8], data_size;
-
-	data[0] = sds_id;
-	data[1] = grp;
-	data_size = 2;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_EYE_SCAN, data,
-			   data_size, 1, revc_buf, EYE_STRIDE, 1);
-}
-
 void aeon_ipc_read_mem(unsigned short addr1, unsigned short addr2,
 		       unsigned short num, unsigned short *params, struct phy_device *phydev)
 {
@@ -1447,49 +1539,6 @@ void aeon_ipc_set_mac_cnt(unsigned long long mac_tot_cnt, unsigned long long mac
 	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 }
 
-
-void aeon_sds2nd_mode_cfg(unsigned short pcs_mode, unsigned short sds_spd, unsigned short op_mode,
-			  struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 5;
-	// the order should match firmware cfg parameter sequence.
-	data[0] = CFG_SDS2ND_MODE;
-	data[1] = CFG_SDS2ND_MODE;
-	data[2] = pcs_mode;
-	data[3] = sds_spd;
-	data[4] = op_mode;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
-
-void aeon_sds2nd_enable(unsigned short enable, struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 3;
-	// the order should match firmware cfg parameter sequence.
-	data[0] = CFG_SDS2ND_EN;
-	data[1] = CFG_SDS2ND_EN;
-	data[2] = enable;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
-void aeon_sds2nd_eq_cfg(unsigned short vga, unsigned short slc, unsigned short ctle,
-			unsigned short dfe,
-			struct phy_device *phydev)
-{
-	unsigned short data[8], reg_num = 6;
-	// the order should match firmware cfg parameter sequence.
-	data[0] = CFG_SDS2ND_EQ;
-	data[1] = CFG_SDS2ND_EQ;
-	data[2] = vga;
-	data[3] = slc;
-	data[4] = ctle;
-	data[5] = dfe;
-
-	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-}
-
 void aeon_ipc_cable_diag(unsigned short sub_cmd, unsigned short *data_rcv, unsigned short mode,
 			 struct phy_device *phydev)
 {
@@ -1517,57 +1566,7 @@ void aeon_ipc_cable_diag(unsigned short sub_cmd, unsigned short *data_rcv, unsig
 	}
 
 	aeon_ipc_operation(phydev, CFG_CABLE_DIAG, sub_cmd, data,
-			   data_size, 2, data_rcv, data_num, 2);
-
-}
-
-void aeon_normal_retrain_cfg(unsigned short enable, struct phy_device *phydev)
-{
-	unsigned short data[8], data_size;
-
-	data[0] = enable;
-	data_size = 1;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_NORMAL_RETRAIN_ABI, data,
-			   data_size, 2, NULL, 0, 1);
-}
-
-void aeon_ipc_sds_txfir(unsigned char sds_id, unsigned char pre, unsigned char main,
-			unsigned char post, struct phy_device *phydev)
-{
-	unsigned char data[8], data_size;
-
-	data[0] = sds_id;
-	data[1] = pre;
-	data[2] = main;
-	data[3] = post;
-	data_size = 4;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_TXFIR_SET, data,
-			   data_size, 1, NULL, 0, 1);
-}
-
-void aeon_ipc_auto_link_ena(unsigned char enable, struct phy_device *phydev)
-{
-	unsigned char data[8], data_size;
-
-	data[0] = enable;
-	data_size = 1;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_ENA, data,
-			   data_size, 1, NULL, 0, 1);
-}
-
-
-void aeon_ipc_auto_link_cfg(unsigned char link_type, struct phy_device *phydev)
-{
-	unsigned char data[8], data_size;
-
-	data[0] = link_type;
-	data_size = 1;
-
-	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_CFG, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT16, data_rcv, data_num, IPC_DATA_UINT16);
 }
 
 void aeon_synce_enable_cfg(unsigned char enable, struct phy_device *phydev)
@@ -1578,7 +1577,7 @@ void aeon_synce_enable_cfg(unsigned char enable, struct phy_device *phydev)
 	data_size = 1;
 
 	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_ENABLE, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }
 
 void aeon_synce_mode_cfg(unsigned char ms, struct phy_device *phydev)
@@ -1589,7 +1588,7 @@ void aeon_synce_mode_cfg(unsigned char ms, struct phy_device *phydev)
 	data_size = 1;
 
 	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_MODE, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }
 
 void aeon_synce_user_bw(unsigned char bw, struct phy_device *phydev)
@@ -1600,7 +1599,7 @@ void aeon_synce_user_bw(unsigned char bw, struct phy_device *phydev)
 	data_size = 1;
 
 	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_USER_BW, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }
 
 void aeon_synce_slave_output_ctrl_cfg(unsigned char oc, struct phy_device *phydev)
@@ -1611,7 +1610,7 @@ void aeon_synce_slave_output_ctrl_cfg(unsigned char oc, struct phy_device *phyde
 	data_size = 1;
 
 	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_SLAVE_CLK_OUTPUT_CTRL, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }
 
 void aeon_parallel_det(unsigned char enable, struct phy_device *phydev)
@@ -1622,5 +1621,5 @@ void aeon_parallel_det(unsigned char enable, struct phy_device *phydev)
 	data_size = 1;
 
 	aeon_ipc_operation(phydev, IPC_DBGCMD_CU_AN, IPC_CMD_CU_AN_PARA_DET, data,
-			   data_size, 1, NULL, 0, 1);
+			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 }

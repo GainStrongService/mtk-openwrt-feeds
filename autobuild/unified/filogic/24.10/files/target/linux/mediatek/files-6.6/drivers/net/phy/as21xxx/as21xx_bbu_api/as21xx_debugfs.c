@@ -150,11 +150,78 @@ static inline void printk_sds_pcs_cfg_usage(void)
 	pr_info("Set sds ra enable: echo SdsRA > /sys/kernel/debug/{MDIOBUS}/aeon_set_sds_pcs_cfg\n\n");
 }
 
+#ifndef AEON_SEI2
+static inline void printk_pkt_chk_cfg_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Set pkt chk: echo PktChk [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_pkt_chk_cfg\n\n");
+}
+
+static inline void printk_mdc_timing_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo MdcTiming [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_mdc_timing\n\n");
+}
+
 static inline void printk_auto_eee_cfg_usage(void)
 {
 	pr_info("================Please input:===================\n");
 	pr_info("Set auto-eee: echo AutoEEE [enable] [idle_th] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_eee_cfg\n\n");
 }
+
+static inline void printk_sds_wait_eth_cfg_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo SdsWaitEth [sds_waith_eth] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_wait_eth\n\n");
+}
+
+static inline void printk_sds_restart_an_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo sdsan > /sys/kernel/debug/{MDIOBUS}/aeon_sds_restart_an\n\n");
+}
+
+static inline void printk_tx_power_lvl_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo txgain [val] > /sys/kernel/debug/{MDIOBUS}/aeon_tx_power_lvl\n\n");
+}
+
+static inline void printk_sds2nd_cfg_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Enable Second Serdes: echo Sds2ndEn [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_enable\n");
+	pr_info("Config Second Serdes Equlization: echo Sds2ndEq [vga] [slc] [ctle] [dfe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eq_cfg\n");
+	pr_info("Config Second Serdes PCS Mode and Datarate: echo Sds2ndMode [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_mode_cfg\n");
+
+}
+
+static inline void printk_sds2nd_eye_diagram_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
+	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
+}
+
+static inline void printk_normal_retrain_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo nr [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_normal_retrain\n\n");
+}
+
+static inline void printk_auto_link_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo AutoLinkEna [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n");
+	pr_info("echo AutoLinkCfg [linktype] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n\n");
+}
+
+static inline void printk_sds_txfir_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo SdsTxFir [pre] [main] [post] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_txfir\n\n");
+}
+#endif
 
 static inline void printk_sds_pma_cfg_usage(void)
 {
@@ -204,24 +271,6 @@ static inline void printk_eth_status_usage(void)
 	pr_info("echo ethstatus > /sys/kernel/debug/{MDIOBUS}/aeon_get_eth_status\n\n");
 }
 
-static inline void printk_pkt_chk_cfg_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Set pkt chk: echo PktChk [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_pkt_chk_cfg\n\n");
-}
-
-static inline void printk_mdc_timing_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo MdcTiming [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_mdc_timing\n\n");
-}
-
-static inline void printk_sds_wait_eth_cfg_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo SdsWaitEth [sds_waith_eth] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_wait_eth\n\n");
-}
-
 static inline void printk_phy_enable_usage(void)
 {
 	pr_info("================Please input:===================\n");
@@ -241,12 +290,6 @@ static inline void printk_erase_flash(void)
 	pr_info("echo erase [flash_addr] [size] > /sys/kernel/debug/{MDIOBUS}/aeon_erase_flash\n\n");
 }
 #endif
-
-static inline void printk_sds_restart_an_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo sdsan > /sys/kernel/debug/{MDIOBUS}/aeon_sds_restart_an\n\n");
-}
 
 static inline void printk_test_mode_usage(void)
 {
@@ -311,22 +354,6 @@ static inline void printk_sds_eye_diagram_usage(void)
 	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_eye_diagram_data\n");
 }
 
-static inline void printk_sds2nd_cfg_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Enable Second Serdes: echo Sds2ndEn [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_enable\n");
-	pr_info("Config Second Serdes Equlization: echo Sds2ndEq [vga] [slc] [ctle] [dfe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eq_cfg\n");
-	pr_info("Config Second Serdes PCS Mode and Datarate: echo Sds2ndMode [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_mode_cfg\n");
-
-}
-
-static inline void printk_sds2nd_eye_diagram_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
-	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
-}
-
 static inline void printk_force_mode_usage(void)
 {
 	pr_info("================Please input:===================\n");
@@ -339,35 +366,10 @@ static inline void printk_parallel_det_usage(void)
 	pr_info("echo paradet [enable] > /proc/tc3162/aeon_parallel_det\n\n");
 }
 
-static inline void printk_normal_retrain_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo nr [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_normal_retrain\n\n");
-}
-
-static inline void printk_sds_txfir_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo SdsTxFir [pre] [main] [post] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_txfir\n\n");
-}
-
-static inline void printk_auto_link_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo AutoLinkEna [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n");
-	pr_info("echo AutoLinkCfg [linktype] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n\n");
-}
-
 static inline void printk_force_mdi_mode_usage(void)
 {
 	pr_info("================Please input:===================\n");
 	pr_info("echo mdi [val] > /sys/kernel/debug/{MDIOBUS}/aeon_force_mdi_mode\n\n");
-}
-
-static inline void printk_tx_power_lvl_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo txgain [val] > /sys/kernel/debug/{MDIOBUS}/aeon_tx_power_lvl\n\n");
 }
 
 static inline void printk_synce_master_mode_usage(void)
@@ -388,15 +390,55 @@ static inline void printk_synce_slave_mode2_usage(void)
 	pr_info("echo synce_slave_mode2 [enable] [bw] [oc] > /sys/kernel/debug/{MDIOBUS}/aeon_synce_slave_mode2\n\n");
 }
 
-ssize_t aeon_mdc_timing_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+#ifndef AEON_SEI2
+static ssize_t aeon_pkt_chk_cfg_read_proc(struct file *file, char __user *buf,
+					  size_t size, loff_t *ppos)
+{
+	printk_pkt_chk_cfg_usage();
+	return 0;
+}
+
+static ssize_t aeon_pkt_chk_cfg_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "PktChk")) {
+		if (cmdinfo.argc != 1)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_pkt_chk_cfg(cmdinfo.args[0], phydev);
+		pr_info("Set Pkt Checker successfully!\n");
+	} else
+		printk_pkt_chk_cfg_usage();
+
+	return count;
+}
+
+static ssize_t aeon_mdc_timing_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_mdc_timing_usage();
 	return 0;
 }
 
-ssize_t aeon_mdc_timing_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_mdc_timing_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -433,16 +475,55 @@ ssize_t aeon_mdc_timing_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_sds_wait_eth_cfg_read_proc(struct file *file, char __user *buf,
-					size_t size, loff_t *ppos)
+static ssize_t aeon_auto_eee_cfg_read_proc(struct file *file, char __user *buf,
+					   size_t size, loff_t *ppos)
+{
+	printk_auto_eee_cfg_usage();
+	return 0;
+}
+
+static ssize_t aeon_auto_eee_cfg_write_proc(struct file *file,
+					    const char __user *buffer, size_t count,
+					    loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "AutoEEE")) {
+		if (cmdinfo.argc != 2)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_auto_eee_cfg(cmdinfo.args[0], cmdinfo.args[1], phydev);
+		pr_info("Set Auto EEE successfully!\n");
+	} else
+		printk_auto_eee_cfg_usage();
+
+	return count;
+}
+
+static ssize_t aeon_sds_wait_eth_cfg_read_proc(struct file *file, char __user *buf,
+					       size_t size, loff_t *ppos)
 {
 	printk_sds_wait_eth_cfg_usage();
 	return 0;
 }
 
-ssize_t aeon_sds_wait_eth_cfg_write_proc(struct file *file,
-					 const char __user *buffer,
-					 size_t count, loff_t *pos)
+static ssize_t aeon_sds_wait_eth_cfg_write_proc(struct file *file,
+						const char __user *buffer,
+						size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -472,16 +553,56 @@ ssize_t aeon_sds_wait_eth_cfg_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_pkt_chk_cfg_read_proc(struct file *file, char __user *buf,
-				   size_t size, loff_t *ppos)
+static ssize_t aeon_sds_restart_an_read_proc(struct file *file, char __user *buf,
+					     size_t size, loff_t *ppos)
 {
-	printk_pkt_chk_cfg_usage();
+	printk_sds_restart_an_usage();
+
 	return 0;
 }
 
-ssize_t aeon_pkt_chk_cfg_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_sds_restart_an_write_proc(struct file *file,
+					      const char __user *buffer, size_t count,
+					      loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "sdsan")) {
+		if (cmdinfo.argc != 0)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_sds_restart_an(phydev);
+		pr_info("Restart sds AN successfully!\n");
+	} else
+		printk_sds_restart_an_usage();
+
+	return count;
+}
+
+static ssize_t aeon_tx_power_lvl_read_proc(struct file *file, char __user *buffer,
+					   size_t count, loff_t *pos)
+{
+	printk_tx_power_lvl_usage();
+
+	return 0;
+}
+
+static ssize_t aeon_tx_power_lvl_write_proc(struct file *file, const char __user *buffer,
+					    size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -498,28 +619,324 @@ ssize_t aeon_pkt_chk_cfg_write_proc(struct file *file,
 	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
 		return -EINVAL;
 
-	if (!strcmp(cmdinfo.cmd, "PktChk")) {
+	if (!strcmp(cmdinfo.cmd, "txgain")) {
 		if (cmdinfo.argc != 1)
 			return -EINVAL;
 
 		aeon_ipc_sync_parity(phydev);
-		aeon_pkt_chk_cfg(cmdinfo.args[0], phydev);
-		pr_info("Set Pkt Checker successfully!\n");
+		aeon_ipc_set_tx_power_lvl(cmdinfo.args[0], phydev);
+		pr_info("Set TX power level successfully!\n");
 	} else
-		printk_pkt_chk_cfg_usage();
+		printk_tx_power_lvl_usage();
 
 	return count;
 }
 
-ssize_t aeon_read_reg_read_proc(struct file *file, char __user *buf,
-				size_t size, loff_t *ppos)
+static ssize_t aeon_sds2nd_enable_read_proc(struct file *file, char __user *buffer,
+					    size_t count, loff_t *pos)
+{
+	printk_sds2nd_cfg_usage();
+
+	return 0;
+}
+
+static ssize_t aeon_sds2nd_enable_write_proc(struct file *file, const char __user *buffer,
+					     size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "Sds2ndEn")) {
+		if (cmdinfo.argc != 1)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_sds2nd_enable(cmdinfo.args[0], phydev);
+	} else
+		printk_sds2nd_cfg_usage();
+
+	return count;
+}
+
+static ssize_t aeon_sds2nd_eq_read_proc(struct file *file, char __user *buffer,
+					size_t count, loff_t *pos)
+{
+	printk_sds2nd_cfg_usage();
+	return 0;
+}
+
+static ssize_t aeon_sds2nd_eq_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 4) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "Sds2ndEq")) {
+		if (cmdinfo.argc != 4)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_sds2nd_eq_cfg(cmdinfo.args[0], cmdinfo.args[1], cmdinfo.args[2],
+				   cmdinfo.args[3], phydev);
+	} else
+		printk_sds2nd_cfg_usage();
+
+	return count;
+}
+
+static ssize_t aeon_sds2nd_mode_read_proc(struct file *file, char __user *buffer,
+					  size_t count, loff_t *pos)
+{
+	printk_sds2nd_cfg_usage();
+	return 0;
+}
+
+static ssize_t aeon_sds2nd_mode_write_proc(struct file *file, const char __user *buffer,
+					   size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "Sds2ndMode")) {
+		if (cmdinfo.argc != 2)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_sds2nd_mode_cfg(cmdinfo.args[0], cmdinfo.args[1], 0, phydev);
+	} else
+		printk_sds2nd_cfg_usage();
+
+	return count;
+}
+
+static ssize_t aeon_sds2nd_eye_diagram_read_proc(struct file *file, char __user *buffer,
+						 size_t count, loff_t *pos)
+{
+	printk_sds2nd_eye_diagram_usage();
+	return 0;
+}
+
+static ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char __user *buffer,
+						  size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	struct as21xxx_priv *priv = phydev->priv;
+	unsigned char *raw_eye_data = priv->raw_eye_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+	unsigned short ii, grp, part;
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "eyescan")) {
+		part = cmdinfo.args[0];
+		if (part == EYE_PART_0) {
+			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else if (part == EYE_PART_1) {
+			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else {
+			return -EINVAL;
+		}
+	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
+		pr_info("RAW EYE data:\n");
+		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
+			if (ii % 16 == 0)
+				pr_info("\n");
+			pr_info("0x%02x ", raw_eye_data[ii]);
+		}
+		pr_info("\n");
+
+		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
+	} else
+		printk_sds2nd_eye_diagram_usage();
+
+	return count;
+}
+
+static ssize_t aeon_normal_retrain_read_proc(struct file *file, char __user *buffer,
+					     size_t count, loff_t *pos)
+{
+	printk_normal_retrain_usage();
+	return 0;
+}
+
+static ssize_t aeon_normal_retrain_write_proc(struct file *file, const char __user *buffer,
+					      size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "nr")) {
+		if (cmdinfo.argc != 1)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_normal_retrain_cfg(cmdinfo.args[0], phydev);
+		pr_info("Set normal retrain successfully!\n");
+	} else
+		printk_normal_retrain_usage();
+
+	return count;
+}
+
+static ssize_t aeon_auto_link_read_proc(struct file *file, char __user *buffer,
+					size_t count, loff_t *pos)
+{
+	printk_auto_link_usage();
+	return 0;
+}
+
+static ssize_t aeon_auto_link_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+	unsigned char enable = 0;
+	unsigned char link_type = 0;
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "AutoLinkEna")) {
+		if (cmdinfo.argc != 1)
+			return -EINVAL;
+		enable = cmdinfo.args[0];
+		aeon_ipc_sync_parity(phydev);
+		aeon_ipc_auto_link_ena(enable, phydev);
+	} else if (!strcmp(cmdinfo.cmd, "AutoLinkCfg")) {
+		if (cmdinfo.argc != 1)
+			return -EINVAL;
+		link_type = cmdinfo.args[0];
+		aeon_ipc_sync_parity(phydev);
+		aeon_ipc_auto_link_cfg(link_type, phydev);
+	} else
+		printk_auto_link_usage();
+
+	return count;
+}
+
+static ssize_t aeon_sds_txfir_read_proc(struct file *file, char __user *buffer,
+					size_t count, loff_t *pos)
+{
+	printk_sds_txfir_usage();
+	return 0;
+}
+
+static ssize_t aeon_sds_txfir_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
+{
+	struct phy_device *phydev = file->private_data;
+	char val_string[MAX_BUF] = { 0 };
+	struct parsed_cmd cmdinfo = { 0 };
+	unsigned short pre, main, post;
+
+	if (count >= sizeof(val_string))
+		return -EINVAL;
+
+	if (copy_from_user(val_string, buffer, count))
+		return -EFAULT;
+
+	val_string[count] = '\0';
+
+	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
+		return -EINVAL;
+
+	if (!strcmp(cmdinfo.cmd, "SdsTxFir")) {
+		if (cmdinfo.argc != 3)
+			return -EINVAL;
+		pre = cmdinfo.args[0];
+		main = cmdinfo.args[1];
+		post = cmdinfo.args[2];
+		aeon_ipc_sync_parity(phydev);
+		aeon_ipc_sds_txfir(0, pre, main, post, phydev);
+	} else
+		printk_sds_txfir_usage();
+
+	return count;
+}
+#endif
+
+static ssize_t aeon_read_reg_read_proc(struct file *file, char __user *buf,
+				       size_t size, loff_t *ppos)
 {
 	printk_read_reg_usage();
 	return 0;
 }
 
-ssize_t aeon_read_reg_write_proc(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
+static ssize_t aeon_read_reg_write_proc(struct file *file, const char __user *buffer,
+					size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -549,15 +966,15 @@ ssize_t aeon_read_reg_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_write_reg_read_proc(struct file *file, char __user *buf,
-				 size_t size, loff_t *ppos)
+static ssize_t aeon_write_reg_read_proc(struct file *file, char __user *buf,
+					size_t size, loff_t *ppos)
 {
 	printk_write_reg_usage();
 	return 0;
 }
 
-ssize_t aeon_write_reg_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_write_reg_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -586,15 +1003,15 @@ ssize_t aeon_write_reg_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_eth_status_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_eth_status_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_eth_status_usage();
 	return 0;
 }
 
-ssize_t aeon_eth_status_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_eth_status_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -639,15 +1056,15 @@ ssize_t aeon_eth_status_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_restart_an_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_restart_an_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_restart_an_usage();
 	return 0;
 }
 
-ssize_t aeon_restart_an_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_restart_an_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
@@ -713,15 +1130,15 @@ ssize_t aeon_restart_an_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_speed_mode_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_speed_mode_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_force_speed_usage();
 	return 0;
 }
 
-ssize_t aeon_speed_mode_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_speed_mode_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
@@ -764,15 +1181,15 @@ ssize_t aeon_speed_mode_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_mdi_cfg_read_proc(struct file *file, char __user *buf, size_t size,
-			       loff_t *ppos)
+static ssize_t aeon_mdi_cfg_read_proc(struct file *file, char __user *buf, size_t size,
+				      loff_t *ppos)
 {
 	printk_mdi_cfg_usage();
 	return 0;
 }
 
-ssize_t aeon_mdi_cfg_write_proc(struct file *file, const char __user *buffer,
-				size_t count, loff_t *pos)
+static ssize_t aeon_mdi_cfg_write_proc(struct file *file, const char __user *buffer,
+				       size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
@@ -846,16 +1263,16 @@ ssize_t aeon_mdi_cfg_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_sds_pcs_cfg_read_proc(struct file *file, char __user *buf,
-				   size_t size, loff_t *ppos)
+static ssize_t aeon_sds_pcs_cfg_read_proc(struct file *file, char __user *buf,
+					  size_t size, loff_t *ppos)
 {
 	printk_sds_pcs_cfg_usage();
 	return 0;
 }
 
-ssize_t aeon_sds_pcs_cfg_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_sds_pcs_cfg_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -892,54 +1309,15 @@ ssize_t aeon_sds_pcs_cfg_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_auto_eee_cfg_read_proc(struct file *file, char __user *buf,
-				    size_t size, loff_t *ppos)
-{
-	printk_auto_eee_cfg_usage();
-	return 0;
-}
-
-ssize_t aeon_auto_eee_cfg_write_proc(struct file *file,
-				     const char __user *buffer, size_t count,
-				     loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "AutoEEE")) {
-		if (cmdinfo.argc != 2)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_auto_eee_cfg(cmdinfo.args[0], cmdinfo.args[1], phydev);
-		pr_info("Set Auto EEE successfully!\n");
-	} else
-		printk_auto_eee_cfg_usage();
-
-	return count;
-}
-
-ssize_t aeon_phy_enable_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_phy_enable_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_phy_enable_usage();
 	return 0;
 }
 
-ssize_t aeon_phy_enable_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_phy_enable_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -969,15 +1347,15 @@ ssize_t aeon_phy_enable_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_set_led_read_proc(struct file *file, char __user *buf, size_t size,
-			       loff_t *ppos)
+static ssize_t aeon_set_led_read_proc(struct file *file, char __user *buf, size_t size,
+				      loff_t *ppos)
 {
 	printk_set_led_usage();
 	return 0;
 }
 
-ssize_t aeon_set_led_write_proc(struct file *file, const char __user *buffer,
-				size_t count, loff_t *pos)
+static ssize_t aeon_set_led_write_proc(struct file *file, const char __user *buffer,
+				       size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1009,16 +1387,16 @@ ssize_t aeon_set_led_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_sds_pma_cfg_read_proc(struct file *file, char __user *buf,
-				   size_t size, loff_t *ppos)
+static ssize_t aeon_sds_pma_cfg_read_proc(struct file *file, char __user *buf,
+					  size_t size, loff_t *ppos)
 {
 	printk_sds_pma_cfg_usage();
 	return 0;
 }
 
-ssize_t aeon_sds_pma_cfg_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_sds_pma_cfg_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1049,15 +1427,15 @@ ssize_t aeon_sds_pma_cfg_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_fw_version_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_fw_version_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_get_fw_version_usage();
 	return 0;
 }
 
-ssize_t aeon_fw_version_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_fw_version_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 }, version1[16] = { 0 };
@@ -1087,16 +1465,16 @@ ssize_t aeon_fw_version_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_temp_monitor_read_proc(struct file *file, char __user *buf,
-				    size_t size, loff_t *ppos)
+static ssize_t aeon_temp_monitor_read_proc(struct file *file, char __user *buf,
+					   size_t size, loff_t *ppos)
 {
 	printk_temp_monitor_usage();
 	return 0;
 }
 
-ssize_t aeon_temp_monitor_write_proc(struct file *file,
-				     const char __user *buffer, size_t count,
-				     loff_t *pos)
+static ssize_t aeon_temp_monitor_write_proc(struct file *file,
+					    const char __user *buffer, size_t count,
+					    loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1132,15 +1510,15 @@ ssize_t aeon_temp_monitor_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_sys_reboot_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_sys_reboot_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_sys_reboot_usage();
 	return 0;
 }
 
-ssize_t aeon_sys_reboot_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_sys_reboot_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1171,15 +1549,15 @@ ssize_t aeon_sys_reboot_write_proc(struct file *file, const char __user *buffer,
 }
 
 #ifdef DUAL_FLASH
-ssize_t aeon_burn_flash_read_proc(struct file *file, char __user *buf,
-				  size_t size, loff_t *ppos)
+static ssize_t aeon_burn_flash_read_proc(struct file *file, char __user *buf,
+					 size_t size, loff_t *ppos)
 {
 	printk_sys_dual_flash();
 	return 0;
 }
 
-ssize_t aeon_burn_flash_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_burn_flash_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1209,16 +1587,16 @@ ssize_t aeon_burn_flash_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_erase_flash_read_proc(struct file *file, char __user *buf,
-				   size_t size, loff_t *ppos)
+static ssize_t aeon_erase_flash_read_proc(struct file *file, char __user *buf,
+					  size_t size, loff_t *ppos)
 {
 	printk_erase_flash();
 	return 0;
 }
 
-ssize_t aeon_erase_flash_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_erase_flash_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1249,54 +1627,15 @@ ssize_t aeon_erase_flash_write_proc(struct file *file,
 }
 #endif
 
-ssize_t aeon_sds_restart_an_read_proc(struct file *file, char __user *buf,
-				      size_t size, loff_t *ppos)
-{
-	printk_sds_restart_an_usage();
-	return 0;
-}
-
-ssize_t aeon_sds_restart_an_write_proc(struct file *file,
-				       const char __user *buffer, size_t count,
-				       loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "sdsan")) {
-		if (cmdinfo.argc != 0)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds_restart_an(phydev);
-		pr_info("Restart sds AN successfully!\n");
-	} else
-		printk_sds_restart_an_usage();
-
-	return count;
-}
-
-ssize_t aeon_test_mode_read_proc(struct file *file, char __user *buf,
-				 size_t size, loff_t *ppos)
+static ssize_t aeon_test_mode_read_proc(struct file *file, char __user *buf,
+					size_t size, loff_t *ppos)
 {
 	printk_test_mode_usage();
 	return 0;
 }
 
-ssize_t aeon_test_mode_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_test_mode_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1353,17 +1692,17 @@ ssize_t aeon_test_mode_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_tx_fullscale_read_proc(struct file *file, char __user *buffer,
-				    size_t count, loff_t *pos)
+static ssize_t aeon_tx_fullscale_read_proc(struct file *file, char __user *buffer,
+					   size_t count, loff_t *pos)
 {
 	printk_tx_fullscale_usage();
 	return 0;
 }
 
 
-ssize_t aeon_tx_fullscale_write_proc(struct file *file,
-				     const char __user *buffer, size_t count,
-				     loff_t *pos)
+static ssize_t aeon_tx_fullscale_write_proc(struct file *file,
+					    const char __user *buffer, size_t count,
+					    loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1408,15 +1747,15 @@ ssize_t aeon_tx_fullscale_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_wol_ctrl_read_proc(struct file *file, char __user *buffer,
-				size_t count, loff_t *pos)
+static ssize_t aeon_wol_ctrl_read_proc(struct file *file, char __user *buffer,
+				       size_t count, loff_t *pos)
 {
 	printk_wol_ctrl_usage();
 	return 0;
 }
 
-ssize_t aeon_wol_ctrl_write_proc(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
+static ssize_t aeon_wol_ctrl_write_proc(struct file *file, const char __user *buffer,
+					size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1449,16 +1788,16 @@ ssize_t aeon_wol_ctrl_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_smi_command_read_proc(struct file *file, char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_smi_command_read_proc(struct file *file, char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	printk_smi_ctrl_usage();
 	return 0;
 }
 
-ssize_t aeon_smi_command_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_smi_command_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1491,15 +1830,15 @@ ssize_t aeon_smi_command_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_set_irq_en_read_proc(struct file *file, char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_set_irq_en_read_proc(struct file *file, char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	printk_set_irq_en_usage();
 	return 0;
 }
 
-ssize_t aeon_set_irq_en_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_set_irq_en_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1532,16 +1871,16 @@ ssize_t aeon_set_irq_en_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_set_irq_clr_read_proc(struct file *file, char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_set_irq_clr_read_proc(struct file *file, char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	printk_set_irq_clr_usage();
 	return 0;
 }
 
-ssize_t aeon_set_irq_clr_write_proc(struct file *file,
-				    const char __user *buffer, size_t count,
-				    loff_t *pos)
+static ssize_t aeon_set_irq_clr_write_proc(struct file *file,
+					   const char __user *buffer, size_t count,
+					   loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1571,16 +1910,16 @@ ssize_t aeon_set_irq_clr_write_proc(struct file *file,
 	return count;
 }
 
-ssize_t aeon_query_irq_read_proc(struct file *file, char __user *buffer,
-				 size_t count, loff_t *pos)
+static ssize_t aeon_query_irq_read_proc(struct file *file, char __user *buffer,
+					size_t count, loff_t *pos)
 {
 	printk_query_irq_status_usage();
 
 	return 0;
 }
 
-ssize_t aeon_query_irq_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_query_irq_write_proc(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1614,15 +1953,15 @@ ssize_t aeon_query_irq_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_cable_diag_read_proc(struct file *file, char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_cable_diag_read_proc(struct file *file, char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	printk_cable_diag_usage();
 	return 0;
 }
 
-ssize_t aeon_cable_diag_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_cable_diag_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1703,15 +2042,15 @@ ssize_t aeon_cable_diag_write_proc(struct file *file, const char __user *buffer,
 }
 
 
-ssize_t aeon_eye_diagram_read_proc(struct file *file, char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_eye_diagram_read_proc(struct file *file, char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	printk_sds_eye_diagram_usage();
 	return 0;
 }
 
-ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user *buffer,
-				    size_t count, loff_t *pos)
+static ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user *buffer,
+					   size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
@@ -1749,9 +2088,9 @@ ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user *buffer
 	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
 		pr_info("RAW EYE data:\n");
 		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
-			if (ii % 16 == 0) {
+			if (ii % 16 == 0)
 				pr_info("\n");
-			}
+
 			pr_info("0x%02x ", raw_eye_data[ii]);
 		}
 		pr_info("\n");
@@ -1763,190 +2102,16 @@ ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user *buffer
 	return count;
 }
 
-ssize_t aeon_sds2nd_mode_read_proc(struct file *file, char __user *buffer,
-				   size_t count, loff_t *pos)
-{
-	printk_sds2nd_cfg_usage();
-	return 0;
-}
-
-ssize_t aeon_sds2nd_mode_write_proc(struct file *file, const char __user *buffer,
-				    size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "Sds2ndMode")) {
-		if (cmdinfo.argc != 2)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds2nd_mode_cfg(cmdinfo.args[0], cmdinfo.args[1], 0, phydev);
-	} else {
-		printk_sds2nd_cfg_usage();
-	}
-
-	return count;
-}
-
-ssize_t aeon_sds2nd_eq_read_proc(struct file *file, char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	printk_sds2nd_cfg_usage();
-	return 0;
-}
-
-ssize_t aeon_sds2nd_eq_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 4) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "Sds2ndEq")) {
-		if (cmdinfo.argc != 4)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds2nd_eq_cfg(cmdinfo.args[0], cmdinfo.args[1], cmdinfo.args[2],
-				   cmdinfo.args[3], phydev);
-	} else
-		printk_sds2nd_cfg_usage();
-
-	return count;
-}
-
-ssize_t aeon_sds2nd_enable_read_proc(struct file *file, char __user *buffer,
-				     size_t count, loff_t *pos)
-{
-	printk_sds2nd_cfg_usage();
-	return 0;
-}
-
-ssize_t aeon_sds2nd_enable_write_proc(struct file *file, const char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "Sds2ndEn")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds2nd_enable(cmdinfo.args[0], phydev);
-	} else
-		printk_sds2nd_cfg_usage();
-
-	return count;
-}
-
-ssize_t aeon_sds2nd_eye_diagram_read_proc(struct file *file, char __user *buffer,
-					  size_t count, loff_t *pos)
-{
-	printk_sds2nd_eye_diagram_usage();
-
-	return 0;
-}
-
-ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char __user *buffer,
-					   size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	struct as21xxx_priv *priv = phydev->priv;
-	unsigned char *raw_eye_data = priv->raw_eye_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned short ii, grp, part;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "eyescan")) {
-		part = cmdinfo.args[0];
-		if (part == EYE_PART_0) {
-			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
-				aeon_ipc_sync_parity(phydev);
-				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-			}
-		} else if (part == EYE_PART_1) {
-			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
-				aeon_ipc_sync_parity(phydev);
-				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-			}
-		} else {
-			return -EINVAL;
-		}
-	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
-		pr_info("RAW EYE data:\n");
-		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
-			if (ii % 16 == 0)
-				pr_info("\n");
-			pr_info("0x%02x ", raw_eye_data[ii]);
-		}
-		pr_info("\n");
-
-		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
-	} else {
-		printk_sds2nd_eye_diagram_usage();
-	}
-
-	return count;
-}
-
-ssize_t aeon_force_mode_read_proc(struct file *file, char __user *buffer,
-				  size_t count, loff_t *pos)
+static ssize_t aeon_force_mode_read_proc(struct file *file, char __user *buffer,
+					 size_t count, loff_t *pos)
 {
 	printk_force_mode_usage();
 
 	return 0;
 }
 
-ssize_t aeon_force_mode_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_force_mode_write_proc(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -1980,15 +2145,15 @@ ssize_t aeon_force_mode_write_proc(struct file *file, const char __user *buffer,
 	return count;
 }
 
-ssize_t aeon_parallel_det_read_proc(struct file *file, char __user *buffer,
-				    size_t count, loff_t *pos)
+static ssize_t aeon_parallel_det_read_proc(struct file *file, char __user *buffer,
+					   size_t count, loff_t *pos)
 {
 	printk_parallel_det_usage();
 	return 0;
 }
 
-ssize_t aeon_parallel_det_write_proc(struct file *file, const char __user *buffer,
-				     size_t count, loff_t *pos)
+static ssize_t aeon_parallel_det_write_proc(struct file *file, const char __user *buffer,
+					    size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -2017,143 +2182,16 @@ ssize_t aeon_parallel_det_write_proc(struct file *file, const char __user *buffe
 	return count;
 }
 
-
-ssize_t aeon_normal_retrain_read_proc(struct file *file, char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	printk_normal_retrain_usage();
-
-	return 0;
-}
-
-ssize_t aeon_normal_retrain_write_proc(struct file *file, const char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "nr")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_normal_retrain_cfg(cmdinfo.args[0], phydev);
-		pr_info("Set normal retrain successfully!\n");
-	} else
-		printk_normal_retrain_usage();
-
-	return count;
-}
-
-ssize_t aeon_sds_txfir_read_proc(struct file *file, char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	printk_sds_txfir_usage();
-
-	return 0;
-}
-
-ssize_t aeon_sds_txfir_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned short pre, main, post;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "SdsTxFir")) {
-		if (cmdinfo.argc != 3)
-			return -EINVAL;
-		pre = cmdinfo.args[0];
-		main = cmdinfo.args[1];
-		post = cmdinfo.args[2];
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_sds_txfir(0, pre, main, post, phydev);
-	} else
-		printk_sds_txfir_usage();
-
-	return count;
-}
-
-ssize_t aeon_auto_link_read_proc(struct file *file, char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	printk_auto_link_usage();
-
-	return 0;
-}
-
-ssize_t aeon_auto_link_write_proc(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char enable = 0;
-	unsigned char link_type = 0;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "AutoLinkEna")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-		enable = cmdinfo.args[0];
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_auto_link_ena(enable, phydev);
-	} else if (!strcmp(cmdinfo.cmd, "AutoLinkCfg")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-		link_type = cmdinfo.args[0];
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_auto_link_cfg(link_type, phydev);
-	} else
-		printk_auto_link_usage();
-
-	return count;
-}
-
-ssize_t aeon_force_mdi_mode_read_proc(struct file *file, char __user *buffer,
-				      size_t count, loff_t *pos)
+static ssize_t aeon_force_mdi_mode_read_proc(struct file *file, char __user *buffer,
+					     size_t count, loff_t *pos)
 {
 	printk_force_mdi_mode_usage();
 
 	return 0;
 }
 
-ssize_t aeon_force_mdi_mode_write_proc(struct file *file, const char __user *buffer,
-				       size_t count, loff_t *pos)
+static ssize_t aeon_force_mdi_mode_write_proc(struct file *file, const char __user *buffer,
+					      size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -2186,58 +2224,20 @@ ssize_t aeon_force_mdi_mode_write_proc(struct file *file, const char __user *buf
 	} else
 		printk_force_mdi_mode_usage();
 
-	return count;
-}
-
-ssize_t aeon_tx_power_lvl_read_proc(struct file *file, char __user *buffer,
-				    size_t count, loff_t *pos)
-{
-	printk_tx_power_lvl_usage();
-
-	return 0;
-}
-
-ssize_t aeon_tx_power_lvl_write_proc(struct file *file, const char __user *buffer,
-				     size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "txgain")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_set_tx_power_lvl(cmdinfo.args[0], phydev);
-		pr_info("Set TX power level successfully!\n");
-	} else
-		printk_tx_power_lvl_usage();
 
 	return count;
 }
 
-ssize_t aeon_synce_master_mode_proc(struct file *file, char __user *buffer,
-				    size_t count, loff_t *pos)
+static ssize_t aeon_synce_master_mode_proc(struct file *file, char __user *buffer,
+					   size_t count, loff_t *pos)
 {
 	printk_synce_master_mode_usage();
 
 	return 0;
 }
 
-ssize_t aeon_synce_master_mode_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
+static ssize_t aeon_synce_master_mode_write_proc(struct file *file, const char __user *buffer,
+						 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -2254,7 +2254,7 @@ ssize_t aeon_synce_master_mode_write_proc(struct file *file, const char __user *
 	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
 		return -EINVAL;
 
-	if (!strcmp(cmdinfo.cmd, "synce_master")) {
+	if (!strcmp(cmdinfo.cmd, "synce_master_mode")) {
 		if (cmdinfo.argc != 2)
 			return -EINVAL;
 
@@ -2279,16 +2279,16 @@ ssize_t aeon_synce_master_mode_write_proc(struct file *file, const char __user *
 	return count;
 }
 
-ssize_t aeon_synce_slave_mode1_proc(struct file *file, char __user *buffer,
-				    size_t count, loff_t *pos)
+static ssize_t aeon_synce_slave_mode1_proc(struct file *file, char __user *buffer,
+					   size_t count, loff_t *pos)
 {
 	printk_synce_slave_mode1_usage();
 
 	return 0;
 }
 
-ssize_t aeon_synce_slave_mode1_write_proc(struct file *file, const char __user *buffer,
-					  size_t count, loff_t *pos)
+static ssize_t aeon_synce_slave_mode1_write_proc(struct file *file, const char __user *buffer,
+						 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -2331,16 +2331,16 @@ ssize_t aeon_synce_slave_mode1_write_proc(struct file *file, const char __user *
 	return count;
 }
 
-ssize_t aeon_synce_slave_mode2_read_proc(struct file *file, char __user *buffer,
-					 size_t count, loff_t *pos)
+static ssize_t aeon_synce_slave_mode2_read_proc(struct file *file, char __user *buffer,
+						size_t count, loff_t *pos)
 {
 	printk_synce_slave_mode2_usage();
 
 	return 0;
 }
 
-ssize_t aeon_synce_slave_mode2_write_proc(struct file *file, const char __user *buffer,
-					  size_t count, loff_t *pos)
+static ssize_t aeon_synce_slave_mode2_write_proc(struct file *file, const char __user *buffer,
+						 size_t count, loff_t *pos)
 {
 	struct phy_device *phydev = file->private_data;
 	char val_string[MAX_BUF] = { 0 };
@@ -2452,13 +2452,6 @@ static const struct file_operations aeon_set_sys_reboot_fops = {
 	.write = aeon_sys_reboot_write_proc,
 };
 
-static const struct file_operations aeon_auto_eee_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_auto_eee_cfg_read_proc,
-	.write = aeon_auto_eee_cfg_write_proc,
-};
-
 static const struct file_operations aeon_read_reg_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -2480,18 +2473,26 @@ static const struct file_operations aeon_get_eth_status_fops = {
 	.write = aeon_eth_status_write_proc,
 };
 
-static const struct file_operations aeon_pkt_chk_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_pkt_chk_cfg_read_proc,
-	.write = aeon_pkt_chk_cfg_write_proc,
-};
-
+#ifndef AEON_SEI2
 static const struct file_operations aeon_mdc_timing_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = aeon_mdc_timing_read_proc,
 	.write = aeon_mdc_timing_write_proc,
+};
+
+static const struct file_operations aeon_auto_eee_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_auto_eee_cfg_read_proc,
+	.write = aeon_auto_eee_cfg_write_proc,
+};
+
+static const struct file_operations aeon_pkt_chk_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_pkt_chk_cfg_read_proc,
+	.write = aeon_pkt_chk_cfg_write_proc,
 };
 
 static const struct file_operations aeon_sds_wait_eth_fops = {
@@ -2500,6 +2501,70 @@ static const struct file_operations aeon_sds_wait_eth_fops = {
 	.read = aeon_sds_wait_eth_cfg_read_proc,
 	.write = aeon_sds_wait_eth_cfg_write_proc,
 };
+
+static const struct file_operations aeon_sds_restart_an_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds_restart_an_read_proc,
+	.write = aeon_sds_restart_an_write_proc,
+};
+
+static const struct file_operations aeon_tx_power_lvl = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_tx_power_lvl_read_proc,
+	.write = aeon_tx_power_lvl_write_proc,
+};
+
+static const struct file_operations aeon_sds2nd_enable_cfg = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds2nd_enable_read_proc,
+	.write = aeon_sds2nd_enable_write_proc,
+};
+
+static const struct file_operations aeon_sds2nd_eq = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds2nd_eq_read_proc,
+	.write = aeon_sds2nd_eq_write_proc,
+};
+
+static const struct file_operations aeon_sds2nd_mode = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds2nd_mode_read_proc,
+	.write = aeon_sds2nd_mode_write_proc,
+};
+
+static const struct file_operations aeon_sds2nd_eye_diagram_data = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds2nd_eye_diagram_read_proc,
+	.write = aeon_sds2nd_eye_diagram_write_proc,
+};
+
+static const struct file_operations aeon_normal_retrain = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_normal_retrain_read_proc,
+	.write = aeon_normal_retrain_write_proc,
+};
+
+static const struct file_operations aeon_auto_link = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_auto_link_read_proc,
+	.write = aeon_auto_link_write_proc,
+};
+
+static const struct file_operations aeon_sds_txfir = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds_txfir_read_proc,
+	.write = aeon_sds_txfir_write_proc,
+};
+#endif
 
 static const struct file_operations aeon_phy_enable_fops = {
 	.owner = THIS_MODULE,
@@ -2521,13 +2586,6 @@ static const struct file_operations aeon_erase_flash_fops = {
 	.write = aeon_erase_flash_write_proc,
 };
 #endif
-static const struct file_operations aeon_sds_restart_an_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_restart_an_read_proc,
-	.write = aeon_sds_restart_an_write_proc,
-};
-
 static const struct file_operations aeon_test_mode_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -2591,34 +2649,6 @@ static const struct file_operations aeon_eye_diagram_data = {
 	.write = aeon_eye_diagram_write_proc,
 };
 
-static const struct file_operations aeon_sds2nd_eye_diagram_data = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds2nd_eye_diagram_read_proc,
-	.write = aeon_sds2nd_eye_diagram_write_proc,
-};
-
-static const struct file_operations aeon_sds2nd_enable_cfg = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds2nd_enable_read_proc,
-	.write = aeon_sds2nd_enable_write_proc,
-};
-
-static const struct file_operations aeon_sds2nd_eq = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds2nd_eq_read_proc,
-	.write = aeon_sds2nd_eq_write_proc,
-};
-
-static const struct file_operations aeon_sds2nd_mode = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds2nd_mode_read_proc,
-	.write = aeon_sds2nd_mode_write_proc,
-};
-
 static const struct file_operations aeon_force_mode = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -2626,32 +2656,11 @@ static const struct file_operations aeon_force_mode = {
 	.write = aeon_force_mode_write_proc,
 };
 
-static const struct file_operations aeon_parallel_detect = {
+static const struct file_operations aeon_parallel_det_cfg = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = aeon_parallel_det_read_proc,
 	.write = aeon_parallel_det_write_proc,
-};
-
-static const struct file_operations aeon_normal_retrain = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_normal_retrain_read_proc,
-	.write = aeon_normal_retrain_write_proc,
-};
-
-static const struct file_operations aeon_sds_txfir = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_txfir_read_proc,
-	.write = aeon_sds_txfir_write_proc,
-};
-
-static const struct file_operations aeon_auto_link = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_auto_link_read_proc,
-	.write = aeon_auto_link_write_proc,
 };
 
 static const struct file_operations aeon_force_mdi_mode = {
@@ -2659,13 +2668,6 @@ static const struct file_operations aeon_force_mdi_mode = {
 	.open = simple_open,
 	.read = aeon_force_mdi_mode_read_proc,
 	.write = aeon_force_mdi_mode_write_proc,
-};
-
-static const struct file_operations aeon_tx_power_lvl = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_tx_power_lvl_read_proc,
-	.write = aeon_tx_power_lvl_write_proc,
 };
 
 static const struct file_operations aeon_synce_master = {
@@ -2735,20 +2737,40 @@ int as21xxx_debugfs_init(struct phy_device *phydev)
 			    &aeon_temp_monitor_fops);
 	debugfs_create_file("aeon_set_sys_reboot", 0644, dir, phydev,
 			    &aeon_set_sys_reboot_fops);
+#ifndef AEON_SEI2
+	debugfs_create_file("aeon_mdc_timing", 0644, dir, phydev,
+			    &aeon_mdc_timing_fops);
 	debugfs_create_file("aeon_auto_eee_cfg", 0644, dir, phydev,
 			    &aeon_auto_eee_cfg_fops);
+	debugfs_create_file("aeon_pkt_chk_cfg", 0644, dir, phydev,
+			    &aeon_pkt_chk_cfg_fops);
+	debugfs_create_file("aeon_sds_wait_eth", 0644, dir, phydev,
+			    &aeon_sds_wait_eth_fops);
+	debugfs_create_file("aeon_sds_restart_an", 0644, dir, phydev,
+			    &aeon_sds_restart_an_fops);
+	debugfs_create_file("aeon_tx_power_lvl", 0644, dir, phydev,
+			    &aeon_tx_power_lvl);
+	debugfs_create_file("aeon_sds2nd_eye_diagram_data", 0644, dir, phydev,
+			    &aeon_sds2nd_eye_diagram_data);
+	debugfs_create_file("aeon_sds2nd_enable", 0644, dir, phydev,
+				&aeon_sds2nd_enable_cfg);
+	debugfs_create_file("aeon_sds2nd_eq_cfg", 0644, dir, phydev,
+			    &aeon_sds2nd_eq);
+	debugfs_create_file("aeon_sds2nd_mode_cfg", 0644, dir, phydev,
+			    &aeon_sds2nd_mode);
+	debugfs_create_file("aeon_normal_retrain", 0644, dir, phydev,
+			    &aeon_normal_retrain);
+	debugfs_create_file("aeon_auto_link", 0644, dir, phydev,
+			    &aeon_auto_link);
+	debugfs_create_file("aeon_sds_txfir", 0644, dir, phydev,
+			    &aeon_sds_txfir);
+#endif
 	debugfs_create_file("aeon_read_reg", 0644, dir, phydev,
 			    &aeon_read_reg_fops);
 	debugfs_create_file("aeon_write_reg", 0644, dir, phydev,
 			    &aeon_write_reg_fops);
 	debugfs_create_file("aeon_get_eth_status", 0644, dir, phydev,
 			    &aeon_get_eth_status_fops);
-	debugfs_create_file("aeon_pkt_chk_cfg", 0644, dir, phydev,
-			    &aeon_pkt_chk_cfg_fops);
-	debugfs_create_file("aeon_mdc_timing", 0644, dir, phydev,
-			    &aeon_mdc_timing_fops);
-	debugfs_create_file("aeon_sds_wait_eth", 0644, dir, phydev,
-			    &aeon_sds_wait_eth_fops);
 	debugfs_create_file("aeon_phy_enable", 0644, dir, phydev,
 			    &aeon_phy_enable_fops);
 #ifdef DUAL_FLASH
@@ -2757,8 +2779,6 @@ int as21xxx_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file("aeon_erase_flash", 0644, dir, phydev,
 			    &aeon_erase_flash_fops);
 #endif
-	debugfs_create_file("aeon_sds_restart_an", 0644, dir, phydev,
-			    &aeon_sds_restart_an_fops);
 	debugfs_create_file("aeon_test_mode", 0644, dir, phydev,
 			    &aeon_test_mode_fops);
 	debugfs_create_file("aeon_tx_fullscale", 0644, dir, phydev,
@@ -2777,28 +2797,12 @@ int as21xxx_debugfs_init(struct phy_device *phydev)
 			    &aeon_cable_diag);
 	debugfs_create_file("aeon_eye_diagram_data", 0644, dir, phydev,
 			    &aeon_eye_diagram_data);
-	debugfs_create_file("aeon_sds2nd_eye_diagram_data", 0644, dir, phydev,
-			    &aeon_sds2nd_eye_diagram_data);
-	debugfs_create_file("aeon_sds2nd_enable", 0644, dir, phydev,
-			    &aeon_sds2nd_enable_cfg);
-	debugfs_create_file("aeon_sds2nd_eq_cfg", 0644, dir, phydev,
-			    &aeon_sds2nd_eq);
-	debugfs_create_file("aeon_sds2nd_mode_cfg", 0644, dir, phydev,
-			    &aeon_sds2nd_mode);
 	debugfs_create_file("aeon_force_mode", 0644, dir, phydev,
 			    &aeon_force_mode);
 	debugfs_create_file("aeon_parallel_det", 0644, dir, phydev,
-			    &aeon_parallel_detect);
-	debugfs_create_file("aeon_normal_retrain", 0644, dir, phydev,
-			    &aeon_normal_retrain);
-	debugfs_create_file("aeon_sds_txfir", 0644, dir, phydev,
-			    &aeon_sds_txfir);
-	debugfs_create_file("aeon_auto_link", 0644, dir, phydev,
-			    &aeon_auto_link);
+			    &aeon_parallel_det_cfg);
 	debugfs_create_file("aeon_force_mdi_mode", 0644, dir, phydev,
 			    &aeon_force_mdi_mode);
-	debugfs_create_file("aeon_tx_power_lvl", 0644, dir, phydev,
-			    &aeon_tx_power_lvl);
 	debugfs_create_file("aeon_synce_master", 0644, dir, phydev,
 			    &aeon_synce_master);
 	debugfs_create_file("aeon_synce_slave_mode1", 0644, dir, phydev,

@@ -188,6 +188,11 @@ enum custom_synce_cfg_module {
 #define CFG_NORMAL_RETRAIN_ABI 13
 #define CFG_TM5_GAIN_IDX 14
 #define CFG_SDS_EYE_SCAN 1
+#ifndef AEON_SEI2
+#define CFG_DPC_SDS_SET_CFG 0
+#else
+#define CFG_DPC_SDS_SET_CFG 2
+#endif
 #define CFG_SDS_TXFIR_SET 27
 #define CFG_AUTO_LINK_ENA 0
 #define CFG_AUTO_LINK_CFG 1
@@ -195,8 +200,13 @@ enum custom_synce_cfg_module {
 #define IPC_CMD_CABLE_DIAG_PPM_OFST 1
 #define IPC_CMD_CABLE_DIAG_SNR_MARG 2
 #define IPC_CMD_CABLE_DIAG_CHAN_SKW 3
+#ifndef AEON_SEI2
 #define IPC_CMD_CABLE_DIAG_SET 11
 #define IPC_CMD_CABLE_DIAG_GET 12
+#else
+#define IPC_CMD_CABLE_DIAG_SET 10
+#define IPC_CMD_CABLE_DIAG_GET 11
+#endif
 #define IPC_CMD_CU_AN_PARA_DET 8
 
 /**
@@ -650,6 +660,7 @@ extern void aeon_cl45_write(struct phy_device *phydev, int dev_addr,
 #define CFG_CABLE_DIAG 0xa4
 
 #define IPC_DBGCMD_NGPHY 0x80
+#define IPC_DBGCMD_DPC 0x8b
 #define IPC_DBGCMD_SDS 0x96
 #define IPC_DBGCMD_AUTO_LINK 0xA9
 #define IPC_DBGCMD_SYNCE 0xAC
@@ -663,6 +674,19 @@ enum bitwidth_type {
 	BW16 = 1,
 	BW32 = 2,
 };
+
+// SDS Eye Scan Parameters
+#define EYE_GRPS       31
+#define EYE_COLS_GRP    4
+#define EYE_YRES      254
+#define EYE_NSAMP     256
+#define EYE_XRES      (EYE_GRPS * EYE_COLS_GRP)
+#define EYE_STRIDE    (EYE_COLS_GRP * EYE_YRES)
+#define EYE_TOTAL_BYTES (EYE_XRES * EYE_YRES)
+#define EYE_PART_0 0
+#define EYE_PART_1 1
+#define EYE_PART_0_GRPS (EYE_GRPS / 2)
+#define EYE_PART_1_GRPS (EYE_GRPS - EYE_PART_0_GRPS)
 
 /** @name AEON's private function related to IPC
  * @note These functions shouldn't be called individually

@@ -1,7 +1,17 @@
-From 77dc9b81ec0b745cd209afa02e8e916c8342a164 Mon Sep 17 00:00:00 2001
+From 611c3d7873477ebe91d4c696db2a2380366871c7 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 10 Nov 2025 09:05:12 +0800
-Subject: [PATCH] net: phy: as21xxx: update driver to v1.9.0
+Date: Mon, 24 Nov 2025 10:15:59 +0800
+Subject: [PATCH] net: phy: as21xxx: update driver to v1.9.1
+
+Changes from Firmware Version 1.9.0:
+[firmware]
+1. 10G performance is optimized for unstandard RJ45 with WIFI filter.
+2. 100meter 10G performance is improved for setup of serial resistor.
+   on MDI trace.
+3. auto crossover in force 100M mode / parallel detection issue is
+   fixed.
+[driver]
+1. fast/slow mdc is set before and after loading firmware.
 
 This patch also introduces an as21xx_bbu_api, which allows users to use
 debugfs to get or set the PHY mode for debugging purposes.
@@ -9,13 +19,13 @@ debugfs to get or set the PHY mode for debugging purposes.
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/phy/Makefile                      |    3 +-
- drivers/net/phy/as21xx_bbu_api/as21xx_api.c   | 1626 ++++++++++
- drivers/net/phy/as21xx_bbu_api/as21xx_api.h   | 1133 +++++++
- .../net/phy/as21xx_bbu_api/as21xx_debugfs.c   | 2820 +++++++++++++++++
+ drivers/net/phy/as21xx_bbu_api/as21xx_api.c   | 1625 ++++++++++
+ drivers/net/phy/as21xx_bbu_api/as21xx_api.h   | 1157 +++++++
+ .../net/phy/as21xx_bbu_api/as21xx_debugfs.c   | 2824 +++++++++++++++++
  .../net/phy/as21xx_bbu_api/as21xx_debugfs.h   |   27 +
- drivers/net/phy/as21xxx.c                     |  781 +++--
+ drivers/net/phy/as21xxx.c                     |  812 +++--
  drivers/net/phy/as21xxx.h                     |   65 +
- 7 files changed, 6223 insertions(+), 232 deletions(-)
+ 7 files changed, 6281 insertions(+), 232 deletions(-)
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.c
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.h
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c
@@ -38,10 +48,10 @@ index 192cb34..d977358 100644
  else
 diff --git a/drivers/net/phy/as21xx_bbu_api/as21xx_api.c b/drivers/net/phy/as21xx_bbu_api/as21xx_api.c
 new file mode 100644
-index 0000000..014ee81
+index 0000000..27d024e
 --- /dev/null
 +++ b/drivers/net/phy/as21xx_bbu_api/as21xx_api.c
-@@ -0,0 +1,1626 @@
+@@ -0,0 +1,1625 @@
 +/******************************************************************************
 + *
 + * AEONSEMI CONFIDENTIAL
@@ -422,7 +432,8 @@ index 0000000..014ee81
 +
 +static unsigned short aeon_ipc_wbuf(struct phy_device *phydev, void *write_data,
 +				    unsigned short write_size, ipc_data_type_t write_type,
-+				    unsigned short write_size_bytes, unsigned short write_size_words)
++				    unsigned short write_size_bytes,
++				    unsigned short write_size_words)
 +{
 +	unsigned short write_ipc_data_array[8] = {0};
 +	unsigned short *write_ipc_data = (unsigned short *)write_ipc_data_array;
@@ -487,8 +498,8 @@ index 0000000..014ee81
 +	return IPC_STS_CMD_SUCCESS;
 +}
 +
-+static unsigned short aeon_ipc_recv(struct phy_device *phydev, void *recv_buf, unsigned short recv_size,
-+				    ipc_data_type_t recv_type)
++static unsigned short aeon_ipc_recv(struct phy_device *phydev, void *recv_buf,
++				    unsigned short recv_size, ipc_data_type_t recv_type)
 +{
 +	unsigned char *temp_buf = NULL;
 +	unsigned char *read_target, *p_data;
@@ -709,14 +720,14 @@ index 0000000..014ee81
 +void aeon_sds_pcs_set_cfg(unsigned short pcs_mode, unsigned short sds_spd,
 +			  struct phy_device *phydev)
 +{
-+	unsigned short data[8], reg_num = 4;
-+	// the order should match firmware cfg parameter sequence.
-+	data[0] = CFG_SDS_PCS;
-+	data[1] = CFG_SDS_PCS;
-+	data[2] = pcs_mode;
-+	data[3] = sds_spd;
++	unsigned char data[8], data_size;
 +
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++	data[0] = pcs_mode;
++	data[1] = sds_spd;
++	data_size = 2;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_DPC, CFG_DPC_SDS_SET_CFG, data,
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 +
 +void aeon_sds_pma_set_cfg(unsigned short vga_adapt, unsigned short slc_adapt,
@@ -747,6 +758,32 @@ index 0000000..014ee81
 +	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 +}
 +
++void aeon_ipc_eye_scan(unsigned char sds_id, unsigned char grp,
++		       unsigned char *revc_buf, struct phy_device *phydev)
++{
++	unsigned char data[8], data_size;
++
++	data[0] = sds_id;
++	data[1] = grp;
++	data_size = 2;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_EYE_SCAN, data,
++			   data_size, IPC_DATA_UINT8, revc_buf, EYE_STRIDE, IPC_DATA_UINT8);
++}
++
++#ifndef AEON_SEI2
++void aeon_pkt_chk_cfg(unsigned short enable, struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 4;
++
++	data[0] = CFG_DPC_PKT_CHK;
++	data[1] = CFG_DPC_PKT_CHK;
++	data[2] = enable;
++	data[3] = 0;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
 +void aeon_auto_eee_cfg(unsigned short enable, unsigned int idle_th,
 +		       struct phy_device *phydev)
 +{
@@ -760,6 +797,130 @@ index 0000000..014ee81
 +
 +	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 +}
++
++void aeon_sds_wait_eth_cfg(unsigned short sds_wait_eth_delay,
++			   struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 5;
++
++	data[0] = CFG_DPC_SDS_WAIT_ETH;
++	data[1] = CFG_DPC_SDS_WAIT_ETH;
++	data[2] = sds_wait_eth_delay;
++	data[3] = 2;
++	data[4] = 1;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
++void aeon_sds_restart_an(struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 1;
++
++	data[0] = CFG_SDS_RESTART_AN;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
++void aeon_ipc_set_tx_power_lvl(unsigned short gain, struct phy_device *phydev)
++{
++	unsigned short data[8], data_size;
++
++	data[0] = gain;
++	data_size = 1;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_TM5_GAIN_IDX, data,
++			   data_size, IPC_DATA_UINT16, NULL, 0, 1);
++}
++
++void aeon_sds2nd_enable(unsigned short enable, struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 3;
++	// the order should match firmware cfg parameter sequence.
++	data[0] = CFG_SDS2ND_EN;
++	data[1] = CFG_SDS2ND_EN;
++	data[2] = enable;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
++void aeon_sds2nd_eq_cfg(unsigned short vga, unsigned short slc, unsigned short ctle,
++			unsigned short dfe,
++			struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 6;
++	// the order should match firmware cfg parameter sequence.
++	data[0] = CFG_SDS2ND_EQ;
++	data[1] = CFG_SDS2ND_EQ;
++	data[2] = vga;
++	data[3] = slc;
++	data[4] = ctle;
++	data[5] = dfe;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
++void aeon_sds2nd_mode_cfg(unsigned short pcs_mode, unsigned short sds_spd, unsigned short op_mode,
++			  struct phy_device *phydev)
++{
++	unsigned short data[8], reg_num = 5;
++	// the order should match firmware cfg parameter sequence.
++	data[0] = CFG_SDS2ND_MODE;
++	data[1] = CFG_SDS2ND_MODE;
++	data[2] = pcs_mode;
++	data[3] = sds_spd;
++	data[4] = op_mode;
++
++	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
++}
++
++void aeon_normal_retrain_cfg(unsigned short enable, struct phy_device *phydev)
++{
++	unsigned short data[8], data_size;
++
++	data[0] = enable;
++	data_size = 1;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_NORMAL_RETRAIN_ABI, data,
++			   data_size, IPC_DATA_UINT16, NULL, 0, 1);
++}
++
++void aeon_ipc_auto_link_ena(unsigned char enable, struct phy_device *phydev)
++{
++	unsigned char data[8], data_size;
++
++	data[0] = enable;
++	data_size = 1;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_ENA, data,
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
++}
++
++void aeon_ipc_auto_link_cfg(unsigned char link_type, struct phy_device *phydev)
++{
++	unsigned char data[8], data_size;
++
++	data[0] = link_type;
++	data_size = 1;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_CFG, data,
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
++}
++
++void aeon_ipc_sds_txfir(unsigned char sds_id, unsigned char pre, unsigned char main,
++			unsigned char post, struct phy_device *phydev)
++{
++	unsigned char data[8], data_size;
++
++	data[0] = sds_id;
++	data[1] = pre;
++	data[2] = main;
++	data[3] = post;
++	data_size = 4;
++
++	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_TXFIR_SET, data,
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
++}
++#endif
 +
 +void aeon_ipc_temp_monitor(unsigned short sub_cmd, unsigned short params,
 +			   unsigned short *temperature,
@@ -866,32 +1027,6 @@ index 0000000..014ee81
 +	unsigned short data = IPC_CMD_SYS_REBOOT;
 +
 +	aeon_send_ipc_msg(phydev, 1, &data, IPC_CMD_SYS_CPU, 2);
-+}
-+
-+void aeon_pkt_chk_cfg(unsigned short enable, struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 4;
-+
-+	data[0] = CFG_DPC_PKT_CHK;
-+	data[1] = CFG_DPC_PKT_CHK;
-+	data[2] = enable;
-+	data[3] = 0;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
-+void aeon_sds_wait_eth_cfg(unsigned short sds_wait_eth_delay,
-+			   struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 5;
-+
-+	data[0] = CFG_DPC_SDS_WAIT_ETH;
-+	data[1] = CFG_DPC_SDS_WAIT_ETH;
-+	data[2] = sds_wait_eth_delay;
-+	data[3] = 2;
-+	data[4] = 1;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 +}
 +
 +void aeon_ipc_phy_enable_mode(unsigned short enable, struct phy_device *phydev)
@@ -1113,15 +1248,6 @@ index 0000000..014ee81
 +}
 +#endif
 +
-+void aeon_sds_restart_an(struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 1;
-+
-+	data[0] = CFG_SDS_RESTART_AN;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
 +void aeon_ipc_ng_test_mode(unsigned short test_mode, unsigned short tone,
 +			   struct phy_device *phydev)
 +{
@@ -1180,17 +1306,6 @@ index 0000000..014ee81
 +	data[3] = duplex;
 +
 +	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
-+void aeon_ipc_set_tx_power_lvl(unsigned short gain, struct phy_device *phydev)
-+{
-+	unsigned short data[8], data_size;
-+
-+	data[0] = gain;
-+	data_size = 1;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_TM5_GAIN_IDX, data,
-+			   data_size, 2, NULL, 0, 1);
 +}
 +
 +void aeon_ng_test_mode(unsigned short top_spd, unsigned short test_mode,
@@ -1436,19 +1551,6 @@ index 0000000..014ee81
 +	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 +}
 +
-+void aeon_ipc_eye_scan(unsigned char sds_id, unsigned char grp,
-+		       unsigned char *revc_buf, struct phy_device *phydev)
-+{
-+	unsigned char data[8], data_size;
-+
-+	data[0] = sds_id;
-+	data[1] = grp;
-+	data_size = 2;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_EYE_SCAN, data,
-+			   data_size, 1, revc_buf, EYE_STRIDE, 1);
-+}
-+
 +void aeon_ipc_read_mem(unsigned short addr1, unsigned short addr2,
 +		       unsigned short num, unsigned short *params, struct phy_device *phydev)
 +{
@@ -1491,49 +1593,6 @@ index 0000000..014ee81
 +	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
 +}
 +
-+
-+void aeon_sds2nd_mode_cfg(unsigned short pcs_mode, unsigned short sds_spd, unsigned short op_mode,
-+			  struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 5;
-+	// the order should match firmware cfg parameter sequence.
-+	data[0] = CFG_SDS2ND_MODE;
-+	data[1] = CFG_SDS2ND_MODE;
-+	data[2] = pcs_mode;
-+	data[3] = sds_spd;
-+	data[4] = op_mode;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
-+
-+void aeon_sds2nd_enable(unsigned short enable, struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 3;
-+	// the order should match firmware cfg parameter sequence.
-+	data[0] = CFG_SDS2ND_EN;
-+	data[1] = CFG_SDS2ND_EN;
-+	data[2] = enable;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
-+void aeon_sds2nd_eq_cfg(unsigned short vga, unsigned short slc, unsigned short ctle,
-+			unsigned short dfe,
-+			struct phy_device *phydev)
-+{
-+	unsigned short data[8], reg_num = 6;
-+	// the order should match firmware cfg parameter sequence.
-+	data[0] = CFG_SDS2ND_EQ;
-+	data[1] = CFG_SDS2ND_EQ;
-+	data[2] = vga;
-+	data[3] = slc;
-+	data[4] = ctle;
-+	data[5] = dfe;
-+
-+	aeon_ipc_cfg_param_direct(reg_num, data, phydev);
-+}
-+
 +void aeon_ipc_cable_diag(unsigned short sub_cmd, unsigned short *data_rcv, unsigned short mode,
 +			 struct phy_device *phydev)
 +{
@@ -1561,57 +1620,7 @@ index 0000000..014ee81
 +	}
 +
 +	aeon_ipc_operation(phydev, CFG_CABLE_DIAG, sub_cmd, data,
-+			   data_size, 2, data_rcv, data_num, 2);
-+
-+}
-+
-+void aeon_normal_retrain_cfg(unsigned short enable, struct phy_device *phydev)
-+{
-+	unsigned short data[8], data_size;
-+
-+	data[0] = enable;
-+	data_size = 1;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_NGPHY, CFG_NORMAL_RETRAIN_ABI, data,
-+			   data_size, 2, NULL, 0, 1);
-+}
-+
-+void aeon_ipc_sds_txfir(unsigned char sds_id, unsigned char pre, unsigned char main,
-+			unsigned char post, struct phy_device *phydev)
-+{
-+	unsigned char data[8], data_size;
-+
-+	data[0] = sds_id;
-+	data[1] = pre;
-+	data[2] = main;
-+	data[3] = post;
-+	data_size = 4;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_SDS, CFG_SDS_TXFIR_SET, data,
-+			   data_size, 1, NULL, 0, 1);
-+}
-+
-+void aeon_ipc_auto_link_ena(unsigned char enable, struct phy_device *phydev)
-+{
-+	unsigned char data[8], data_size;
-+
-+	data[0] = enable;
-+	data_size = 1;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_ENA, data,
-+			   data_size, 1, NULL, 0, 1);
-+}
-+
-+
-+void aeon_ipc_auto_link_cfg(unsigned char link_type, struct phy_device *phydev)
-+{
-+	unsigned char data[8], data_size;
-+
-+	data[0] = link_type;
-+	data_size = 1;
-+
-+	aeon_ipc_operation(phydev, IPC_DBGCMD_AUTO_LINK, CFG_AUTO_LINK_CFG, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT16, data_rcv, data_num, IPC_DATA_UINT16);
 +}
 +
 +void aeon_synce_enable_cfg(unsigned char enable, struct phy_device *phydev)
@@ -1622,7 +1631,7 @@ index 0000000..014ee81
 +	data_size = 1;
 +
 +	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_ENABLE, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 +
 +void aeon_synce_mode_cfg(unsigned char ms, struct phy_device *phydev)
@@ -1633,7 +1642,7 @@ index 0000000..014ee81
 +	data_size = 1;
 +
 +	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_MODE, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 +
 +void aeon_synce_user_bw(unsigned char bw, struct phy_device *phydev)
@@ -1644,7 +1653,7 @@ index 0000000..014ee81
 +	data_size = 1;
 +
 +	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_USER_BW, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 +
 +void aeon_synce_slave_output_ctrl_cfg(unsigned char oc, struct phy_device *phydev)
@@ -1655,7 +1664,7 @@ index 0000000..014ee81
 +	data_size = 1;
 +
 +	aeon_ipc_operation(phydev, IPC_DBGCMD_SYNCE, IPC_SYNCE_SLAVE_CLK_OUTPUT_CTRL, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 +
 +void aeon_parallel_det(unsigned char enable, struct phy_device *phydev)
@@ -1666,14 +1675,14 @@ index 0000000..014ee81
 +	data_size = 1;
 +
 +	aeon_ipc_operation(phydev, IPC_DBGCMD_CU_AN, IPC_CMD_CU_AN_PARA_DET, data,
-+			   data_size, 1, NULL, 0, 1);
++			   data_size, IPC_DATA_UINT8, NULL, 0, 1);
 +}
 diff --git a/drivers/net/phy/as21xx_bbu_api/as21xx_api.h b/drivers/net/phy/as21xx_bbu_api/as21xx_api.h
 new file mode 100644
-index 0000000..becea6d
+index 0000000..046a1d5
 --- /dev/null
 +++ b/drivers/net/phy/as21xx_bbu_api/as21xx_api.h
-@@ -0,0 +1,1133 @@
+@@ -0,0 +1,1157 @@
 +/******************************************************************************
 + *
 + * AEONSEMI CONFIDENTIAL
@@ -1864,6 +1873,11 @@ index 0000000..becea6d
 +#define CFG_NORMAL_RETRAIN_ABI 13
 +#define CFG_TM5_GAIN_IDX 14
 +#define CFG_SDS_EYE_SCAN 1
++#ifndef AEON_SEI2
++#define CFG_DPC_SDS_SET_CFG 0
++#else
++#define CFG_DPC_SDS_SET_CFG 2
++#endif
 +#define CFG_SDS_TXFIR_SET 27
 +#define CFG_AUTO_LINK_ENA 0
 +#define CFG_AUTO_LINK_CFG 1
@@ -1871,8 +1885,13 @@ index 0000000..becea6d
 +#define IPC_CMD_CABLE_DIAG_PPM_OFST 1
 +#define IPC_CMD_CABLE_DIAG_SNR_MARG 2
 +#define IPC_CMD_CABLE_DIAG_CHAN_SKW 3
++#ifndef AEON_SEI2
 +#define IPC_CMD_CABLE_DIAG_SET 11
 +#define IPC_CMD_CABLE_DIAG_GET 12
++#else
++#define IPC_CMD_CABLE_DIAG_SET 10
++#define IPC_CMD_CABLE_DIAG_GET 11
++#endif
 +#define IPC_CMD_CU_AN_PARA_DET 8
 +
 +/**
@@ -2326,6 +2345,7 @@ index 0000000..becea6d
 +#define CFG_CABLE_DIAG 0xa4
 +
 +#define IPC_DBGCMD_NGPHY 0x80
++#define IPC_DBGCMD_DPC 0x8b
 +#define IPC_DBGCMD_SDS 0x96
 +#define IPC_DBGCMD_AUTO_LINK 0xA9
 +#define IPC_DBGCMD_SYNCE 0xAC
@@ -2339,6 +2359,19 @@ index 0000000..becea6d
 +	BW16 = 1,
 +	BW32 = 2,
 +};
++
++// SDS Eye Scan Parameters
++#define EYE_GRPS       31
++#define EYE_COLS_GRP    4
++#define EYE_YRES      254
++#define EYE_NSAMP     256
++#define EYE_XRES      (EYE_GRPS * EYE_COLS_GRP)
++#define EYE_STRIDE    (EYE_COLS_GRP * EYE_YRES)
++#define EYE_TOTAL_BYTES (EYE_XRES * EYE_YRES)
++#define EYE_PART_0 0
++#define EYE_PART_1 1
++#define EYE_PART_0_GRPS (EYE_GRPS / 2)
++#define EYE_PART_1_GRPS (EYE_GRPS - EYE_PART_0_GRPS)
 +
 +/** @name AEON's private function related to IPC
 + * @note These functions shouldn't be called individually
@@ -2809,10 +2842,10 @@ index 0000000..becea6d
 +#endif
 diff --git a/drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c b/drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c
 new file mode 100644
-index 0000000..aff7758
+index 0000000..f709f94
 --- /dev/null
 +++ b/drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c
-@@ -0,0 +1,2820 @@
+@@ -0,0 +1,2824 @@
 +/******************************************************************************
 + * AEONSEMI CONFIDENTIAL
 + * _____________________
@@ -2965,11 +2998,78 @@ index 0000000..aff7758
 +	pr_info("Set sds ra enable: echo SdsRA > /sys/kernel/debug/{MDIOBUS}/aeon_set_sds_pcs_cfg\n\n");
 +}
 +
++#ifndef AEON_SEI2
++static inline void printk_pkt_chk_cfg_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("Set pkt chk: echo PktChk [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_pkt_chk_cfg\n\n");
++}
++
++static inline void printk_mdc_timing_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo MdcTiming [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_mdc_timing\n\n");
++}
++
 +static inline void printk_auto_eee_cfg_usage(void)
 +{
 +	pr_info("================Please input:===================\n");
 +	pr_info("Set auto-eee: echo AutoEEE [enable] [idle_th] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_eee_cfg\n\n");
 +}
++
++static inline void printk_sds_wait_eth_cfg_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo SdsWaitEth [sds_waith_eth] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_wait_eth\n\n");
++}
++
++static inline void printk_sds_restart_an_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo sdsan > /sys/kernel/debug/{MDIOBUS}/aeon_sds_restart_an\n\n");
++}
++
++static inline void printk_tx_power_lvl_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo txgain [val] > /sys/kernel/debug/{MDIOBUS}/aeon_tx_power_lvl\n\n");
++}
++
++static inline void printk_sds2nd_cfg_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("Enable Second Serdes: echo Sds2ndEn [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_enable\n");
++	pr_info("Config Second Serdes Equlization: echo Sds2ndEq [vga] [slc] [ctle] [dfe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eq_cfg\n");
++	pr_info("Config Second Serdes PCS Mode and Datarate: echo Sds2ndMode [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_mode_cfg\n");
++
++}
++
++static inline void printk_sds2nd_eye_diagram_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
++	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
++}
++
++static inline void printk_normal_retrain_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo nr [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_normal_retrain\n\n");
++}
++
++static inline void printk_auto_link_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo AutoLinkEna [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n");
++	pr_info("echo AutoLinkCfg [linktype] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n\n");
++}
++
++static inline void printk_sds_txfir_usage(void)
++{
++	pr_info("================Please input:===================\n");
++	pr_info("echo SdsTxFir [pre] [main] [post] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_txfir\n\n");
++}
++#endif
 +
 +static inline void printk_sds_pma_cfg_usage(void)
 +{
@@ -3019,24 +3119,6 @@ index 0000000..aff7758
 +	pr_info("echo ethstatus > /sys/kernel/debug/{MDIOBUS}/aeon_get_eth_status\n\n");
 +}
 +
-+static inline void printk_pkt_chk_cfg_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("Set pkt chk: echo PktChk [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_pkt_chk_cfg\n\n");
-+}
-+
-+static inline void printk_mdc_timing_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo MdcTiming [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_mdc_timing\n\n");
-+}
-+
-+static inline void printk_sds_wait_eth_cfg_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo SdsWaitEth [sds_waith_eth] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_wait_eth\n\n");
-+}
-+
 +static inline void printk_phy_enable_usage(void)
 +{
 +	pr_info("================Please input:===================\n");
@@ -3056,12 +3138,6 @@ index 0000000..aff7758
 +	pr_info("echo erase [flash_addr] [size] > /sys/kernel/debug/{MDIOBUS}/aeon_erase_flash\n\n");
 +}
 +#endif
-+
-+static inline void printk_sds_restart_an_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo sdsan > /sys/kernel/debug/{MDIOBUS}/aeon_sds_restart_an\n\n");
-+}
 +
 +static inline void printk_test_mode_usage(void)
 +{
@@ -3126,22 +3202,6 @@ index 0000000..aff7758
 +	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_eye_diagram_data\n");
 +}
 +
-+static inline void printk_sds2nd_cfg_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("Enable Second Serdes: echo Sds2ndEn [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_enable\n");
-+	pr_info("Config Second Serdes Equlization: echo Sds2ndEq [vga] [slc] [ctle] [dfe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eq_cfg\n");
-+	pr_info("Config Second Serdes PCS Mode and Datarate: echo Sds2ndMode [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_mode_cfg\n");
-+
-+}
-+
-+static inline void printk_sds2nd_eye_diagram_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
-+	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
-+}
-+
 +static inline void printk_force_mode_usage(void)
 +{
 +	pr_info("================Please input:===================\n");
@@ -3154,35 +3214,10 @@ index 0000000..aff7758
 +	pr_info("echo paradet [enable] > /proc/tc3162/aeon_parallel_det\n\n");
 +}
 +
-+static inline void printk_normal_retrain_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo nr [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_normal_retrain\n\n");
-+}
-+
-+static inline void printk_sds_txfir_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo SdsTxFir [pre] [main] [post] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_txfir\n\n");
-+}
-+
-+static inline void printk_auto_link_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo AutoLinkEna [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n");
-+	pr_info("echo AutoLinkCfg [linktype] > /sys/kernel/debug/{MDIOBUS}/aeon_auto_link\n\n");
-+}
-+
 +static inline void printk_force_mdi_mode_usage(void)
 +{
 +	pr_info("================Please input:===================\n");
 +	pr_info("echo mdi [val] > /sys/kernel/debug/{MDIOBUS}/aeon_force_mdi_mode\n\n");
-+}
-+
-+static inline void printk_tx_power_lvl_usage(void)
-+{
-+	pr_info("================Please input:===================\n");
-+	pr_info("echo txgain [val] > /sys/kernel/debug/{MDIOBUS}/aeon_tx_power_lvl\n\n");
 +}
 +
 +static inline void printk_synce_master_mode_usage(void)
@@ -3201,6 +3236,46 @@ index 0000000..aff7758
 +{
 +	pr_info("================Please input:===================\n");
 +	pr_info("echo synce_slave_mode2 [enable] [bw] [oc] > /sys/kernel/debug/{MDIOBUS}/aeon_synce_slave_mode2\n\n");
++}
++
++#ifndef AEON_SEI2
++static ssize_t aeon_pkt_chk_cfg_read_proc(struct file *file, char __user *buf,
++					  size_t size, loff_t *ppos)
++{
++	printk_pkt_chk_cfg_usage();
++	return 0;
++}
++
++static ssize_t aeon_pkt_chk_cfg_write_proc(struct file *file,
++					   const char __user *buffer, size_t count,
++					   loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "PktChk")) {
++		if (cmdinfo.argc != 1)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_pkt_chk_cfg(cmdinfo.args[0], phydev);
++		pr_info("Set Pkt Checker successfully!\n");
++	} else
++		printk_pkt_chk_cfg_usage();
++
++	return count;
 +}
 +
 +static ssize_t aeon_mdc_timing_read_proc(struct file *file, char __user *buf,
@@ -3248,6 +3323,45 @@ index 0000000..aff7758
 +	return count;
 +}
 +
++static ssize_t aeon_auto_eee_cfg_read_proc(struct file *file, char __user *buf,
++					   size_t size, loff_t *ppos)
++{
++	printk_auto_eee_cfg_usage();
++	return 0;
++}
++
++static ssize_t aeon_auto_eee_cfg_write_proc(struct file *file,
++					    const char __user *buffer, size_t count,
++					    loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "AutoEEE")) {
++		if (cmdinfo.argc != 2)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_auto_eee_cfg(cmdinfo.args[0], cmdinfo.args[1], phydev);
++		pr_info("Set Auto EEE successfully!\n");
++	} else
++		printk_auto_eee_cfg_usage();
++
++	return count;
++}
++
 +static ssize_t aeon_sds_wait_eth_cfg_read_proc(struct file *file, char __user *buf,
 +					       size_t size, loff_t *ppos)
 +{
@@ -3287,16 +3401,56 @@ index 0000000..aff7758
 +	return count;
 +}
 +
-+static ssize_t aeon_pkt_chk_cfg_read_proc(struct file *file, char __user *buf,
-+					  size_t size, loff_t *ppos)
++static ssize_t aeon_sds_restart_an_read_proc(struct file *file, char __user *buf,
++					     size_t size, loff_t *ppos)
 +{
-+	printk_pkt_chk_cfg_usage();
++	printk_sds_restart_an_usage();
++
 +	return 0;
 +}
 +
-+static ssize_t aeon_pkt_chk_cfg_write_proc(struct file *file,
-+					   const char __user *buffer, size_t count,
-+					   loff_t *pos)
++static ssize_t aeon_sds_restart_an_write_proc(struct file *file,
++					      const char __user *buffer, size_t count,
++					      loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "sdsan")) {
++		if (cmdinfo.argc != 0)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_sds_restart_an(phydev);
++		pr_info("Restart sds AN successfully!\n");
++	} else
++		printk_sds_restart_an_usage();
++
++	return count;
++}
++
++static ssize_t aeon_tx_power_lvl_read_proc(struct file *file, char __user *buffer,
++					   size_t count, loff_t *pos)
++{
++	printk_tx_power_lvl_usage();
++
++	return 0;
++}
++
++static ssize_t aeon_tx_power_lvl_write_proc(struct file *file, const char __user *buffer,
++					    size_t count, loff_t *pos)
 +{
 +	struct phy_device *phydev = file->private_data;
 +	char val_string[MAX_BUF] = { 0 };
@@ -3313,18 +3467,314 @@ index 0000000..aff7758
 +	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
 +		return -EINVAL;
 +
-+	if (!strcmp(cmdinfo.cmd, "PktChk")) {
++	if (!strcmp(cmdinfo.cmd, "txgain")) {
 +		if (cmdinfo.argc != 1)
 +			return -EINVAL;
 +
 +		aeon_ipc_sync_parity(phydev);
-+		aeon_pkt_chk_cfg(cmdinfo.args[0], phydev);
-+		pr_info("Set Pkt Checker successfully!\n");
++		aeon_ipc_set_tx_power_lvl(cmdinfo.args[0], phydev);
++		pr_info("Set TX power level successfully!\n");
 +	} else
-+		printk_pkt_chk_cfg_usage();
++		printk_tx_power_lvl_usage();
 +
 +	return count;
 +}
++
++static ssize_t aeon_sds2nd_enable_read_proc(struct file *file, char __user *buffer,
++					    size_t count, loff_t *pos)
++{
++	printk_sds2nd_cfg_usage();
++
++	return 0;
++}
++
++static ssize_t aeon_sds2nd_enable_write_proc(struct file *file, const char __user *buffer,
++					     size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "Sds2ndEn")) {
++		if (cmdinfo.argc != 1)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_sds2nd_enable(cmdinfo.args[0], phydev);
++	} else
++		printk_sds2nd_cfg_usage();
++
++	return count;
++}
++
++static ssize_t aeon_sds2nd_eq_read_proc(struct file *file, char __user *buffer,
++					size_t count, loff_t *pos)
++{
++	printk_sds2nd_cfg_usage();
++	return 0;
++}
++
++static ssize_t aeon_sds2nd_eq_write_proc(struct file *file, const char __user *buffer,
++					 size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 4) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "Sds2ndEq")) {
++		if (cmdinfo.argc != 4)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_sds2nd_eq_cfg(cmdinfo.args[0], cmdinfo.args[1], cmdinfo.args[2],
++				   cmdinfo.args[3], phydev);
++	} else
++		printk_sds2nd_cfg_usage();
++
++	return count;
++}
++
++static ssize_t aeon_sds2nd_mode_read_proc(struct file *file, char __user *buffer,
++					  size_t count, loff_t *pos)
++{
++	printk_sds2nd_cfg_usage();
++	return 0;
++}
++
++static ssize_t aeon_sds2nd_mode_write_proc(struct file *file, const char __user *buffer,
++					   size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "Sds2ndMode")) {
++		if (cmdinfo.argc != 2)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_sds2nd_mode_cfg(cmdinfo.args[0], cmdinfo.args[1], 0, phydev);
++	} else
++		printk_sds2nd_cfg_usage();
++
++	return count;
++}
++
++static ssize_t aeon_sds2nd_eye_diagram_read_proc(struct file *file, char __user *buffer,
++						 size_t count, loff_t *pos)
++{
++	printk_sds2nd_eye_diagram_usage();
++	return 0;
++}
++
++static ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char __user *buffer,
++						  size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	struct as21xxx_priv *priv = phydev->priv;
++	unsigned char *raw_eye_data = priv->raw_eye_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++	unsigned short ii, grp, part;
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "eyescan")) {
++		part = cmdinfo.args[0];
++		if (part == EYE_PART_0) {
++			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
++				aeon_ipc_sync_parity(phydev);
++				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
++			}
++		} else if (part == EYE_PART_1) {
++			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
++				aeon_ipc_sync_parity(phydev);
++				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
++			}
++		} else {
++			return -EINVAL;
++		}
++	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
++		pr_info("RAW EYE data:\n");
++		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
++			if (ii % 16 == 0)
++				pr_info("\n");
++			pr_info("0x%02x ", raw_eye_data[ii]);
++		}
++		pr_info("\n");
++
++		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
++	} else
++		printk_sds2nd_eye_diagram_usage();
++
++	return count;
++}
++
++static ssize_t aeon_normal_retrain_read_proc(struct file *file, char __user *buffer,
++					     size_t count, loff_t *pos)
++{
++	printk_normal_retrain_usage();
++	return 0;
++}
++
++static ssize_t aeon_normal_retrain_write_proc(struct file *file, const char __user *buffer,
++					      size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "nr")) {
++		if (cmdinfo.argc != 1)
++			return -EINVAL;
++
++		aeon_ipc_sync_parity(phydev);
++		aeon_normal_retrain_cfg(cmdinfo.args[0], phydev);
++		pr_info("Set normal retrain successfully!\n");
++	} else
++		printk_normal_retrain_usage();
++
++	return count;
++}
++
++static ssize_t aeon_auto_link_read_proc(struct file *file, char __user *buffer,
++					size_t count, loff_t *pos)
++{
++	printk_auto_link_usage();
++	return 0;
++}
++
++static ssize_t aeon_auto_link_write_proc(struct file *file, const char __user *buffer,
++					 size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++	unsigned char enable = 0;
++	unsigned char link_type = 0;
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "AutoLinkEna")) {
++		if (cmdinfo.argc != 1)
++			return -EINVAL;
++		enable = cmdinfo.args[0];
++		aeon_ipc_sync_parity(phydev);
++		aeon_ipc_auto_link_ena(enable, phydev);
++	} else if (!strcmp(cmdinfo.cmd, "AutoLinkCfg")) {
++		if (cmdinfo.argc != 1)
++			return -EINVAL;
++		link_type = cmdinfo.args[0];
++		aeon_ipc_sync_parity(phydev);
++		aeon_ipc_auto_link_cfg(link_type, phydev);
++	} else
++		printk_auto_link_usage();
++
++	return count;
++}
++
++static ssize_t aeon_sds_txfir_read_proc(struct file *file, char __user *buffer,
++					size_t count, loff_t *pos)
++{
++	printk_sds_txfir_usage();
++	return 0;
++}
++
++static ssize_t aeon_sds_txfir_write_proc(struct file *file, const char __user *buffer,
++					 size_t count, loff_t *pos)
++{
++	struct phy_device *phydev = file->private_data;
++	char val_string[MAX_BUF] = { 0 };
++	struct parsed_cmd cmdinfo = { 0 };
++	unsigned short pre, main, post;
++
++	if (count >= sizeof(val_string))
++		return -EINVAL;
++
++	if (copy_from_user(val_string, buffer, count))
++		return -EFAULT;
++
++	val_string[count] = '\0';
++
++	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
++		return -EINVAL;
++
++	if (!strcmp(cmdinfo.cmd, "SdsTxFir")) {
++		if (cmdinfo.argc != 3)
++			return -EINVAL;
++		pre = cmdinfo.args[0];
++		main = cmdinfo.args[1];
++		post = cmdinfo.args[2];
++		aeon_ipc_sync_parity(phydev);
++		aeon_ipc_sds_txfir(0, pre, main, post, phydev);
++	} else
++		printk_sds_txfir_usage();
++
++	return count;
++}
++#endif
 +
 +static ssize_t aeon_read_reg_read_proc(struct file *file, char __user *buf,
 +				       size_t size, loff_t *ppos)
@@ -3707,45 +4157,6 @@ index 0000000..aff7758
 +	return count;
 +}
 +
-+static ssize_t aeon_auto_eee_cfg_read_proc(struct file *file, char __user *buf,
-+					   size_t size, loff_t *ppos)
-+{
-+	printk_auto_eee_cfg_usage();
-+	return 0;
-+}
-+
-+static ssize_t aeon_auto_eee_cfg_write_proc(struct file *file,
-+					    const char __user *buffer, size_t count,
-+					    loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "AutoEEE")) {
-+		if (cmdinfo.argc != 2)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_auto_eee_cfg(cmdinfo.args[0], cmdinfo.args[1], phydev);
-+		pr_info("Set Auto EEE successfully!\n");
-+	} else
-+		printk_auto_eee_cfg_usage();
-+
-+	return count;
-+}
-+
 +static ssize_t aeon_phy_enable_read_proc(struct file *file, char __user *buf,
 +					 size_t size, loff_t *ppos)
 +{
@@ -4063,45 +4474,6 @@ index 0000000..aff7758
 +	return count;
 +}
 +#endif
-+
-+static ssize_t aeon_sds_restart_an_read_proc(struct file *file, char __user *buf,
-+					     size_t size, loff_t *ppos)
-+{
-+	printk_sds_restart_an_usage();
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds_restart_an_write_proc(struct file *file,
-+					      const char __user *buffer, size_t count,
-+					      loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "sdsan")) {
-+		if (cmdinfo.argc != 0)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_sds_restart_an(phydev);
-+		pr_info("Restart sds AN successfully!\n");
-+	} else
-+		printk_sds_restart_an_usage();
-+
-+	return count;
-+}
 +
 +static ssize_t aeon_test_mode_read_proc(struct file *file, char __user *buf,
 +					size_t size, loff_t *ppos)
@@ -4564,9 +4936,9 @@ index 0000000..aff7758
 +	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
 +		pr_info("RAW EYE data:\n");
 +		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
-+			if (ii % 16 == 0) {
++			if (ii % 16 == 0)
 +				pr_info("\n");
-+			}
++
 +			pr_info("0x%02x ", raw_eye_data[ii]);
 +		}
 +		pr_info("\n");
@@ -4575,180 +4947,6 @@ index 0000000..aff7758
 +	} else {
 +		printk_sds_eye_diagram_usage();
 +	}
-+	return count;
-+}
-+
-+static ssize_t aeon_sds2nd_mode_read_proc(struct file *file, char __user *buffer,
-+					  size_t count, loff_t *pos)
-+{
-+	printk_sds2nd_cfg_usage();
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds2nd_mode_write_proc(struct file *file, const char __user *buffer,
-+					   size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "Sds2ndMode")) {
-+		if (cmdinfo.argc != 2)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_sds2nd_mode_cfg(cmdinfo.args[0], cmdinfo.args[1], 0, phydev);
-+	} else {
-+		printk_sds2nd_cfg_usage();
-+	}
-+
-+	return count;
-+}
-+
-+static ssize_t aeon_sds2nd_eq_read_proc(struct file *file, char __user *buffer,
-+					size_t count, loff_t *pos)
-+{
-+	printk_sds2nd_cfg_usage();
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds2nd_eq_write_proc(struct file *file, const char __user *buffer,
-+					 size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 4) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "Sds2ndEq")) {
-+		if (cmdinfo.argc != 4)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_sds2nd_eq_cfg(cmdinfo.args[0], cmdinfo.args[1], cmdinfo.args[2],
-+				   cmdinfo.args[3], phydev);
-+	} else
-+		printk_sds2nd_cfg_usage();
-+
-+	return count;
-+}
-+
-+static ssize_t aeon_sds2nd_enable_read_proc(struct file *file, char __user *buffer,
-+					    size_t count, loff_t *pos)
-+{
-+	printk_sds2nd_cfg_usage();
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds2nd_enable_write_proc(struct file *file, const char __user *buffer,
-+					     size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "Sds2ndEn")) {
-+		if (cmdinfo.argc != 1)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_sds2nd_enable(cmdinfo.args[0], phydev);
-+	} else
-+		printk_sds2nd_cfg_usage();
-+
-+	return count;
-+}
-+
-+static ssize_t aeon_sds2nd_eye_diagram_read_proc(struct file *file, char __user *buffer,
-+						 size_t count, loff_t *pos)
-+{
-+	printk_sds2nd_eye_diagram_usage();
-+
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char __user *buffer,
-+						  size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	struct as21xxx_priv *priv = phydev->priv;
-+	unsigned char *raw_eye_data = priv->raw_eye_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+	unsigned short ii, grp, part;
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "eyescan")) {
-+		part = cmdinfo.args[0];
-+		if (part == EYE_PART_0) {
-+			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
-+				aeon_ipc_sync_parity(phydev);
-+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-+			}
-+		} else if (part == EYE_PART_1) {
-+			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
-+				aeon_ipc_sync_parity(phydev);
-+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-+			}
-+		} else {
-+			return -EINVAL;
-+		}
-+	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
-+		pr_info("RAW EYE data:\n");
-+		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
-+			if (ii % 16 == 0)
-+				pr_info("\n");
-+			pr_info("0x%02x ", raw_eye_data[ii]);
-+		}
-+		pr_info("\n");
-+
-+		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
-+	} else {
-+		printk_sds2nd_eye_diagram_usage();
-+	}
-+
 +	return count;
 +}
 +
@@ -4832,133 +5030,6 @@ index 0000000..aff7758
 +	return count;
 +}
 +
-+
-+static ssize_t aeon_normal_retrain_read_proc(struct file *file, char __user *buffer,
-+					     size_t count, loff_t *pos)
-+{
-+	printk_normal_retrain_usage();
-+
-+	return 0;
-+}
-+
-+static ssize_t aeon_normal_retrain_write_proc(struct file *file, const char __user *buffer,
-+					      size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "nr")) {
-+		if (cmdinfo.argc != 1)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_normal_retrain_cfg(cmdinfo.args[0], phydev);
-+		pr_info("Set normal retrain successfully!\n");
-+	} else
-+		printk_normal_retrain_usage();
-+
-+	return count;
-+}
-+
-+static ssize_t aeon_sds_txfir_read_proc(struct file *file, char __user *buffer,
-+					size_t count, loff_t *pos)
-+{
-+	printk_sds_txfir_usage();
-+
-+	return 0;
-+}
-+
-+static ssize_t aeon_sds_txfir_write_proc(struct file *file, const char __user *buffer,
-+					 size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+	unsigned short pre, main, post;
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "SdsTxFir")) {
-+		if (cmdinfo.argc != 3)
-+			return -EINVAL;
-+		pre = cmdinfo.args[0];
-+		main = cmdinfo.args[1];
-+		post = cmdinfo.args[2];
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_ipc_sds_txfir(0, pre, main, post, phydev);
-+	} else
-+		printk_sds_txfir_usage();
-+
-+	return count;
-+}
-+
-+static ssize_t aeon_auto_link_read_proc(struct file *file, char __user *buffer,
-+					size_t count, loff_t *pos)
-+{
-+	printk_auto_link_usage();
-+
-+	return 0;
-+}
-+
-+static ssize_t aeon_auto_link_write_proc(struct file *file, const char __user *buffer,
-+					 size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+	unsigned char enable = 0;
-+	unsigned char link_type = 0;
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "AutoLinkEna")) {
-+		if (cmdinfo.argc != 1)
-+			return -EINVAL;
-+		enable = cmdinfo.args[0];
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_ipc_auto_link_ena(enable, phydev);
-+	} else if (!strcmp(cmdinfo.cmd, "AutoLinkCfg")) {
-+		if (cmdinfo.argc != 1)
-+			return -EINVAL;
-+		link_type = cmdinfo.args[0];
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_ipc_auto_link_cfg(link_type, phydev);
-+	} else
-+		printk_auto_link_usage();
-+
-+	return count;
-+}
-+
 +static ssize_t aeon_force_mdi_mode_read_proc(struct file *file, char __user *buffer,
 +					     size_t count, loff_t *pos)
 +{
@@ -5001,44 +5072,6 @@ index 0000000..aff7758
 +	} else
 +		printk_force_mdi_mode_usage();
 +
-+	return count;
-+}
-+
-+static ssize_t aeon_tx_power_lvl_read_proc(struct file *file, char __user *buffer,
-+					   size_t count, loff_t *pos)
-+{
-+	printk_tx_power_lvl_usage();
-+
-+	return 0;
-+}
-+
-+static ssize_t aeon_tx_power_lvl_write_proc(struct file *file, const char __user *buffer,
-+					    size_t count, loff_t *pos)
-+{
-+	struct phy_device *phydev = file->private_data;
-+	char val_string[MAX_BUF] = { 0 };
-+	struct parsed_cmd cmdinfo = { 0 };
-+
-+	if (count >= sizeof(val_string))
-+		return -EINVAL;
-+
-+	if (copy_from_user(val_string, buffer, count))
-+		return -EFAULT;
-+
-+	val_string[count] = '\0';
-+
-+	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-+		return -EINVAL;
-+
-+	if (!strcmp(cmdinfo.cmd, "txgain")) {
-+		if (cmdinfo.argc != 1)
-+			return -EINVAL;
-+
-+		aeon_ipc_sync_parity(phydev);
-+		aeon_ipc_set_tx_power_lvl(cmdinfo.args[0], phydev);
-+		pr_info("Set TX power level successfully!\n");
-+	} else
-+		printk_tx_power_lvl_usage();
 +
 +	return count;
 +}
@@ -5069,7 +5102,7 @@ index 0000000..aff7758
 +	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
 +		return -EINVAL;
 +
-+	if (!strcmp(cmdinfo.cmd, "synce_master")) {
++	if (!strcmp(cmdinfo.cmd, "synce_master_mode")) {
 +		if (cmdinfo.argc != 2)
 +			return -EINVAL;
 +
@@ -5267,13 +5300,6 @@ index 0000000..aff7758
 +	.write = aeon_sys_reboot_write_proc,
 +};
 +
-+static const struct file_operations aeon_auto_eee_cfg_fops = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_auto_eee_cfg_read_proc,
-+	.write = aeon_auto_eee_cfg_write_proc,
-+};
-+
 +static const struct file_operations aeon_read_reg_fops = {
 +	.owner = THIS_MODULE,
 +	.open = simple_open,
@@ -5295,18 +5321,26 @@ index 0000000..aff7758
 +	.write = aeon_eth_status_write_proc,
 +};
 +
-+static const struct file_operations aeon_pkt_chk_cfg_fops = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_pkt_chk_cfg_read_proc,
-+	.write = aeon_pkt_chk_cfg_write_proc,
-+};
-+
++#ifndef AEON_SEI2
 +static const struct file_operations aeon_mdc_timing_fops = {
 +	.owner = THIS_MODULE,
 +	.open = simple_open,
 +	.read = aeon_mdc_timing_read_proc,
 +	.write = aeon_mdc_timing_write_proc,
++};
++
++static const struct file_operations aeon_auto_eee_cfg_fops = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_auto_eee_cfg_read_proc,
++	.write = aeon_auto_eee_cfg_write_proc,
++};
++
++static const struct file_operations aeon_pkt_chk_cfg_fops = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_pkt_chk_cfg_read_proc,
++	.write = aeon_pkt_chk_cfg_write_proc,
 +};
 +
 +static const struct file_operations aeon_sds_wait_eth_fops = {
@@ -5315,6 +5349,70 @@ index 0000000..aff7758
 +	.read = aeon_sds_wait_eth_cfg_read_proc,
 +	.write = aeon_sds_wait_eth_cfg_write_proc,
 +};
++
++static const struct file_operations aeon_sds_restart_an_fops = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds_restart_an_read_proc,
++	.write = aeon_sds_restart_an_write_proc,
++};
++
++static const struct file_operations aeon_tx_power_lvl = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_tx_power_lvl_read_proc,
++	.write = aeon_tx_power_lvl_write_proc,
++};
++
++static const struct file_operations aeon_sds2nd_enable_cfg = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds2nd_enable_read_proc,
++	.write = aeon_sds2nd_enable_write_proc,
++};
++
++static const struct file_operations aeon_sds2nd_eq = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds2nd_eq_read_proc,
++	.write = aeon_sds2nd_eq_write_proc,
++};
++
++static const struct file_operations aeon_sds2nd_mode = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds2nd_mode_read_proc,
++	.write = aeon_sds2nd_mode_write_proc,
++};
++
++static const struct file_operations aeon_sds2nd_eye_diagram_data = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds2nd_eye_diagram_read_proc,
++	.write = aeon_sds2nd_eye_diagram_write_proc,
++};
++
++static const struct file_operations aeon_normal_retrain = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_normal_retrain_read_proc,
++	.write = aeon_normal_retrain_write_proc,
++};
++
++static const struct file_operations aeon_auto_link = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_auto_link_read_proc,
++	.write = aeon_auto_link_write_proc,
++};
++
++static const struct file_operations aeon_sds_txfir = {
++	.owner = THIS_MODULE,
++	.open = simple_open,
++	.read = aeon_sds_txfir_read_proc,
++	.write = aeon_sds_txfir_write_proc,
++};
++#endif
 +
 +static const struct file_operations aeon_phy_enable_fops = {
 +	.owner = THIS_MODULE,
@@ -5336,13 +5434,6 @@ index 0000000..aff7758
 +	.write = aeon_erase_flash_write_proc,
 +};
 +#endif
-+static const struct file_operations aeon_sds_restart_an_fops = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds_restart_an_read_proc,
-+	.write = aeon_sds_restart_an_write_proc,
-+};
-+
 +static const struct file_operations aeon_test_mode_fops = {
 +	.owner = THIS_MODULE,
 +	.open = simple_open,
@@ -5406,34 +5497,6 @@ index 0000000..aff7758
 +	.write = aeon_eye_diagram_write_proc,
 +};
 +
-+static const struct file_operations aeon_sds2nd_eye_diagram_data = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds2nd_eye_diagram_read_proc,
-+	.write = aeon_sds2nd_eye_diagram_write_proc,
-+};
-+
-+static const struct file_operations aeon_sds2nd_enable_cfg = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds2nd_enable_read_proc,
-+	.write = aeon_sds2nd_enable_write_proc,
-+};
-+
-+static const struct file_operations aeon_sds2nd_eq = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds2nd_eq_read_proc,
-+	.write = aeon_sds2nd_eq_write_proc,
-+};
-+
-+static const struct file_operations aeon_sds2nd_mode = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds2nd_mode_read_proc,
-+	.write = aeon_sds2nd_mode_write_proc,
-+};
-+
 +static const struct file_operations aeon_force_mode = {
 +	.owner = THIS_MODULE,
 +	.open = simple_open,
@@ -5441,32 +5504,11 @@ index 0000000..aff7758
 +	.write = aeon_force_mode_write_proc,
 +};
 +
-+static const struct file_operations aeon_parallel_detect = {
++static const struct file_operations aeon_parallel_det_cfg = {
 +	.owner = THIS_MODULE,
 +	.open = simple_open,
 +	.read = aeon_parallel_det_read_proc,
 +	.write = aeon_parallel_det_write_proc,
-+};
-+
-+static const struct file_operations aeon_normal_retrain = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_normal_retrain_read_proc,
-+	.write = aeon_normal_retrain_write_proc,
-+};
-+
-+static const struct file_operations aeon_sds_txfir = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_sds_txfir_read_proc,
-+	.write = aeon_sds_txfir_write_proc,
-+};
-+
-+static const struct file_operations aeon_auto_link = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_auto_link_read_proc,
-+	.write = aeon_auto_link_write_proc,
 +};
 +
 +static const struct file_operations aeon_force_mdi_mode = {
@@ -5474,13 +5516,6 @@ index 0000000..aff7758
 +	.open = simple_open,
 +	.read = aeon_force_mdi_mode_read_proc,
 +	.write = aeon_force_mdi_mode_write_proc,
-+};
-+
-+static const struct file_operations aeon_tx_power_lvl = {
-+	.owner = THIS_MODULE,
-+	.open = simple_open,
-+	.read = aeon_tx_power_lvl_read_proc,
-+	.write = aeon_tx_power_lvl_write_proc,
 +};
 +
 +static const struct file_operations aeon_synce_master = {
@@ -5550,20 +5585,40 @@ index 0000000..aff7758
 +			    &aeon_temp_monitor_fops);
 +	debugfs_create_file("aeon_set_sys_reboot", 0644, dir, phydev,
 +			    &aeon_set_sys_reboot_fops);
++#ifndef AEON_SEI2
++	debugfs_create_file("aeon_mdc_timing", 0644, dir, phydev,
++			    &aeon_mdc_timing_fops);
 +	debugfs_create_file("aeon_auto_eee_cfg", 0644, dir, phydev,
 +			    &aeon_auto_eee_cfg_fops);
++	debugfs_create_file("aeon_pkt_chk_cfg", 0644, dir, phydev,
++			    &aeon_pkt_chk_cfg_fops);
++	debugfs_create_file("aeon_sds_wait_eth", 0644, dir, phydev,
++			    &aeon_sds_wait_eth_fops);
++	debugfs_create_file("aeon_sds_restart_an", 0644, dir, phydev,
++			    &aeon_sds_restart_an_fops);
++	debugfs_create_file("aeon_tx_power_lvl", 0644, dir, phydev,
++			    &aeon_tx_power_lvl);
++	debugfs_create_file("aeon_sds2nd_eye_diagram_data", 0644, dir, phydev,
++			    &aeon_sds2nd_eye_diagram_data);
++	debugfs_create_file("aeon_sds2nd_enable", 0644, dir, phydev,
++				&aeon_sds2nd_enable_cfg);
++	debugfs_create_file("aeon_sds2nd_eq_cfg", 0644, dir, phydev,
++			    &aeon_sds2nd_eq);
++	debugfs_create_file("aeon_sds2nd_mode_cfg", 0644, dir, phydev,
++			    &aeon_sds2nd_mode);
++	debugfs_create_file("aeon_normal_retrain", 0644, dir, phydev,
++			    &aeon_normal_retrain);
++	debugfs_create_file("aeon_auto_link", 0644, dir, phydev,
++			    &aeon_auto_link);
++	debugfs_create_file("aeon_sds_txfir", 0644, dir, phydev,
++			    &aeon_sds_txfir);
++#endif
 +	debugfs_create_file("aeon_read_reg", 0644, dir, phydev,
 +			    &aeon_read_reg_fops);
 +	debugfs_create_file("aeon_write_reg", 0644, dir, phydev,
 +			    &aeon_write_reg_fops);
 +	debugfs_create_file("aeon_get_eth_status", 0644, dir, phydev,
 +			    &aeon_get_eth_status_fops);
-+	debugfs_create_file("aeon_pkt_chk_cfg", 0644, dir, phydev,
-+			    &aeon_pkt_chk_cfg_fops);
-+	debugfs_create_file("aeon_mdc_timing", 0644, dir, phydev,
-+			    &aeon_mdc_timing_fops);
-+	debugfs_create_file("aeon_sds_wait_eth", 0644, dir, phydev,
-+			    &aeon_sds_wait_eth_fops);
 +	debugfs_create_file("aeon_phy_enable", 0644, dir, phydev,
 +			    &aeon_phy_enable_fops);
 +#ifdef DUAL_FLASH
@@ -5572,8 +5627,6 @@ index 0000000..aff7758
 +	debugfs_create_file("aeon_erase_flash", 0644, dir, phydev,
 +			    &aeon_erase_flash_fops);
 +#endif
-+	debugfs_create_file("aeon_sds_restart_an", 0644, dir, phydev,
-+			    &aeon_sds_restart_an_fops);
 +	debugfs_create_file("aeon_test_mode", 0644, dir, phydev,
 +			    &aeon_test_mode_fops);
 +	debugfs_create_file("aeon_tx_fullscale", 0644, dir, phydev,
@@ -5592,28 +5645,12 @@ index 0000000..aff7758
 +			    &aeon_cable_diag);
 +	debugfs_create_file("aeon_eye_diagram_data", 0644, dir, phydev,
 +			    &aeon_eye_diagram_data);
-+	debugfs_create_file("aeon_sds2nd_eye_diagram_data", 0644, dir, phydev,
-+			    &aeon_sds2nd_eye_diagram_data);
-+	debugfs_create_file("aeon_sds2nd_enable", 0644, dir, phydev,
-+			    &aeon_sds2nd_enable_cfg);
-+	debugfs_create_file("aeon_sds2nd_eq_cfg", 0644, dir, phydev,
-+			    &aeon_sds2nd_eq);
-+	debugfs_create_file("aeon_sds2nd_mode_cfg", 0644, dir, phydev,
-+			    &aeon_sds2nd_mode);
 +	debugfs_create_file("aeon_force_mode", 0644, dir, phydev,
 +			    &aeon_force_mode);
 +	debugfs_create_file("aeon_parallel_det", 0644, dir, phydev,
-+			    &aeon_parallel_detect);
-+	debugfs_create_file("aeon_normal_retrain", 0644, dir, phydev,
-+			    &aeon_normal_retrain);
-+	debugfs_create_file("aeon_sds_txfir", 0644, dir, phydev,
-+			    &aeon_sds_txfir);
-+	debugfs_create_file("aeon_auto_link", 0644, dir, phydev,
-+			    &aeon_auto_link);
++			    &aeon_parallel_det_cfg);
 +	debugfs_create_file("aeon_force_mdi_mode", 0644, dir, phydev,
 +			    &aeon_force_mdi_mode);
-+	debugfs_create_file("aeon_tx_power_lvl", 0644, dir, phydev,
-+			    &aeon_tx_power_lvl);
 +	debugfs_create_file("aeon_synce_master", 0644, dir, phydev,
 +			    &aeon_synce_master);
 +	debugfs_create_file("aeon_synce_slave_mode1", 0644, dir, phydev,
@@ -5667,7 +5704,7 @@ index 0000000..af66fd1
 +
 +#endif /**/
 diff --git a/drivers/net/phy/as21xxx.c b/drivers/net/phy/as21xxx.c
-index 037d799..48d59a7 100644
+index 037d799..7a9ab28 100644
 --- a/drivers/net/phy/as21xxx.c
 +++ b/drivers/net/phy/as21xxx.c
 @@ -10,6 +10,7 @@
@@ -5718,7 +5755,7 @@ index 037d799..48d59a7 100644
  static struct as21xxx_led_pattern_info as21xxx_led_supported_pattern[] = {
  	{
  		.pattern = BIT(TRIGGER_NETDEV_LINK_10),
-@@ -294,6 +302,108 @@ static struct as21xxx_led_pattern_info as21xxx_led_supported_pattern[] = {
+@@ -294,6 +302,131 @@ static struct as21xxx_led_pattern_info as21xxx_led_supported_pattern[] = {
  	}
  };
  
@@ -5811,6 +5848,29 @@ index 037d799..48d59a7 100644
 +	return ret;
 +}
 +
++static int aeon_mdio_write(struct phy_device *phydev, int dev_addr,
++			   unsigned short phy_reg, unsigned short val)
++{
++	int ret = 0;
++	struct mii_bus *bus = phydev->mdio.bus;
++	int phy_addr = phydev->mdio.addr;
++
++	if (!bus) {
++		phydev_err(phydev, "MDIO bus is NULL\r\n");
++		return -ENODEV;
++	}
++
++	if (phy_addr >= PHY_MAX_ADDR) {
++		phydev_err(phydev, "Invaild PHY address: %d", phy_addr);
++		return -EINVAL;
++	}
++
++	ret = __mdiobus_c45_write(bus, phy_addr, dev_addr, phy_reg, val);
++	__mdiobus_c45_write(bus, 30, 0x1, 0x1, 0x1);
++
++	return ret;
++}
++
 +/* AEONSEMI burst write for load fw */
 +static void aeon_cl45_write_burst(struct phy_device *phydev, unsigned int dev_addr,
 +				  unsigned int phy_reg, const unsigned char *data,
@@ -5827,7 +5887,7 @@ index 037d799..48d59a7 100644
  static int aeon_firmware_boot(struct phy_device *phydev, const u8 *data,
  			      size_t size)
  {
-@@ -349,6 +459,87 @@ static int aeon_firmware_boot(struct phy_device *phydev, const u8 *data,
+@@ -349,6 +482,93 @@ static int aeon_firmware_boot(struct phy_device *phydev, const u8 *data,
  			      VEND1_GLB_CPU_CTRL_MASK, AEON_CPU_CTRL_FW_START);
  }
  
@@ -5877,7 +5937,7 @@ index 037d799..48d59a7 100644
 +		}
 +	}
 +
-+	val = aeon_cl45_read(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL); //GLB_REG_CPU_CTRL
++	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL); //GLB_REG_CPU_CTRL
 +	val |= 0x12;
 +	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL, val);
 +
@@ -5907,15 +5967,21 @@ index 037d799..48d59a7 100644
 +
 +static void aeon_set_fast_mdc_timing(struct phy_device *phydev)
 +{
-+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x53, 0xFFFF);
-+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x54, 0xFFFF);
-+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x55, 0xFFFF);
++	if (param1) {
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x53, 0xFFFF);
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x54, 0xFFFF);
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x55, 0xFFFF);
++	} else {
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x53, 0);
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x54, 0);
++		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x55, 0);
++	}
 +}
 +
  static int aeon_firmware_load(struct phy_device *phydev)
  {
  	struct device *dev = &phydev->mdio.dev;
-@@ -375,39 +566,13 @@ static int aeon_firmware_load(struct phy_device *phydev)
+@@ -375,39 +595,13 @@ static int aeon_firmware_load(struct phy_device *phydev)
  	return ret;
  }
  
@@ -5956,7 +6022,7 @@ index 037d799..48d59a7 100644
  
  	/* The IPC sync by using a single parity bit.
  	 * Each CMD have alternately this bit set or clear
-@@ -433,32 +598,38 @@ static int aeon_ipc_send_cmd(struct phy_device *phydev,
+@@ -433,32 +627,38 @@ static int aeon_ipc_send_cmd(struct phy_device *phydev,
  	if (!ret_sts)
  		return 0;
  
@@ -6010,7 +6076,7 @@ index 037d799..48d59a7 100644
  	int ret;
  	int i;
  
-@@ -468,55 +639,56 @@ static int aeon_ipc_send_msg(struct phy_device *phydev,
+@@ -468,55 +668,56 @@ static int aeon_ipc_send_msg(struct phy_device *phydev,
  	if (data_len > AEON_IPC_DATA_MAX)
  		return -EINVAL;
  
@@ -6069,11 +6135,11 @@ index 037d799..48d59a7 100644
 +	size = FIELD_GET(AEON_IPC_STS_SIZE, ret_sts);
 +	if (size > AEON_IPC_DATA_MAX)
 +		return -EINVAL;
++
++	mutex_lock(&priv->ipc_lock);
  
 -	/* Read data from IPC data register for ret_size value from IPC */
 -	for (i = 0; i < DIV_ROUND_UP(ret_size, sizeof(u16)); i++) {
-+	mutex_lock(&priv->ipc_lock);
-+
 +	for (i = 0; i < DIV_ROUND_UP(size, sizeof(u16)); i++) {
  		ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_IPC_DATA(i));
 -		if (ret < 0)
@@ -6096,7 +6162,7 @@ index 037d799..48d59a7 100644
  }
  
  static int aeon_ipc_noop(struct phy_device *phydev,
-@@ -570,21 +742,20 @@ static int aeon_ipc_sync_parity(struct phy_device *phydev,
+@@ -570,21 +771,20 @@ static int aeon_ipc_sync_parity(struct phy_device *phydev,
  static int aeon_ipc_get_fw_version(struct phy_device *phydev)
  {
  	u16 ret_data[AEON_IPC_DATA_NUM_REGISTERS], data[1];
@@ -6125,7 +6191,7 @@ index 037d799..48d59a7 100644
  
  	return 0;
  }
-@@ -592,12 +763,42 @@ static int aeon_ipc_get_fw_version(struct phy_device *phydev)
+@@ -592,12 +792,45 @@ static int aeon_ipc_get_fw_version(struct phy_device *phydev)
  static int aeon_dpc_ra_enable(struct phy_device *phydev)
  {
  	u16 data[2];
@@ -6165,20 +6231,21 @@ index 037d799..48d59a7 100644
 +	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 +			 phydev->supported);
 +
++	/* AS21xxx does not support C22 registers */
++	phydev->c45_ids.devices_in_package &= ~BIT(0);
++
 +	return 0;
  }
  
  static int as21xxx_probe(struct phy_device *phydev)
-@@ -611,8 +812,14 @@ static int as21xxx_probe(struct phy_device *phydev)
+@@ -611,8 +844,12 @@ static int as21xxx_probe(struct phy_device *phydev)
  		return -ENOMEM;
  	phydev->priv = priv;
  
 -	ret = devm_mutex_init(&phydev->mdio.dev,
 -			      &priv->ipc_lock);
-+	if (param1) {
-+		aeon_set_fast_mdc_timing(phydev);
-+		aeon_set_default_value(phydev);
-+	}
++	aeon_set_fast_mdc_timing(phydev);
++	aeon_set_default_value(phydev);
 +
 +	ret = aeon_firmware_load(phydev);
 +
@@ -6186,7 +6253,7 @@ index 037d799..48d59a7 100644
  	if (ret)
  		return ret;
  
-@@ -624,84 +831,178 @@ static int as21xxx_probe(struct phy_device *phydev)
+@@ -624,84 +861,178 @@ static int as21xxx_probe(struct phy_device *phydev)
  	if (ret)
  		return ret;
  
@@ -6210,13 +6277,13 @@ index 037d799..48d59a7 100644
 -	int status;
 +	int status = 0, bmcr;
 +	bool link_up;
-+
-+	bmcr = phy_read_mmd(phydev, MDIO_MMD_AN, AS21XXX_MDIO_AN_C22 + MII_BMCR);
-+	if (bmcr < 0)
-+		return bmcr;
  
 -	/* Normal C22 BMCR report inconsistent data, use
 -	 * the mapped C22 in C45 to have more consistent link info.
++	bmcr = phy_read_mmd(phydev, MDIO_MMD_AN, AS21XXX_MDIO_AN_C22 + MII_BMCR);
++	if (bmcr < 0)
++		return bmcr;
++
 +	/* Autoneg is being started, therefore disregard BMSR value and
 +	 * report link as down.
  	 */
@@ -6317,15 +6384,11 @@ index 037d799..48d59a7 100644
 +		lpa = phy_read_mmd(phydev, MDIO_MMD_AN, AS21XXX_MDIO_AN_C22 + MII_LPA);
 +		if (lpa < 0)
 +			return lpa;
- 
--		if (adv < 0)
--			return adv;
++
 +		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
- 
--		if (adv & CTL1000_ENABLE_MASTER)
--			phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
-+		/* Read the link partner's 10G advertisment */
-+		lpa = aeon_cl45_read(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
++
++		/* Read the link partner's 10G advertisement */
++		lpa = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
 +		if (lpa < 0)
 +			return lpa;
 +
@@ -6333,10 +6396,14 @@ index 037d799..48d59a7 100644
 +	} else {
 +		linkmode_zero(phydev->lp_advertising);
 +	}
-+
+ 
+-		if (adv < 0)
+-			return adv;
 +	return 0;
 +}
-+
+ 
+-		if (adv & CTL1000_ENABLE_MASTER)
+-			phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
 +static void aeon_read_speed(struct phy_device *phydev)
 +{
 +	int bmcr, speed;
@@ -6407,7 +6474,7 @@ index 037d799..48d59a7 100644
  
  	/* why bother the PHY if nothing can have changed */
  	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
-@@ -712,57 +1013,15 @@ static int as21xxx_read_status(struct phy_device *phydev)
+@@ -712,57 +1043,15 @@ static int as21xxx_read_status(struct phy_device *phydev)
  	phydev->pause = 0;
  	phydev->asym_pause = 0;
  
@@ -6473,7 +6540,7 @@ index 037d799..48d59a7 100644
  	}
  
  	return 0;
-@@ -876,69 +1135,98 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
+@@ -876,69 +1165,98 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
  			      mask, val);
  }
  
@@ -6507,12 +6574,12 @@ index 037d799..48d59a7 100644
 +
 +	return pid;
 +}
-+
+ 
+-	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MII_PHYSID2);
 +static int as21xxx_config_led(struct phy_device *phydev)
 +{
 +	int ret;
- 
--	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MII_PHYSID2);
++
 +	/* LED0 */
 +	ret = as21xxx_led_hw_control_set(phydev, 0,
 +					 BIT(TRIGGER_NETDEV_LINK));
@@ -6622,7 +6689,7 @@ index 037d799..48d59a7 100644
  	return ret;
  }
  
-@@ -952,13 +1240,26 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -952,13 +1270,27 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21XXX),
  		.name		= "Aeonsemi AS21xxx",
  		.match_phy_device = as21xxx_match_phy_device,
@@ -6632,6 +6699,7 @@ index 037d799..48d59a7 100644
 +		.read_status	= as21xxx_read_status,
 +		.config_init	= as21xxx_config_init,
 +		.read_mmd	= aeon_mdio_read,
++		.write_mmd	= aeon_mdio_write,
 +		.led_brightness_set = as21xxx_led_brightness_set,
 +		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 +		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -6649,7 +6717,7 @@ index 037d799..48d59a7 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -969,8 +1270,10 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -969,8 +1301,10 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21011PB1),
  		.name		= "Aeonsemi AS21011PB1",
  		.probe		= as21xxx_probe,
@@ -6660,7 +6728,7 @@ index 037d799..48d59a7 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -981,8 +1284,10 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -981,8 +1315,10 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21010PB1),
  		.name		= "Aeonsemi AS21010PB1",
  		.probe		= as21xxx_probe,
@@ -6672,7 +6740,7 @@ index 037d799..48d59a7 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -993,7 +1298,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -993,7 +1329,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21010JB1),
  		.name		= "Aeonsemi AS21010JB1",
  		.probe		= as21xxx_probe,
@@ -6682,7 +6750,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1005,7 +1312,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1005,7 +1343,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21210PB1),
  		.name		= "Aeonsemi AS21210PB1",
  		.probe		= as21xxx_probe,
@@ -6692,7 +6760,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1017,7 +1326,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1017,7 +1357,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21510JB1),
  		.name		= "Aeonsemi AS21510JB1",
  		.probe		= as21xxx_probe,
@@ -6702,7 +6770,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1029,7 +1340,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1029,7 +1371,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21510PB1),
  		.name		= "Aeonsemi AS21510PB1",
  		.probe		= as21xxx_probe,
@@ -6712,7 +6780,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1041,7 +1354,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1041,7 +1385,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21511JB1),
  		.name		= "Aeonsemi AS21511JB1",
  		.probe		= as21xxx_probe,
@@ -6722,7 +6790,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1053,7 +1368,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1053,7 +1399,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21210JB1),
  		.name		= "Aeonsemi AS21210JB1",
  		.probe		= as21xxx_probe,
@@ -6732,7 +6800,7 @@ index 037d799..48d59a7 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1065,7 +1382,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1065,7 +1413,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21511PB1),
  		.name		= "Aeonsemi AS21511PB1",
  		.probe		= as21xxx_probe,
