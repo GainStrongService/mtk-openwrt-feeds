@@ -1935,7 +1935,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 
 	if (eth->soc->has_sram &&
 	    mtk_validate_sram_range(eth, eth->fq_ring.phy_scratch_ring,
-				    cnt * soc->txrx.txd_size)) {
+				    (dma_addr_t)cnt * soc->txrx.txd_size)) {
 		eth->fq_ring.scratch_ring = eth->sram_base;
 		eth->fq_ring.in_sram = true;
 	} else {
@@ -2227,7 +2227,7 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 #endif
 
 #if IS_ENABLED(CONFIG_MEDIATEK_NETSYS_V3)
-	if (mtk_get_tnl_netsys_params && skb && !(skb->inner_protocol == IPPROTO_ESP)) {
+	if (mtk_get_tnl_netsys_params && !(skb->inner_protocol == IPPROTO_ESP)) {
 		params = mtk_get_tnl_netsys_params(skb);
 		tops_entry = params & 0x000000FF;
 		tport = (params & 0x0000FF00) >> 8;
@@ -3144,7 +3144,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth, int ring_no)
 
 	if (eth->soc->has_sram &&
 	    mtk_validate_sram_range(eth, eth->fq_ring.phy_scratch_ring + offset,
-				    soc->txrx.tx_dma_size * sz)) {
+				    soc->txrx.tx_dma_size * (dma_addr_t)sz)) {
 		ring->dma =  eth->sram_base + offset;
 		ring->phys = eth->fq_ring.phy_scratch_ring + offset;
 		ring->in_sram = true;
@@ -6087,9 +6087,13 @@ err_free_data:
 
 static void mtk_release_mux(struct mtk_eth *eth, int id)
 {
-	struct mtk_mux *mux = eth->mux[id];
+	struct mtk_mux *mux;
 	int i;
 
+	if (id < 0 || id >= MTK_MAX_DEVS)
+		return;
+
+	mux = eth->mux[id];
 	if (!mux)
 		return;
 
@@ -6134,7 +6138,7 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 	}
 
 	id = be32_to_cpup(_id);
-	if (id < 0 || id >= MTK_MAX_DEVS) {
+	if (id >= MTK_MAX_DEVS) {
 		dev_err(eth->dev, "%d is not a valid attach mac id\n", id);
 		return -EINVAL;
 	}
@@ -6430,6 +6434,8 @@ static int mtk_probe(struct platform_device *pdev)
 			return PTR_ERR(eth->sram_base);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (unlikely(!res))
+			return -EINVAL;
 		eth->sram_size = resource_size(res);
 	} else {
 		eth->sram_base = (void __force *)eth->base + MTK_ETH_SRAM_OFFSET;
