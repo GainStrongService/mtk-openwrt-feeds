@@ -1423,15 +1423,22 @@ static void mxl862xx_phylink_set_capab(unsigned long *supported,
 	phylink_set(mask, Asym_Pause);
 
 	phylink_set(mask, 2500baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 	phylink_set(mask, 1000baseT_Full);
 	phylink_set(mask, 1000baseT_Half);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
 
-	if (sup_10g)
+	if (sup_10g) {
 		phylink_set(mask, 10000baseT_Full);
+		phylink_set(mask, 10000baseKR_Full);
+		phylink_set(mask, 10000baseCR_Full);
+		phylink_set(mask, 10000baseSR_Full);
+		phylink_set(mask, 10000baseLR_Full);
+	} else {
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+	}
 
 	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_and(state->advertising, state->advertising, mask,
@@ -1452,7 +1459,11 @@ static void mxl862xx_phylink_validate(struct dsa_switch *ds, int port,
 		if (state->interface != PHY_INTERFACE_MODE_INTERNAL)
 			goto unsupported;
 	} else if (port >= 8 && priv->hw_info->ext_ports == 2) {
-		if (state->interface != PHY_INTERFACE_MODE_USXGMII &&
+		if (
+#if (KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE)
+		    state->interface != PHY_INTERFACE_MODE_NA &&
+#endif
+		    state->interface != PHY_INTERFACE_MODE_USXGMII &&
 		    state->interface != PHY_INTERFACE_MODE_10GKR &&
 		    state->interface != PHY_INTERFACE_MODE_INTERNAL &&
 		    state->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -1493,7 +1504,6 @@ static void mxl862xx_phylink_get_caps(struct dsa_switch *ds, int port,
 	    (port >= 8 && priv->hw_info->ext_ports >= 7)) {
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL, config->supported_interfaces);
 	} else if (port >= 8 && priv->hw_info->ext_ports == 2) {
-		__set_bit(PHY_INTERFACE_MODE_INTERNAL, config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_SGMII, config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_1000BASEX, config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_2500BASEX, config->supported_interfaces);
