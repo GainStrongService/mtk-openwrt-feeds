@@ -16,6 +16,8 @@ PATCH_DIR:= ../patches
 
 include $(INCLUDE_DIR)/package.mk
 
+EARLY_TA_LIST = $(PKG_BUILD_DIR)/early-ta-path
+
 include optee-os.mk
 include optee-client.mk
 include optee-test.mk
@@ -73,7 +75,6 @@ define Build/Prepare
 	if [[ -d $(PKG_BUILD_DIR) ]] ; then rm -rf $(PKG_BUILD_DIR) ; fi
 	if [[ -f $(CFFI_BACKEND_SO_PATH)/_cffi_backend.cpython-39-$(MODULE_ARCH)-linux-gnu.so ]] ; then $(call link_cffi_backend_so) ; fi
 
-	rm -rf $(EARLY_TA_LIST)
 	mkdir -p $(PKG_BUILD_DIR)
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)
@@ -109,6 +110,13 @@ define Build/Prepare
 		rm -r $(PKG_BUILD_DIR)/$(OPTEE_TEST_MTK_NAME)
 endef
 
+
+define Build/Compile/add_early_ta
+	if [[ -f $(EARLY_TA_LIST) ]] ; then rm -rf $(EARLY_TA_LIST) ; fi
+	$(call Build/Compile/optee-os/add_optee_early_ta)
+	$(call Build/Compile/optee-apps/add_optee_early_ta)
+endef
+
 MAKE_VARS:= \
 	CROSS_COMPILE=$(TARGET_CROSS) \
 	CROSS_COMPILE64=$(TARGET_CROSS)
@@ -123,7 +131,7 @@ endif
 ifeq ($(CONFIG_OPTEE_OFFLINE_SIGN),y)
 	$(call tas-offline-sign)
 endif
-	$(call Build/Compile/add_early_ta,$(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/ta/trusted_keys)
+	$(call Build/Compile/add_early_ta)
 endef
 
 define Build/Install

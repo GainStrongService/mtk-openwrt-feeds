@@ -7,9 +7,13 @@
 
 OPTEE_APPS_NAME:=optee_apps
 
-EARLY_TA_LIST=$(PKG_BUILD_DIR)/early-ta-path
-
 TA_DEV_KIT_DIR:=$(PKG_BUILD_DIR)/optee_os/out/arm/export-ta_arm64
+
+define Build/Compile/optee-apps/add_optee_early_ta
+	-find $(PKG_BUILD_DIR)/$(OPTEE_APPS_NAME)/out/ta/early \
+		-name "*.stripped.elf" \
+		-exec realpath {} \; >> $(EARLY_TA_LIST)
+endef
 
 define Build/Compile/optee-apps
 	$(MAKE_VARS) \

@@ -16,8 +16,13 @@ define Download/optee-os
   HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
 endef
 
-define Build/Compile/add_early_ta
+define Build/Compile/optee-os/add_early_ta_to_list
 	echo $(1)/*.stripped.elf >> $(EARLY_TA_LIST)
+endef
+
+define Build/Compile/optee-os/add_optee_early_ta
+	$(call Build/Compile/optee-os/add_early_ta_to_list, \
+		$(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/ta/trusted_keys)
 endef
 
 define Build/Compile/optee-os
