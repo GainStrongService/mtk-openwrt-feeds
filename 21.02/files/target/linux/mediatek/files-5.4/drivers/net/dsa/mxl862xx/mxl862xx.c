@@ -143,6 +143,12 @@ struct mxl862xx_port_info {
 	struct mxl862xx_port_vlan_info vlan;
 };
 
+struct mxl862xx_pcs {
+	struct phylink_pcs pcs;
+	struct mxl862xx_priv *priv;
+	int port;
+};
+
 struct mxl862xx_priv {
 	struct mii_bus *bus;
 	struct device *dev;
@@ -159,6 +165,7 @@ struct mxl862xx_priv {
 #endif
 	uint8_t cpu_port;
 	uint8_t user_pnum;
+	struct mxl862xx_pcs pcs_port_1;
 };
 
 /* The mxl862_8021q 4-byte tagging is not yet supported in
@@ -1195,6 +1202,119 @@ mxl862xx_setup_mdio(struct dsa_switch *ds)
 	return ret;
 }
 
+static struct mxl862xx_pcs *pcs_to_mxl862xx_pcs(struct phylink_pcs *pcs)
+{
+	return container_of(pcs, struct mxl862xx_pcs, pcs);
+}
+
+static void mxl862xx_pcs_get_state(struct phylink_pcs *pcs,
+				 struct phylink_link_state *state)
+{
+	struct mxl862xx_priv *priv = pcs_to_mxl862xx_pcs(pcs)->priv;
+	int port = pcs_to_mxl862xx_pcs(pcs)->port;
+	mxl862xx_port_link_cfg_t port_link_cfg = { 0 };
+	mxl862xx_port_cfg_t port_cfg = { 0 };
+	int ret;
+
+	port_link_cfg.port_id = port;
+	ret = mxl862xx_port_link_cfg_get(&mxl_dev, &port_link_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(priv->dev, "failed to read link configuration on port %d\n", port);
+		return;
+	}
+
+	port_cfg.port_id = port;
+	ret = mxl862xx_port_cfg_get(&mxl_dev, &port_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(priv->dev, "failed to read configuration on port %d\n", port);
+		return;
+	}
+
+	if (port_link_cfg.link == MXL862XX_PORT_LINK_UP)
+		state->link = 1;
+	else
+		state->link = 0;
+	state->an_complete = state->link;
+
+	switch (port_link_cfg.speed) {
+	case MXL862XX_PORT_SPEED_10:
+		state->speed = SPEED_10;
+		break;
+	case MXL862XX_PORT_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case MXL862XX_PORT_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	case MXL862XX_PORT_SPEED_2500:
+		state->speed = SPEED_2500;
+		break;
+	case MXL862XX_PORT_SPEED_5000:
+		state->speed = SPEED_5000;
+		break;
+	case MXL862XX_PORT_SPEED_10000:
+		state->speed = SPEED_10000;
+		break;
+	default:
+		state->speed = SPEED_UNKNOWN;
+		dev_err(priv->dev, "unsupported links speed on port %d\n", port);
+		break;
+	}
+
+	switch (port_link_cfg.duplex) {
+	case MXL862XX_DUPLEX_HALF:
+		state->duplex = DUPLEX_HALF;
+		break;
+	case MXL862XX_DUPLEX_FULL:
+		state->duplex = DUPLEX_FULL;
+		break;
+	default:
+		state->duplex = DUPLEX_UNKNOWN;
+		break;
+	}
+
+	state->pause &= ~(MLO_PAUSE_RX | MLO_PAUSE_TX);
+	switch (port_cfg.flow_ctrl) {
+	case MXL862XX_FLOW_RXTX:
+		state->pause |= MLO_PAUSE_TXRX_MASK;
+		break;
+	case MXL862XX_FLOW_TX:
+		state->pause |= MLO_PAUSE_TX;
+		break;
+	case MXL862XX_FLOW_RX:
+		state->pause |= MLO_PAUSE_RX;
+		break;
+	case MXL862XX_FLOW_OFF:
+	default:
+		break;
+	}
+}
+
+static int mxl862xx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+			     phy_interface_t interface,
+			     const unsigned long *advertising,
+			     bool permit_pause_to_mac)
+{
+	return 0;
+}
+
+static const struct phylink_pcs_ops mxl862xx_pcs_ops = {
+	.pcs_get_state = mxl862xx_pcs_get_state,
+	.pcs_config = mxl862xx_pcs_config,
+};
+
+static void mxl862xx_setup_pcs(struct mxl862xx_priv *priv, struct mxl862xx_pcs *pcs,
+			    int port)
+{
+	pcs->pcs.ops = &mxl862xx_pcs_ops;
+
+	/* poll link changes */
+	pcs->pcs.poll = true;
+	pcs->priv = priv;
+	pcs->port = port;
+}
+
+
 static int mxl862xx_setup(struct dsa_switch *ds)
 {
 	struct mxl862xx_priv *priv = ds->priv;
@@ -1209,6 +1329,9 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 			priv->user_pnum++;
 		else if (dsa_is_cpu_port(ds, j))
 			priv->cpu_port = cpu_port = j;
+
+		if (DSA_MXL_PORT(j) == 13)
+			mxl862xx_setup_pcs(priv, &priv->pcs_port_1, 13);
 	}
 	dev_info(ds->dev, "\tMxl862xx CPU Port %u, User Port number %u\n",
 		 cpu_port, priv->user_pnum);
@@ -1691,6 +1814,34 @@ static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
 {
 	/* MxL862xx system automatically synchronize the state between MAC link and PHY link or Serdes link*/
 	return;
+}
+
+static struct phylink_pcs *
+mxl862xx_phylink_mac_select_pcs(struct dsa_switch *ds,
+				       int port,
+				       phy_interface_t interface)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct phylink_pcs *pcs = NULL;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_USXGMII:
+		switch (DSA_MXL_PORT(port)) {
+		case 13:
+			pcs = &priv->pcs_port_1.pcs;
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return pcs;
 }
 
 static void mxl862xx_get_ethtool_stats(struct dsa_switch *ds, int port,
@@ -2690,7 +2841,7 @@ static int mxl862xx_port_vlan_filtering(struct dsa_switch *ds, int port,
 {
 	int ret = 0;
 	struct mxl862xx_priv *priv = ds->priv;
-	struct dsa_port *dsa_port = dsa_to_port(ds, port);
+	const struct dsa_port *dsa_port = dsa_to_port(ds, port);
 #if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_port);
 #else
@@ -4549,6 +4700,7 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 #else
 	.phylink_get_caps = mxl862xx_phylink_get_caps,
 #endif
+	.phylink_mac_select_pcs	= mxl862xx_phylink_mac_select_pcs,
 	.set_ageing_time = mxl862xx_set_ageing_time,
 	.port_bridge_join = mxl862xx_port_bridge_join,
 	.port_bridge_leave = mxl862xx_port_bridge_leave,
