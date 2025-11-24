@@ -1,0 +1,63 @@
+From bde018222c6b084ac32933a9f933581dd83da18e Mon Sep 17 00:00:00 2001
+From: "Russell King (Oracle)" <rmk+kernel@armlinux.org.uk>
+Date: Thu, 17 Feb 2022 18:30:35 +0000
+Subject: [PATCH] net: dsa: add support for phylink mac_select_pcs()
+
+Add DSA support for the phylink mac_select_pcs() method so DSA drivers
+can return provide phylink with the appropriate PCS for the PHY
+interface mode.
+
+Signed-off-by: Russell King (Oracle) <rmk+kernel@armlinux.org.uk>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+---
+ include/net/dsa.h |  3 +++
+ net/dsa/port.c    | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/include/net/dsa.h b/include/net/dsa.h
+index 0c138e5..7f7e108 100644
+--- a/include/net/dsa.h
++++ b/include/net/dsa.h
+@@ -401,6 +401,9 @@ struct dsa_switch_ops {
+ 	void	(*phylink_validate)(struct dsa_switch *ds, int port,
+ 				    unsigned long *supported,
+ 				    struct phylink_link_state *state);
++	struct phylink_pcs *(*phylink_mac_select_pcs)(struct dsa_switch *ds,
++						      int port,
++						      phy_interface_t iface);
+ 	int	(*phylink_mac_link_state)(struct dsa_switch *ds, int port,
+ 					  struct phylink_link_state *state);
+ 	void	(*phylink_mac_config)(struct dsa_switch *ds, int port,
+diff --git a/net/dsa/port.c b/net/dsa/port.c
+index d39af6a..0ff5e3b 100644
+--- a/net/dsa/port.c
++++ b/net/dsa/port.c
+@@ -453,6 +453,20 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
+ 	return phydev;
+ }
+ 
++static struct phylink_pcs *
++dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
++				phy_interface_t interface)
++{
++	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
++	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
++	struct dsa_switch *ds = dp->ds;
++
++	if (ds->ops->phylink_mac_select_pcs)
++		pcs = ds->ops->phylink_mac_select_pcs(ds, dp->index, interface);
++
++	return pcs;
++}
++
+ void dsa_port_phylink_validate(struct phylink_config *config,
+ 			       unsigned long *supported,
+ 			       struct phylink_link_state *state)
+@@ -551,6 +565,7 @@ EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_up);
+ 
+ const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
+ 	.validate = dsa_port_phylink_validate,
++	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
+ 	.mac_link_state = dsa_port_phylink_mac_link_state,
+ 	.mac_config = dsa_port_phylink_mac_config,
+ 	.mac_an_restart = dsa_port_phylink_mac_an_restart,
