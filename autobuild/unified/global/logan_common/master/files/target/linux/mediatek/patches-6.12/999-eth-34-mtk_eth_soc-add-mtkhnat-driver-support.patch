@@ -1,55 +1,14 @@
-diff --git a/arch/arm64/boot/dts/mediatek/mt7987-netsys.dtsi b/arch/arm64/boot/dts/mediatek/mt7987-netsys.dtsi
-index 163361f..22fadf7 100644
---- a/arch/arm64/boot/dts/mediatek/mt7987-netsys.dtsi
-+++ b/arch/arm64/boot/dts/mediatek/mt7987-netsys.dtsi
-@@ -122,7 +122,7 @@ &hnat {
- 	mtketh-wan = "eth1";
- 	mtketh-lan = "lan";
- 	mtketh-max-gmac = <2>;
--	mtketh-ppe-num = <1>;
-+	mtketh-ppe-num = <2>;
- 	status = "okay";
- };
- 
-diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-index f5bf6df..9849025 100644
---- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-+++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-@@ -144,6 +144,15 @@ &gsw_port3 {
- 	label = "lan3";
- };
- 
-+&hnat {
-+	mtketh-wan = "eth1";
-+	mtketh-lan = "lan";
-+	mtketh-lan2 = "eth2";
-+	mtketh-max-gmac = <3>;
-+	mtketh-ppe-num = <3>;
-+	status = "okay";
-+};
-+
- &i2c0 {
- 	pinctrl-names = "default";
- 	pinctrl-0 = <&i2c0_pins>;
-diff --git a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi b/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-index 9fa657e..105ab8f 100644
---- a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-+++ b/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-@@ -1235,6 +1235,14 @@ i2p5gbe_led1: i2p5gbe-led1@1 {
- 			};
- 		};
- 
-+		hnat: hnat@15000000 {
-+			compatible = "mediatek,mtk-hnat_v5";
-+			reg = <0 0x15100000 0 0x80000>;
-+			resets = <&ethsys 0>;
-+			reset-names = "mtketh";
-+			status = "disabled";
-+		};
-+
- 		wo_ccif0: syscon@151a5000 {
- 			compatible = "mediatek,mt7988-wo-ccif", "syscon";
- 			reg = <0 0x151a5000 0 0x1000>;
+From 4b017f7225bca449e91921801e08de93a8d834c3 Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Mon, 24 Nov 2025 17:41:05 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
+
+---
+ drivers/net/ethernet/mediatek/Kconfig       | 24 +++++++++++++
+ drivers/net/ethernet/mediatek/Makefile      |  1 +
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 38 +++++++++++++++++++++
+ 3 files changed, 63 insertions(+)
+
 diff --git a/drivers/net/ethernet/mediatek/Kconfig b/drivers/net/ethernet/mediatek/Kconfig
 index d974316..1589b36 100644
 --- a/drivers/net/ethernet/mediatek/Kconfig
@@ -84,7 +43,7 @@ index d974316..1589b36 100644
 +
  endif #NET_VENDOR_MEDIATEK
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index 24f7d04..b5ff6a3 100644
+index 7e71f2d..4e8fede 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -11,4 +11,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
@@ -94,11 +53,11 @@ index 24f7d04..b5ff6a3 100644
 +obj-$(CONFIG_NET_MEDIATEK_HNAT) += mtk_hnat/
  obj-$(CONFIG_NET_AIROHA) += airoha_eth.o
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 35a3998..7815722 100644
+index f12693b..3b92cec 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -39,6 +39,10 @@
- #include "mtk_eth_dbg.h"
+@@ -40,6 +40,10 @@
+ #include "mtk_eth_reset.h"
  #include "mtk_wed.h"
  
 +#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
@@ -108,7 +67,7 @@ index 35a3998..7815722 100644
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2730,6 +2734,30 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2733,6 +2737,30 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  
  			skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
  			skb_put(skb, pktlen);
@@ -139,7 +98,7 @@ index 35a3998..7815722 100644
  		}
  
  		skb->dev = netdev;
-@@ -2769,8 +2797,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2772,8 +2800,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
  		}
  
@@ -150,9 +109,9 @@ index 35a3998..7815722 100644
  
  		if (eth->hwlro && eth->debugfs->hwlro_stats.ebl &&
  		    IS_HW_LRO_RING(ring->ring_no)) {
-@@ -4378,8 +4408,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4432,8 +4462,10 @@ static int mtk_open(struct net_device *dev)
+ 		if (err)
  			return err;
- 		}
  
 +#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  		for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
@@ -161,7 +120,7 @@ index 35a3998..7815722 100644
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4533,8 +4565,10 @@ static int mtk_stop(struct net_device *dev)
+@@ -4612,8 +4644,10 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -172,7 +131,7 @@ index 35a3998..7815722 100644
  
  	return 0;
  }
-@@ -6897,6 +6931,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7062,6 +7096,7 @@ static int mtk_probe(struct platform_device *pdev)
  		};
  	}
  
@@ -180,7 +139,7 @@ index 35a3998..7815722 100644
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -6917,6 +6952,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7082,6 +7117,7 @@ static int mtk_probe(struct platform_device *pdev)
  				goto err_deinit_ppe;
  		}
  	}
@@ -188,7 +147,7 @@ index 35a3998..7815722 100644
  
  	mtk_eth_debugfs_init(eth);
  
-@@ -6972,7 +7008,9 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7142,7 +7178,9 @@ static int mtk_probe(struct platform_device *pdev)
  	free_netdev(eth->dummy_dev);
  err_deinit_ppe:
  	mtk_napi_del(eth);
@@ -198,3 +157,6 @@ index 35a3998..7815722 100644
  	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
  err_free_dev:
+-- 
+2.45.2
+
