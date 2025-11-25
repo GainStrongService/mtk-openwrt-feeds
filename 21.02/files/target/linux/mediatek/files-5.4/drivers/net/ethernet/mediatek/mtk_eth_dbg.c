@@ -333,7 +333,7 @@ static ssize_t qdma_queue_write(struct file *file, const char __user *buf,
 	if (copy_from_user(line, buf, length))
 		return -EFAULT;
 
-	if (sscanf(line, "%d %d %d %d %d %d %d", &scheduler, &min_enable, &min_rate,
+	if (sscanf(line, "%10d %10d %10d %10d %10d %10d %10d", &scheduler, &min_enable, &min_rate,
 		   &max_enable, &max_rate, &weight, &resv) != 7)
 		return -EFAULT;
 
@@ -493,12 +493,12 @@ static enum mt753x_presence mt753x_sw_detect(struct mtk_eth *eth)
 	return MT753X_ABSENT;
 }
 
-static enum mt753x_presence mt7530_exist(struct mtk_eth *eth)
+static bool mt7530_exist(struct mtk_eth *eth)
 {
 	if (mt753x_presence == MT753X_UNKNOWN)
 		mt753x_presence = mt753x_sw_detect(eth);
 
-	return mt753x_presence;
+	return (mt753x_presence == MT753X_PRESENT);
 }
 
 void mt753x_set_port_link_state(bool up)
@@ -903,7 +903,7 @@ static ssize_t eth_debug_level_write(struct file *file, const char __user *ptr,
 	char *p_buf;
 	int ret;
 
-	if ((len > 8) || copy_from_user(buf, ptr, len))
+	if ((len >= sizeof(buf)) || copy_from_user(buf, ptr, len))
 		return -EFAULT;
 
 	buf[len] = '\0';
@@ -1372,7 +1372,7 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 	eth_debug.root = debugfs_create_dir("mtketh", NULL);
 	if (!eth_debug.root) {
 		dev_notice(eth->dev, "%s:err at %d\n", __func__, __LINE__);
-		ret = -ENOMEM;
+		return -ENOMEM;
 	}
 
 	debugfs_create_file("pse_info", 0444,
