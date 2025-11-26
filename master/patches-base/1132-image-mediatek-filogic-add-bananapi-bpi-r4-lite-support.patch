@@ -1,6 +1,6 @@
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -642,60 +642,30 @@ define Device/bananapi_bpi-r4-lite
+@@ -661,15 +661,19 @@ define Device/bananapi_bpi-r4-lite
    DEVICE_VENDOR := Bananapi
    DEVICE_MODEL := BPi-R4 Lite
    DEVICE_DTS := mt7987a-bananapi-bpi-r4-lite
@@ -15,30 +15,19 @@
 +	mt7987-sd \
 +	mt7987a-bananapi-bpi-r4-lite-1pcie-2L \
 +	mt7987a-bananapi-bpi-r4-lite-2pcie-1L
-+  DEVICE_DTS_DIR := $(DTS_DIR)/
    DEVICE_DTC_FLAGS := --pad 4096
 -  DEVICE_DTS_DIR := ../dts
++  DEVICE_DTS_DIR := $(DTS_DIR)/
    DEVICE_DTS_LOADADDR := 0x4ff00000
--  DEVICE_PACKAGES := mt7987-2p5g-phy-firmware-internal kmod-eeprom-at24 \
--		     kmod-gpio-pca953x kmod-i2c-mux-pca954x kmod-rtc-pcf8563 \
--		     kmod-sfp e2fsprogs mkf2fs
--  BLOCKSIZE := 128k
--  PAGESIZE := 2048
--  KERNEL_IN_UBI := 1
--  UBOOTENV_IN_UBI := 1
-+  DEVICE_PACKAGES := \
-+  mt798x-2p5g-phy-firmware-internal kmod-sfp blkid \
-+  kmod-i2c-mux-pca954x kmod-eeprom-at24 kmod-rtc-pcf8563 \
-+  kmod-usb3 kmod-hwmon-pwmfan
-   KERNEL_LOADADDR := 0x40000000
-   KERNEL := kernel-bin | gzip
-   KERNEL_INITRAMFS := kernel-bin | lzma | \
-         fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-   IMAGES := sysupgrade.itb
--  KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-+  KERNEL_INITRAMFS_SUFFIX := .itb
+   DEVICE_PACKAGES := kmod-eeprom-at24 kmod-gpio-pca953x kmod-i2c-mux-pca954x \
+-		     kmod-rtc-pcf8563 kmod-sfp kmod-usb3 e2fsprogs mkf2fs mt7987-2p5g-phy-firmware
++		     kmod-rtc-pcf8563 kmod-sfp kmod-usb3 e2fsprogs mkf2fs \
++		     mt798x-2p5g-phy-firmware-internal blkid kmod-hwmon-pwmfan
+   BLOCKSIZE := 128k
+   PAGESIZE := 2048
    KERNEL_IN_UBI := 1
-+  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
+@@ -683,34 +687,6 @@ define Device/bananapi_bpi-r4-lite
+   KERNEL_IN_UBI := 1
    IMAGES := sysupgrade.itb
    IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
 -  ARTIFACTS := \
@@ -69,9 +58,6 @@
 -				   pad-to 64M | append-image squashfs-sysupgrade.itb | check-size |\
 -				) \
 -				  gzip
--ifeq ($(DUMP),)
--  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
--endif
- endef
- TARGET_DEVICES += bananapi_bpi-r4-lite
- 
+ ifeq ($(DUMP),)
+   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
+ endif

@@ -28,14 +28,23 @@
  		__overlay__ {
 --- a/target/linux/mediatek/dts/mt7987a-bananapi-bpi-r4-lite.dts
 +++ b/target/linux/mediatek/dts/mt7987a-bananapi-bpi-r4-lite.dts
+@@ -11,7 +11,7 @@
+ #include "mt7987a-bananapi-bpi-r4-lite-mikrobus.dtsi"
+ 
+ / {
+-	model = "BananaPi BPI-R4 Lite";
++	model = "Bananapi BPI-R4-LITE";
+ 	compatible = "bananapi,bpi-r4-lite",
+ 		     "mediatek,mt7987a", "mediatek,mt7987";
+ 
 @@ -23,17 +23,13 @@
  		i2c2 = &imux1_sfp;
  		i2c3 = &imux2_MikroBus;
  		i2c4 = &imux3;
--		led-boot = &sys_led_blue;
--		led-failsafe = &sys_led_blue;
--		led-running = &sys_led_blue;
--		led-upgrade = &sys_led_blue;
+-		led-boot = &act_led;
+-		led-failsafe = &act_led;
+-		led-running = &act_led;
+-		led-upgrade = &act_led;
 -		serial0 = &uart0;
  	};
  
@@ -50,7 +59,7 @@
  	};
  
  	gpio-keys {
-@@ -54,24 +50,14 @@
+@@ -54,26 +50,18 @@
  		};
  	};
  
@@ -58,26 +67,32 @@
 -		compatible = "gpio-leds";
 -
 -		sfp-led {
--			gpios = <&pca9555 11 GPIO_ACTIVE_LOW>;
 -			function = "sfp";
 -			color = <LED_COLOR_ID_GREEN>;
+-			gpios = <&pca9555 11 GPIO_ACTIVE_LOW>;
 -		};
 -	};
 -
  	pwm-leds {
  		compatible = "pwm-leds";
- 		status = "okay";
++		status = "okay";
  
  		/* ACT LED on bpi-r4-lite */
--		sys_led_blue: sys-led {
+-		act_led: act-led {
 +		sys-led {
  			color = <LED_COLOR_ID_BLUE>;
 -			function = LED_FUNCTION_STATUS;
+-			pwms = <&pwm 0 50000 0>;
 +			label = "act:blue";
- 			pwms = <&pwm 0 50000>;
++			pwms = <&pwm 0 50000>;
  			max-brightness = <255>;
- 			active-high;
-@@ -85,33 +71,8 @@
+-			default-state = "on";
++			active-high;
++			linux,default-trigger = "default-on";
+ 		};
+ 	};
+ 
+@@ -83,40 +71,18 @@
  		los-gpios = <&pio 10 GPIO_ACTIVE_HIGH>;
  		mod-def0-gpios = <&pio 9 GPIO_ACTIVE_LOW>;
  		tx-disable-gpios = <&pio 8 GPIO_ACTIVE_HIGH>;
@@ -102,16 +117,30 @@
 -		regulator-min-microvolt = <5000000>;
 -		regulator-max-microvolt = <5000000>;
 -		gpio = <&pca9555 9 GPIO_ACTIVE_HIGH>;
--	};
--
--	usb-vbus-regulator {
--		compatible = "regulator-output";
--		vout-supply = <&reg_usb_5v>;
+-		enable-active-high;
 -	};
  };
  
  &fan {
-@@ -135,6 +96,11 @@
+-	pwms = <&pwm 2 50000 0>;
++	pwms = <&pwm 2 50000>;
+ 	status = "okay";
+ };
+ 
+ &gmac0 {
+ 	phy-mode = "2500base-x";
+ 	status = "okay";
+-
+ 	fixed-link {
+ 		speed = <2500>;
+ 		full-duplex;
+@@ -125,12 +91,34 @@
+ };
+ 
+ &gmac1 {
+-	openwrt,netdev-name = "wan";
+ 	phy-mode = "internal";
+ 	phy-handle = <&phy15>;
  	status = "okay";
  };
  
@@ -120,30 +149,81 @@
 +	mtketh-max-gmac = <3>;
 +};
 +
- &pwm {
++&pwm {
++	pinctrl-names = "default";
++	pinctrl-0 = <&pwm_pins>;
++	status = "okay";
++};
++
++&pwm_pins {
++	mux {
++		/*
++		 * - pwm0   : PWM0@PIN13
++		 * - pwm1_0 : PWM@PIN7  (share with JTAG)
++		 * - pwm2_0 : PWM2@PIN12 (share with PCM)
++		 */
++		function = "pwm";
++		groups = "pwm0", "pwm1_0", "pwm2_0";
++	};
++};
++
+ &i2c0 {
  	pinctrl-names = "default";
- 	pinctrl-0 = <&pwm_pins>;
-@@ -202,9 +168,6 @@
+ 	pinctrl-0 = <&i2c0_pins>;
+@@ -139,7 +127,6 @@
+ 	pca9545@70 {
+ 		compatible = "nxp,pca9545";
+ 		reg = <0x70>;
+-		vdd-supply = <&reg_3p3v>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -159,7 +146,6 @@
+ 				address-bits = <8>;
+ 				page-size = <8>;
+ 				size = <256>;
+-				vcc-supply = <&reg_3p3v>;
+ 			};
+ 		};
+ 
+@@ -182,19 +168,15 @@
  
  			pca9555: i2c-gpio-expander@20 {
  				compatible = "nxp,pca9555";
+-				reg = <0x20>;
+ 				gpio-controller;
+ 				#gpio-cells = <2>;
 -				interrupt-controller;
 -				interrupt-parent = <&pio>;
 -				interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
- 				gpio-controller;
- 				#gpio-cells = <2>;
- 				reg = <0x20>;
-@@ -213,7 +176,7 @@
- 			wifi_eeprom@50 {
+-				vcc-supply = <&reg_3p3v>;
++				reg = <0x20>;
+ 			};
+ 
+-			/* on the Wi-Fi card */
+-			eeprom@50 {
++			wifi_eeprom@50 {
  				compatible = "atmel,24c02";
  				reg = <0x50>;
--				wp-gpios = <&pca9555 10 GPIO_ACTIVE_LOW>;
 +
  				address-bits = <8>;
  				page-size = <8>;
  				size = <256>;
-@@ -235,11 +198,7 @@
- 	switch31: switch@31 {
+@@ -206,108 +188,58 @@
+ &mdio {
+ 	/* built-in 2.5G Ethernet PHY */
+ 	phy15: phy@15 {
+-		compatible = "ethernet-phy-ieee802.3-c45";
+-		reg = <15>;
+ 		pinctrl-names = "i2p5gbe-led";
+ 		pinctrl-0 = <&i2p5gbe_led0_pins>;
++		compatible = "ethernet-phy-ieee802.3-c45";
++		reg = <15>;
++		phy-mode = "internal";
+ 	};
+ 
+-	switch: switch@31 {
++	switch31: switch@31 {
  		compatible = "mediatek,mt7531";
  		reg = <31>;
 -		reset-gpios = <&pio 42 GPIO_ACTIVE_HIGH>;
@@ -151,14 +231,51 @@
 -		#interrupt-cells = <1>;
 -		interrupt-parent = <&pio>;
 -		interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
+-	};
+-};
+-
+-&pcie0 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pcie0_pins>;
+-	status = "okay";
+-};
+-
+-&pcie1 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pcie1_pins>;
+-	status = "disabled";
+-};
+-
+-&pwm {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pwm_pins>;
+-	status = "okay";
+-};
+-
+-&pwm_pins {
+-	mux {
+-		/*
+-		 * - pwm0   : PWM0@PIN13
+-		 * - pwm1_0 : PWM@PIN7  (share with JTAG)
+-		 * - pwm2_0 : PWM2@PIN12 (share with PCM)
+-		 */
+-		function = "pwm";
+-		groups = "pwm0", "pwm1_0", "pwm2_0";
 +		reset-gpios = <&pio 42 0>;
- 		status = "okay";
++		status = "okay";
  	};
  };
-@@ -248,17 +207,6 @@
- 	mediatek,u3p-dis-msk=<0>;
- 	phys = <&tphyu2port0 PHY_TYPE_USB2>,
- 	       <&tphyu3port0 PHY_TYPE_USB3>;
+ 
+-&spi2 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&spi2_flash_pins>;
+-	status = "okay";
+-};
+-
+ &ssusb {
+-	vusb33-supply = <&reg_3p3v>;
+-	vbus-supply = <&reg_usb_5v>;
+-	status = "okay";
 -
 -	/*
 -	 * VIA VL817 USB3.1/USB2.0 hub
@@ -170,18 +287,61 @@
 -	 */
 -
 -	// reset-gpios = <&pca9555 8 GPIO_ACTIVE_HIGH>;
++	mediatek,u3p-dis-msk=<0>;
++	phys = <&tphyu2port0 PHY_TYPE_USB2>,
++	       <&tphyu3port0 PHY_TYPE_USB3>;
  };
  
- &switch31 {
-@@ -312,10 +260,3 @@
+-&switch {
++&switch31 {
+ 	ports {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+ 		port@0 {
+ 			reg = <0>;
+-			label = "lan1";
++			label = "lan0";
+ 		};
+ 
+ 		port@1 {
+ 			reg = <1>;
+-			label = "lan2";
++			label = "lan1";
+ 		};
+ 
+ 		port@2 {
+ 			reg = <2>;
+-			label = "lan3";
++			label = "lan2";
+ 		};
+ 
+ 		port@3 {
+ 			reg = <3>;
+-			label = "lan4";
++			label = "lan3";
+ 		};
+ 
+ 		port@5 {
+ 			reg = <5>;
+-			label = "sfp";
+-			sfp = <&sfp>;
++			label = "sfp0";
+ 			phy-mode = "2500base-x";
++			sfp = <&sfp>;
+ 			managed = "in-band-status";
+-			openwrt,netdev-name = "sfp-lan";
+ 		};
+ 
+ 		port@6 {
+@@ -328,9 +260,3 @@
  &tphyu3port0 {
  	status = "okay";
  };
 -
--&spi2 {
+-&uart0 {
 -	pinctrl-names = "default";
--	pinctrl-0 = <&spi2_flash_pins>;
--
+-	pinctrl-0 = <&uart0_pins>;
 -	status = "okay";
 -};
 --- a/target/linux/mediatek/dts/mt7987a.dtsi
@@ -195,17 +355,61 @@
  
  / {
  	compatible = "mediatek,mt7987a", "mediatek,mt7987";
-@@ -31,10 +33,6 @@
+@@ -14,17 +16,36 @@
+ 	memory {
+ 		reg = <0 0x40000000 0 0x10000000>;
+ 	};
++
+ };
+ 
+ &boottrap {
+ 	status = "okay";
+ };
+ 
++&i2c0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&i2c0_pins>;
++	status = "okay";
++};
++
+ &infra_bus_prot {
  	status = "okay";
  };
  
 -&lvts {
--	status = "okay";
--};
--
- &pcie0 {
- 	pinctrl-names = "default";
- 	pinctrl-0 = <&pcie0_pins>;
++&pcie0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&pcie0_pins>;
++	status = "okay";
++};
++
++&pcie1 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&pcie1_pins>;
++	status = "disabled";
++};
++
++&pwm {
+ 	status = "okay";
+ };
+ 
+@@ -32,6 +53,16 @@
+ 	status = "okay";
+ };
+ 
++&uart0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart0_pins>;
++	status = "okay";
++};
++
+ &watchdog {
+ 	status = "okay";
+ };
++
++&ssusb {
++	status = "okay";
++};
 --- a/target/linux/mediatek/dts/mt7987a-rfb.dts
 +++ b/target/linux/mediatek/dts/mt7987a-rfb.dts
 @@ -14,10 +14,10 @@
@@ -241,9 +445,57 @@
  		pinctrl-names = "default";
  		pinctrl-0 = <&pwm_rgb_pins>;
  		status = "disabled";
+@@ -81,39 +83,7 @@
+ 	};
+ };
+ 
+-&i2c0 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&i2c0_pins>;
+-	status = "okay";
+-};
+-
+ &fan {
+ 	pwms = <&pwm 0 50000 0>;
+ 	status = "disabled";
+ };
+-
+-&pcie0 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pcie0_pins>;
+-	status = "okay";
+-};
+-
+-&pcie1 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pcie1_pins>;
+-	status = "disabled";
+-};
+-
+-&pwm {
+-	status = "okay";
+-};
+-
+-&ssusb {
+-	status = "okay";
+-};
+-
+-&uart0 {
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&uart0_pins>;
+-	status = "okay";
+-};
 --- a/target/linux/mediatek/dts/mt7987b.dtsi
 +++ b/target/linux/mediatek/dts/mt7987b.dtsi
-@@ -20,12 +20,3 @@
+@@ -6,6 +6,7 @@
+ 
+ /dts-v1/;
+ #include "mt7987a.dtsi"
++#include "mt7987-netsys-eth2-usb.dtsi"
+ 
+ / {
+ 	compatible = "mediatek,mt7987b", "mediatek,mt7987";
+@@ -19,20 +20,3 @@
  		/delete-node/ cpu@3;
  	};
  };
@@ -256,17 +508,35 @@
 -		};
 -	};
 -};
+-
+-&lvts {
+-	status = "okay";
+-};
+-
+-&trng {
+-	status = "okay";
+-};
 --- a/target/linux/mediatek/dts/mt7987.dtsi
 +++ b/target/linux/mediatek/dts/mt7987.dtsi
-@@ -12,6 +12,7 @@
+@@ -12,7 +12,9 @@
  #include <dt-bindings/pinctrl/mt65xx.h>
  #include <dt-bindings/gpio/gpio.h>
  #include <dt-bindings/thermal/thermal.h>
 +#include <dt-bindings/thermal/mediatek,lvts-thermal.h>
  #include <dt-bindings/reset/mediatek,mt7987-resets.h>
- #include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
++#include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
  
-@@ -77,7 +78,6 @@
+ /* TOPRGU resets */
+ #define MT7987_TOPRGU_SGMII0_GRST		1
+@@ -44,6 +46,7 @@
+ 		optee {
+ 			method = "smc";
+ 			compatible = "linaro,optee-tz";
++			status = "okay";
+ 		};
+ 	};
+ 
+@@ -75,7 +78,6 @@
  				 <&apmixedsys CLK_APMIXED_ARM_LL>;
  			clock-names = "cpu", "intermediate", "armpll";
  			operating-points-v2 = <&cluster0_opp>;
@@ -274,7 +544,7 @@
  		};
  
  		cpu2: cpu@2 {
-@@ -91,7 +91,6 @@
+@@ -89,7 +91,6 @@
  				 <&apmixedsys CLK_APMIXED_ARM_LL>;
  			clock-names = "cpu", "intermediate", "armpll";
  			operating-points-v2 = <&cluster0_opp>;
@@ -282,7 +552,7 @@
  		};
  
  		cpu3: cpu@3 {
-@@ -105,7 +104,6 @@
+@@ -103,7 +104,6 @@
  				 <&apmixedsys CLK_APMIXED_ARM_LL>;
  			clock-names = "cpu", "intermediate", "armpll";
  			operating-points-v2 = <&cluster0_opp>;
@@ -290,7 +560,16 @@
  		};
  
  		cluster0_opp: opp_table0 {
-@@ -270,7 +268,7 @@
+@@ -235,7 +235,7 @@
+ 
+ 	fan: pwm-fan {
+ 		compatible = "pwm-fan";
+-		cooling-levels = <0 128 192 255>;
++		cooling-levels = <0 128 255>;
+ 		#cooling-cells = <2>;
+ 		#thermal-sensor-cells = <1>;
+ 		status = "disabled";
+@@ -268,7 +268,7 @@
  		cpu_thermal: cpu-thermal {
  			polling-delay-passive = <1000>;
  			polling-delay = <1000>;
@@ -299,7 +578,7 @@
  
  			trips {
  				cpu_trip_crit: crit {
-@@ -279,63 +277,31 @@
+@@ -277,63 +277,31 @@
  					type = "critical";
  				};
  
@@ -375,7 +654,7 @@
  				};
  			};
  		};
-@@ -408,246 +374,6 @@
+@@ -406,246 +374,6 @@
  			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
  			interrupt-parent = <&gic>;
  			#interrupt-cells = <2>;
@@ -622,24 +901,16 @@
  		};
  
  		boottrap: boottrap@1001f6f0 {
-@@ -679,9 +405,14 @@
- 				     "mediatek,mt6577-uart";
- 			reg = <0 0x11000000 0 0x100>;
- 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
--			clocks = <&topckgen CLK_TOP_UART_SEL>,
--				 <&infracfg CLK_INFRA_52M_UART0_CK>;
-+			clocks = <&infracfg CLK_INFRA_52M_UART0_CK>,
-+				 <&infracfg CLK_INFRA_66M_UART0_PCK>;
- 			clock-names = "baud", "bus";
-+			assigned-clocks = <&topckgen CLK_TOP_UART_SEL>,
-+					  <&infracfg CLK_INFRA_MUX_UART0_SEL>;
-+			assigned-clock-parents = <&topckgen
-+						  CLK_TOP_CB_CKSQ_40M>,
+@@ -684,7 +412,7 @@
+ 					  <&infracfg CLK_INFRA_MUX_UART0_SEL>;
+ 			assigned-clock-parents = <&topckgen
+ 						  CLK_TOP_CB_CKSQ_40M>,
+-						  <&topckgen CLK_TOP_UART_SEL>;
 +						 <&topckgen CLK_TOP_UART_SEL>;
  			status = "disabled";
  		};
  
-@@ -797,7 +528,6 @@
+@@ -800,7 +528,6 @@
  			nvmem-cells = <&lvts_calibration>;
  			nvmem-cell-names = "lvts-calib-data-1";
  			#thermal-sensor-cells = <1>;
@@ -647,7 +918,20 @@
  		};
  
  		usbtphy: usb-phy@11c50000 {
-@@ -911,9 +641,15 @@
+@@ -856,10 +583,9 @@
+ 				      "dma_ck";
+ 			#address-cells = <2>;
+ 			#size-cells = <2>;
+-			mediatek,u3p-dis-msk = <0x0>;
+-			phys = <&tphyu2port0 PHY_TYPE_USB2>,
+-			       <&tphyu3port0 PHY_TYPE_USB3>;
++			phys = <&tphyu2port0 PHY_TYPE_USB2>;
+ 			usb2-lpm-disable;
++			mediatek,u3p-dis-msk=<1>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -915,9 +641,15 @@
  			status = "disabled";
  		};
  
@@ -666,7 +950,17 @@
  			reg = <0 0x15010000 0 0x2000>;
  			interrupt-parent = <&gic>;
  			interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
-@@ -1063,91 +799,12 @@
+@@ -1000,6 +732,9 @@
+ 				#interrupt-cells = <1>;
+ 				interrupt-controller;
+ 			};
++			slot1: pcie@0,0 {
++				reg = <0x0000 0 0 0 0>;
++			};
+ 		};
+ 
+ 		topmisc: topmisc@10021000 {
+@@ -1064,91 +799,12 @@
  			reg = <0 0x1a110000 0 0x1000>;
  			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
  		};
