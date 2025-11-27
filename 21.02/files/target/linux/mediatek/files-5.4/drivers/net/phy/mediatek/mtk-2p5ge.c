@@ -695,6 +695,18 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int mt798x_2p5ge_phy_config_intr(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		reg_clear_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
+	else
+		reg_set_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
+
+	return mtk_phy_config_intr(phydev);
+}
+
 static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
@@ -930,7 +942,7 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mtk_phy_config_intr,
+		.config_intr = mt798x_2p5ge_phy_config_intr,
 		.ack_interrupt = mtk_phy_ack_interrupt,
 		.handle_interrupt = mtk_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
@@ -948,7 +960,7 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mtk_phy_config_intr,
+		.config_intr = mt798x_2p5ge_phy_config_intr,
 		.ack_interrupt = mtk_phy_ack_interrupt,
 		.handle_interrupt = mtk_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
