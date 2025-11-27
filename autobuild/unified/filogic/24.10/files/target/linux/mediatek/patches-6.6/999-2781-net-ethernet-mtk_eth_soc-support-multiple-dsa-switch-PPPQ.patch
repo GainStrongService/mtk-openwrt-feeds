@@ -1,6 +1,6 @@
-From 4ea7847270d1000a2aeeeca955f8517cbf4780de Mon Sep 17 00:00:00 2001
+From 741e86e18785f6c3b9ed006399be11177a8d9ce0 Mon Sep 17 00:00:00 2001
 From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
-Date: Wed, 12 Nov 2025 18:39:59 +0800
+Date: Thu, 27 Nov 2025 11:42:37 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: support multiple dsa switch PPPQ
 
 Without this patch, when multiple dsa switch exists,
@@ -11,13 +11,13 @@ leads to throughput bound in QDMA queue.
 The QDMA queue mapping use below command to show:
 cat /sys/kernel/debug/mtketh/qdma_pppq
 ---
- drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 53 ++++++++++++++++--
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 60 +++++++++++++++++++--
- drivers/net/ethernet/mediatek/mtk_eth_soc.h |  4 ++
- 3 files changed, 109 insertions(+), 8 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 57 +++++++++++++++++--
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 61 ++++++++++++++++++++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  7 +++
+ 3 files changed, 117 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-index c83d27b..89135ab 100644
+index c83d27b..25ebf57 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
 @@ -20,6 +20,7 @@
@@ -28,7 +28,7 @@ index c83d27b..89135ab 100644
  
  #include "mtk_eth_soc.h"
  #include "mtk_eth_dbg.h"
-@@ -29,14 +30,56 @@
+@@ -29,14 +30,60 @@
  static int mtk_qdma_pppq_show(struct seq_file *m, void *v)
  {
  	struct mtk_eth *eth = m->private;
@@ -37,6 +37,8 @@ index c83d27b..89135ab 100644
 +	struct mtk_mac *mac;
  	int i;
  
++	mtk_eth_set_dsa_pppq_offset(eth);
++
 +	/* Find the netdevices for the corresponding QDMA queues */
 +	for (i = 0; i < MTK_MAX_DEVS; i++) {
 +		ndev = eth->netdev[i];
@@ -66,6 +68,8 @@ index c83d27b..89135ab 100644
 +				if (dp->index >= ARRAY_SIZE(mac->dsa_user_idx))
 +					continue;
 +
++				mtk_eth_set_dsa_user_idx(eth, dp->slave);
++
 +				qid = MTK_MAX_DEVS + pppq_ofs + mac->dsa_user_idx[dp->index];
 +				pppq_map[qid % MTK_QDMA_NUM_QUEUES] = dp->slave;
 +				/* TCP ACK use high priority queue in HNAT */
@@ -91,14 +95,14 @@ index c83d27b..89135ab 100644
  	return 0;
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 6e2c4aa..ede63bd 100644
+index abfee7e..7ac83c3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -4229,6 +4229,51 @@ static bool mtk_uses_dsa(struct net_device *dev)
  #endif
  }
  
-+static void mtk_eth_set_dsa_pppq_offset(struct mtk_eth *eth)
++void mtk_eth_set_dsa_pppq_offset(struct mtk_eth *eth)
 +{
 +	struct net_device *dev;
 +	int i, offset = 0;
@@ -116,7 +120,7 @@ index 6e2c4aa..ede63bd 100644
 +	eth->pppq_ofs[MTK_MAX_DEVS] = offset;
 +}
 +
-+static void mtk_eth_set_dsa_user_idx(struct mtk_eth *eth, struct net_device *dev)
++void mtk_eth_set_dsa_user_idx(struct mtk_eth *eth, struct net_device *dev)
 +{
 +	const struct dsa_port *dp;
 +	struct dsa_switch *ds;
@@ -150,16 +154,17 @@ index 6e2c4aa..ede63bd 100644
  	struct list_head *iter;
  	struct dsa_port *dp;
  	unsigned int queue;
-+	u32 pppq_ofs = eth->pppq_ofs[mac->id];
++	u32 pppq_ofs;
  
  	if (event != NETDEV_CHANGE || dev->priv_flags & IFF_EBRIDGE)
  		return NOTIFY_DONE;
-@@ -4263,8 +4309,14 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+@@ -4263,8 +4309,15 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
  		return NOTIFY_DONE;
  
  	if (dsa_slave_dev_check(dev)) {
 +		/* set txq offset when multiple dsa switch exist */
 +		mtk_eth_set_dsa_pppq_offset(eth);
++		pppq_ofs = eth->pppq_ofs[mac->id];
 +		/* set DSA user port ordering index due to non-contiguous dp index */
 +		mtk_eth_set_dsa_user_idx(eth, dev);
 +
@@ -170,7 +175,7 @@ index 6e2c4aa..ede63bd 100644
  	} else
  		queue = mac->id;
  
-@@ -6155,13 +6207,15 @@ static u16 mtk_select_queue(struct net_device *dev, struct sk_buff *skb,
+@@ -6155,13 +6208,15 @@ static u16 mtk_select_queue(struct net_device *dev, struct sk_buff *skb,
  			    struct net_device *sb_dev)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
@@ -189,7 +194,7 @@ index 6e2c4aa..ede63bd 100644
  		queue = mac->id;
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index a108917..2893cac 100644
+index a108917..c0845d4 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -1709,6 +1709,7 @@ struct mtk_soc_data {
@@ -224,6 +229,14 @@ index a108917..2893cac 100644
  };
  
  /* struct mtk_mux_data -	the structure that holds the private data about the
+@@ -2078,4 +2082,7 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+ bool mtk_shaper_is_available(struct mtk_eth *eth, int idx);
+ void mtk_shaper_update_refcnt(struct mtk_eth *eth, int idx, bool add);
+ 
++void mtk_eth_set_dsa_pppq_offset(struct mtk_eth *eth);
++void mtk_eth_set_dsa_user_idx(struct mtk_eth *eth, struct net_device *dev);
++
+ #endif /* MTK_ETH_H */
 -- 
 2.45.2
 
