@@ -1546,6 +1546,10 @@ static inline void hnat_get_filled_unbind_entry(struct sk_buff *skb,
 	if (unlikely(!skb || !entry))
 		return;
 
+	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
+	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
+		return;
+
 	memcpy(entry,
 	       &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 	       sizeof(*entry));
@@ -1890,8 +1894,7 @@ hnat_skip_fill_inner:
 
 	if (IS_IPV4_GRP(&entry)) {
 		entry.ipv4_hnapt.iblk2.dp = gmac;
-		entry.ipv4_hnapt.iblk2.port_mg =
-			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
+		entry.ipv4_hnapt.iblk2.port_mg = 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
 
@@ -1905,8 +1908,7 @@ hnat_skip_fill_inner:
 		entry.ipv4_hnapt.pppoe_id = hw_path.pppoe_sid;
 	} else {
 		entry.ipv6_5t_route.iblk2.dp = gmac;
-		entry.ipv6_5t_route.iblk2.port_mg =
-			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
+		entry.ipv6_5t_route.iblk2.port_mg = 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
 		if (!skb_hnat_tops(skb)) {
