@@ -1,0 +1,16 @@
+--- a/target/sdk/Makefile
++++ b/target/sdk/Makefile
+@@ -114,7 +114,12 @@ $(BIN_DIR)/$(SDK_NAME).tar.zst: clean
+ 		`cd $(TOPDIR); find $(KDIR_BASE)/firmware/ -newer $(KDIR_BASE)/firmware/Makefile \
+ 			-type f -name '*.bin' -or -name '*.cis' -or -name '*.csp' -or -name '*.dsp' -or -name '*.fw'` \
+ 		$(foreach exclude,$(EXCLUDE_DIRS),--exclude="$(exclude)") \
+-		$(SDK_DIRS) $(KERNEL_FILES) | \
++		$(SDK_DIRS) | \
++		$(TAR) -xf - -C $(SDK_BUILD_DIR)
++
++	$(TAR) -hcf - -C $(TOPDIR) \
++		$(foreach exclude,$(EXCLUDE_DIRS),--exclude="$(exclude)") \
++		$(KERNEL_FILES) | \
+ 		$(TAR) -xf - -C $(SDK_BUILD_DIR)
+ 
+ 	$(TAR) -cf - -C $(TOPDIR) $(USERSPACE_FILES) | \
