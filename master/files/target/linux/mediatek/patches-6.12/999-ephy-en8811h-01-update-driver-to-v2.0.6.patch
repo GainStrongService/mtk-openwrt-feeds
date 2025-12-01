@@ -1,7 +1,7 @@
-From a8fe5f32c0273b248ac0028179a2a269029b438a Mon Sep 17 00:00:00 2001
+From 47b5d9df2ebfe189a1fcf4719c648757da7f2dc9 Mon Sep 17 00:00:00 2001
 From: Mason Chang <mason-cw.chang@mediatek.com>
-Date: Wed, 15 Oct 2025 13:38:54 +0800
-Subject: [PATCH] net: phy: air_en8811h: update driver to v2.0.5
+Date: Mon, 1 Dec 2025 17:10:09 +0800
+Subject: [PATCH] net: phy: air_en8811h: update driver to v2.0.6
 
 ---
  drivers/net/phy/air_en8811h.c | 1918 ++++++++++++++++++++++++++++++++-
@@ -10,7 +10,7 @@ Subject: [PATCH] net: phy: air_en8811h: update driver to v2.0.5
  create mode 100644 drivers/net/phy/air_en8811h.h
 
 diff --git a/drivers/net/phy/air_en8811h.c b/drivers/net/phy/air_en8811h.c
-index e9fd24c..7b282e0 100644
+index e9fd24c..061868e 100644
 --- a/drivers/net/phy/air_en8811h.c
 +++ b/drivers/net/phy/air_en8811h.c
 @@ -11,11 +11,21 @@
@@ -583,7 +583,7 @@ index e9fd24c..7b282e0 100644
 +	switch (dbg_mode) {
 +	case AIR_PORT_MODE_FORCE_100:
 +		pr_notice("\nForce 100M\n");
-+		val = phy_read(phydev, MII_ADVERTISE) | BIT(8) & ~BIT(12);
++		val = (phy_read(phydev, MII_ADVERTISE) | BIT(8)) & ~BIT(12);
 +		ret = phy_write(phydev, MII_ADVERTISE, val);
 +		if (unlikely(ret < 0))
 +			break;
@@ -603,7 +603,7 @@ index e9fd24c..7b282e0 100644
 +		break;
 +	case AIR_PORT_MODE_FORCE_1000:
 +		pr_notice("\nForce 1000M\n");
-+		val = phy_read(phydev, MII_ADVERTISE) & ~BIT(8) | BIT(12);
++		val = (phy_read(phydev, MII_ADVERTISE) & ~BIT(8)) | BIT(12);
 +		ret = phy_write(phydev, MII_ADVERTISE, val);
 +		if (unlikely(ret < 0))
 +			break;
@@ -623,7 +623,7 @@ index e9fd24c..7b282e0 100644
 +		break;
 +	case AIR_PORT_MODE_FORCE_2500:
 +		pr_notice("\nForce 2500M\n");
-+		val = phy_read(phydev, MII_ADVERTISE) & ~BIT(8) | BIT(12);
++		val = (phy_read(phydev, MII_ADVERTISE) & ~BIT(8)) | BIT(12);
 +		ret = phy_write(phydev, MII_ADVERTISE, val);
 +		if (unlikely(ret < 0))
 +			break;
@@ -2132,7 +2132,7 @@ index e9fd24c..7b282e0 100644
  MODULE_FIRMWARE(EN8811H_MD32_DSP);
 diff --git a/drivers/net/phy/air_en8811h.h b/drivers/net/phy/air_en8811h.h
 new file mode 100644
-index 0000000..d3966a1
+index 0000000..8a1164c
 --- /dev/null
 +++ b/drivers/net/phy/air_en8811h.h
 @@ -0,0 +1,261 @@
@@ -2150,7 +2150,7 @@ index 0000000..d3966a1
 +
 +#define MAX_RETRY                   25
 +
-+#define EN8811H_DRIVER_VERSION  "v2.0.5"
++#define EN8811H_DRIVER_VERSION  "v2.0.6"
 +
 +
 +/***************************************************************
