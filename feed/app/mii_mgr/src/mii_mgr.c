@@ -40,7 +40,8 @@ static const char *get_first_eth_interface(void)
 		return eth_if;
 
 	/* Default fallback */
-	strncpy(eth_if, "eth0", IFNAMSIZ - 1);
+	strncpy(eth_if, "eth0", sizeof("eth0") - 1);
+	eth_if[sizeof("eth0") - 1] = '\0';
 
 	dir = opendir("/sys/class/net");
 	if (!dir)
