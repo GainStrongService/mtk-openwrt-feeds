@@ -2,8 +2,6 @@
 
 source /sbin/flowtable.sh
 
-KERNEL_VERSION=$(uname -r)
-
 OPTIMIZED_FOR="$1"
 CPU_LIST=`cat /proc/interrupts | sed -n '1p'`
 NUM_OF_CPU=0; for i in $CPU_LIST; do NUM_OF_CPU=`expr $NUM_OF_CPU + 1`; done;
@@ -505,8 +503,5 @@ setup_model
 set_rps_cpu_bitmap
 set_rps_cpus $DEFAULT_RPS
 set_smp_affinity
-
-if [[ "$KERNEL_VERSION" == 6.6* ]]; then
-	disable_gro_fraglist
-fi
+disable_gro_fraglist
 #end of file
