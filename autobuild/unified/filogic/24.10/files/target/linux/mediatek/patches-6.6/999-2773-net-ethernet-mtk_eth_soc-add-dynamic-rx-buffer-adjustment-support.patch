@@ -1,28 +1,28 @@
-From 085135e3099be2a4690df4900ca99ff97f8f8d2e Mon Sep 17 00:00:00 2001
+From 61b51d08c520562fffa7f8196b10ea2e9857b50b Mon Sep 17 00:00:00 2001
 From: Mason Chang <mason-cw.chang@mediatek.com>
-Date: Tue, 29 Jul 2025 11:28:43 +0800
+Date: Wed, 3 Dec 2025 16:15:30 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: add dynamic rx buffer adjustment
  support
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 46 ++++++++++++++-------
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 49 ++++++++++++++-------
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  3 +-
- 2 files changed, 32 insertions(+), 17 deletions(-)
+ 2 files changed, 34 insertions(+), 18 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index d7ddd24..8607db3 100644
+index 532cd6f..438a3d3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -816,7 +816,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
- 	}
+@@ -817,7 +817,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
  
+ 	mac->mode = mode;
  	mac->interface = state->interface;
 -	mtk_set_mcr_max_rx(mac, MTK_MAX_RX_LENGTH);
 +	mtk_set_mcr_max_rx(mac, eth->rx_buf_len);
  
  	return;
  
-@@ -1487,22 +1487,22 @@ static void mtk_get_stats64(struct net_device *dev,
+@@ -1529,22 +1529,22 @@ static void mtk_get_stats64(struct net_device *dev,
  	storage->tx_dropped = dev->stats.tx_dropped;
  }
  
@@ -51,7 +51,7 @@ index d7ddd24..8607db3 100644
  
  	return buf_size;
  }
-@@ -3084,8 +3084,8 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
+@@ -3151,8 +3151,8 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
  		rx_dma_size = soc->rx.dma_size;
  	}
  
@@ -62,7 +62,7 @@ index d7ddd24..8607db3 100644
  	ring->data = kcalloc(rx_dma_size, sizeof(*ring->data),
  			     GFP_KERNEL);
  	if (!ring->data)
-@@ -3360,7 +3360,7 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
+@@ -3427,7 +3427,7 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
  
  	if (mtk_is_netsys_v3_or_greater(eth)) {
  		val = mtk_r32(eth, reg_map->pdma.rx_cfg);
@@ -71,7 +71,7 @@ index d7ddd24..8607db3 100644
  			MTK_RX_CFG_SDL_OFFSET), reg_map->pdma.rx_cfg);
  
  		lro_ctrl_dw0 |= MTK_PDMA_LRO_SDL << MTK_CTRL_DW0_SDL_OFFSET;
-@@ -4296,13 +4296,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4432,13 +4432,10 @@ static int mtk_open(struct net_device *dev)
  	netif_tx_start_all_queues(dev);
  
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_9K) &&
@@ -86,7 +86,7 @@ index d7ddd24..8607db3 100644
  
  	if (mtk_is_netsys_v2_or_greater(eth))
  		return 0;
-@@ -5264,9 +5261,9 @@ static void mtk_uninit(struct net_device *dev)
+@@ -5420,9 +5417,21 @@ static void mtk_uninit(struct net_device *dev)
  
  static int mtk_change_mtu(struct net_device *dev, int new_mtu)
  {
@@ -94,16 +94,9 @@ index d7ddd24..8607db3 100644
  	struct mtk_mac *mac = netdev_priv(dev);
  	struct mtk_eth *eth = mac->hw;
 +	int length, i, max_mtu = 0;
- 
- 	if (rcu_access_pointer(eth->prog) &&
- 	    length > MTK_PP_MAX_BUF_SIZE) {
-@@ -5274,9 +5271,24 @@ static int mtk_change_mtu(struct net_device *dev, int new_mtu)
- 		return -EINVAL;
- 	}
- 
--	mtk_set_mcr_max_rx(mac, length);
- 	dev->mtu = new_mtu;
- 
++
++	dev->mtu = new_mtu;
++
 +	for (i = 0; i < MTK_MAX_DEVS; i++) {
 +		if (!eth->netdev[i])
 +			continue;
@@ -113,17 +106,25 @@ index d7ddd24..8607db3 100644
 +	}
 +
 +	length = max_mtu + MTK_RX_ETH_HLEN;
+ 
+ 	if (rcu_access_pointer(eth->prog) &&
+ 	    length > MTK_PP_MAX_BUF_SIZE) {
+@@ -5430,8 +5439,12 @@ static int mtk_change_mtu(struct net_device *dev, int new_mtu)
+ 		return -EINVAL;
+ 	}
+ 
+-	mtk_set_mcr_max_rx(mac, length);
+-	dev->mtu = new_mtu;
 +	if (length <= MTK_MAX_RX_LENGTH)
 +		eth->rx_buf_len = MTK_MAX_RX_LENGTH;
 +	else if (length <= MTK_MAX_RX_LENGTH_2K)
 +		eth->rx_buf_len = MTK_MAX_RX_LENGTH_2K;
 +	else if (length <= MTK_MAX_RX_LENGTH_9K)
 +		eth->rx_buf_len = MTK_MAX_RX_LENGTH_9K;
-+
+ 
  	return 0;
  }
- 
-@@ -6845,6 +6857,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7096,6 +7109,8 @@ static int mtk_probe(struct platform_device *pdev)
  				   eth->netdev[i]->base_addr, eth->irq_fe[0]);
  	}
  
@@ -131,12 +132,12 @@ index d7ddd24..8607db3 100644
 +
  	platform_set_drvdata(pdev, eth);
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
- 	eth->reset.netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
+ 	mtk_eth_netdevice_event_init(eth);
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index e971c6f..0f9e1d0 100644
+index f47e616..cfa362e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -72,7 +72,7 @@
+@@ -73,7 +73,7 @@
  				 (((ring_no) > 3) && ((ring_no) < 8)) :		\
  				 (((ring_no) > 0) && ((ring_no) < 4)))
  
@@ -145,7 +146,7 @@ index e971c6f..0f9e1d0 100644
  #define	MTK_MAX_LRO_IP_CNT		2
  #define	MTK_HW_LRO_TIMER_UNIT		1	/* 20 us */
  #define	MTK_HW_LRO_REFRESH_TIME		50000	/* 1 sec. */
-@@ -1693,6 +1693,7 @@ struct mtk_eth {
+@@ -1762,6 +1762,7 @@ struct mtk_eth {
  
  	spinlock_t			dim_lock;
  
