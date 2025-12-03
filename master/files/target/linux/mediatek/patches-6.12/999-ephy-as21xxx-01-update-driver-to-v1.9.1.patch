@@ -23,9 +23,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/phy/as21xx_bbu_api/as21xx_api.h   | 1157 +++++++
  .../net/phy/as21xx_bbu_api/as21xx_debugfs.c   | 2824 +++++++++++++++++
  .../net/phy/as21xx_bbu_api/as21xx_debugfs.h   |   27 +
- drivers/net/phy/as21xxx.c                     |  812 +++--
+ drivers/net/phy/as21xxx.c                     |  813 +++--
  drivers/net/phy/as21xxx.h                     |   65 +
- 7 files changed, 6281 insertions(+), 232 deletions(-)
+ 7 files changed, 6282 insertions(+), 232 deletions(-)
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.c
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.h
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c
@@ -6540,7 +6540,7 @@ index 037d799..7a9ab28 100644
  	}
  
  	return 0;
-@@ -876,69 +1165,98 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
+@@ -876,69 +1165,99 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
  			      mask, val);
  }
  
@@ -6611,16 +6611,17 @@ index 037d799..7a9ab28 100644
 +static int as21xxx_match_phy_device(struct phy_device *phydev,
 +				    const struct phy_driver *phydrv)
 +{
-+	/* AEONSEMI get pid. */
-+	phydev->phy_id = aeon_read_pid(phydev);
++	u32 phy_id = aeon_read_pid(phydev);
  
 -	mutex_init(&priv->ipc_lock);
-+	if (phydev->phy_id != PHY_ID_AS21XXX)
++	if (phy_id != PHY_ID_AS21XXX)
 +		return 0;
  
 -	ret = aeon_firmware_load(phydev);
 -	if (ret)
 -		goto out;
++	phydev->phy_id = phy_id;
++
 +	aeon_cl45_write(phydev, MDIO_MMD_VEND1, VEND1_PTP_CLK, 0x48);
  
 -	/* Sync parity... */
