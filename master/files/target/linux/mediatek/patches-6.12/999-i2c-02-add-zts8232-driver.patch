@@ -28,7 +28,7 @@
  obj-$(CONFIG_IIO_ST_PRESS_SPI) += st_pressure_spi.o
 --- /dev/null
 +++ b/drivers/iio/pressure/zts8232.c
-@@ -0,0 +1,1216 @@
+@@ -0,0 +1,1212 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * The ZTS8232 is a barometric pressure and temperature sensor.
@@ -1179,14 +1179,14 @@
 +	rc = zts8232_soft_reset(data);
 +	if (rc) {
 +		pr_info("soft reset error %d\n", rc);
-+		goto error_free_device;
++		return rc;
 +	}
 +
 +	rc = zts8232_init_chip(data);
 +	if (rc) {
 +		dev_err(&client->dev, "init chip error %d\n", rc);
 +		pr_info("init chip error %d\n", rc);
-+		goto error_free_device;
++		return rc;
 +	}
 +
 +	inv_run_zts8232_in_polling(data, atomic_read(&data->mode), data->frequency);
@@ -1201,16 +1201,12 @@
 +	rc = devm_iio_device_register(&client->dev, iio);
 +	if (rc) {
 +		dev_err(&client->dev, "iio device register error %d\n", rc);
-+		goto error_free_device;
++		return rc;
 +	}
 +
 +	i2c_set_clientdata(client, iio);
 +	pr_info("ZTS8232 probe done");
 +	return 0;
-+
-+error_free_device:
-+	iio_device_free(iio);
-+	return rc;
 +}
 +
 +static void zts8232_remove(struct i2c_client *client)
