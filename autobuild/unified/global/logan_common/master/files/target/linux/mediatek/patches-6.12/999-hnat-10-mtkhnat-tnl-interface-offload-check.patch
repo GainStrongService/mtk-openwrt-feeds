@@ -1,5 +1,3 @@
-diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 2d37fdf..9283990 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -838,6 +838,7 @@ enum net_device_path_type {
@@ -10,8 +8,6 @@ index 2d37fdf..9283990 100644
  	DEV_PATH_MTK_WDMA,
  };
  
-diff --git a/net/l2tp/l2tp_ppp.c b/net/l2tp/l2tp_ppp.c
-index 5e12e7c..5198cd1 100644
 --- a/net/l2tp/l2tp_ppp.c
 +++ b/net/l2tp/l2tp_ppp.c
 @@ -89,6 +89,7 @@
@@ -37,7 +33,7 @@ index 5e12e7c..5198cd1 100644
  };
  
  static const struct proto_ops pppol2tp_ops;
-@@ -312,6 +318,28 @@ static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
+@@ -312,6 +318,28 @@ error:
  	return error;
  }
  
@@ -57,7 +53,7 @@ index 5e12e7c..5198cd1 100644
 +
 +	path->flags |= BIT(DEV_PATH_TNL);
 +
-+	sock_put(sk);
++	l2tp_session_put(session);
 +
 +	return 0;
 +}
