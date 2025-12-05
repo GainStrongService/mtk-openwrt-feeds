@@ -4100,11 +4100,19 @@ int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 
 int mtk_hnat_skb_headroom_copy(struct sk_buff *new, struct sk_buff *old)
 {
-	if (skb_headroom(new) < skb_headroom(old))
-		return -EPERM;
+	if (skb_cow_head(new, skb_headroom(old)))
+		return -ENOMEM;
 
-	if (skb_hnat_reason(old) == HIT_UNBIND_RATE_REACH && skb_hnat_tops(old))
+	if (skb_hnat_reason(old) == HIT_UNBIND_RATE_REACH && skb_hnat_tops(old)) {
 		memcpy(new->head, old->head, skb_headroom(old));
+		return 0;
+	}
+
+	if (old->inner_protocol == IPPROTO_ESP &&
+		skb_hnat_cdrt(old) && is_magic_tag_valid(old)) {
+		memcpy(new->head, old->head, skb_headroom(old));
+		new->inner_protocol = IPPROTO_ESP;
+	}
 
 	return 0;
 }

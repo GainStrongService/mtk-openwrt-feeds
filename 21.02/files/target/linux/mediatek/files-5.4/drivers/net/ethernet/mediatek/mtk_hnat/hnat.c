@@ -1399,9 +1399,6 @@ int hnat_enable_hook(void)
 	ppe_del_entry_by_bssid_wcid = entry_delete_by_bssid_wcid;
 	hook_toggle = 1;
 
-	/* register hook function used at linux gso segmentation */
-	mtk_skb_headroom_copy = mtk_hnat_skb_headroom_copy;
-
 	return 0;
 }
 
@@ -1439,9 +1436,6 @@ int hnat_disable_hook(void)
 	ppe_del_entry_by_ip = NULL;
 	ppe_del_entry_by_bssid_wcid = NULL;
 	hook_toggle = 0;
-
-	/* unregister hook function used at linux gso segmentation */
-	mtk_skb_headroom_copy = NULL;
 
 	return 0;
 }
@@ -1679,6 +1673,9 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err)
 		goto err_out;
 
+	/* register hook function used at linux gso segmentation */
+	mtk_skb_headroom_copy = mtk_hnat_skb_headroom_copy;
+
 	register_netdevice_notifier(&nf_hnat_netdevice_nb);
 	register_netevent_notifier(&nf_hnat_netevent_nb);
 
@@ -1732,6 +1729,9 @@ static int hnat_remove(struct platform_device *pdev)
 	unregister_netdevice_notifier(&nf_hnat_netdevice_nb);
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
 	hnat_disable_hook();
+
+	/* unregister hook function used at linux gso segmentation */
+	mtk_skb_headroom_copy = NULL;
 
 	if (hnat_priv->data->mcast)
 		hnat_mcast_disable();
