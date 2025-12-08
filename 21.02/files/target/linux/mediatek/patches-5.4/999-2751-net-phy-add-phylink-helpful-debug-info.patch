@@ -1,0 +1,24 @@
+From 86d3fbc9b83336101f163ccce1cff6f63162ef26 Mon Sep 17 00:00:00 2001
+From: "neal.yen" <neal.yen@mediatek.com>
+Date: Mon, 8 Dec 2025 13:54:49 +0800
+Subject: [PATCH] net: phy: add phylink helpful debug information
+
+
+diff --git a/drivers/net/phy/phylink.c b/drivers/net/phy/phylink.c
+index 7a5c4fa..cde8bc8 100644
+--- a/drivers/net/phy/phylink.c
++++ b/drivers/net/phy/phylink.c
+@@ -1149,9 +1149,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
+ 	phy->phylink = pl;
+ 	phy->phy_link_change = phylink_phy_change;
+ 
+-	phylink_info(pl,
+-		     "PHY [%s] driver [%s]\n", dev_name(&phy->mdio.dev),
+-		     phy->drv->name);
++	phy_attached_print(phy, NULL);
+ 
+ 	mutex_lock(&phy->lock);
+ 	mutex_lock(&pl->state_mutex);
+-- 
+2.45.2
+
