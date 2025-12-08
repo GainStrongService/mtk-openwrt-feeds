@@ -5,6 +5,8 @@ list_add_after $(hooks autobuild_prepare) airoha_firmware_install copy_phy_firmw
 # remove crypto packages to prevent warning caused by package dependency
 if [ -z ${internal_build} ]; then
 	list_prepend $(hooks autobuild_prepare) remove_crypto_package
+else
+	. "${ab_root}/global-dev/internal.sh"
 fi
 
 if test x"${hqa_set}" == x"yes"; then
