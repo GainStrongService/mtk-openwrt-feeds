@@ -46,6 +46,11 @@ openwrt_get_bin_dir() {
 	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_defs.mk" get-bin-dir
 }
 
+# Get OpenWrt's build_dir path
+openwrt_get_build_dir() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_defs.mk" get-build-dir
+}
+
 # Get OpenWrt's target name
 openwrt_get_target_name() {
 	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_defs.mk" get-target-name
