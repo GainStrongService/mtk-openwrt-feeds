@@ -1112,11 +1112,10 @@ static int hnat_nf_acct_update(struct mtk_hnat *h, u32 ppe_id,
 	struct nf_conn_acct *acct;
 	struct foe_entry *entry;
 	struct nf_conn *ct;
-	u8 dir;
+	enum ip_conntrack_dir dir;
 
 	entry = &h->foe_table_cpu[ppe_id][index];
 	zone = &h->acct[ppe_id][index].zone;
-	dir = h->acct[ppe_id][index].dir;
 
 	tuple.dst.protonum = (entry->bfib1.udp) ? IPPROTO_UDP : IPPROTO_TCP;
 
@@ -1162,6 +1161,7 @@ static int hnat_nf_acct_update(struct mtk_hnat *h, u32 ppe_id,
 		if (ct) {
 			acct = nf_conn_acct_find(ct);
 			if (acct) {
+				dir = NF_CT_DIRECTION(hash);
 				counter = acct->counter;
 				atomic64_add(bytes, &counter[dir].bytes);
 				atomic64_add(packets, &counter[dir].packets);

@@ -2768,12 +2768,8 @@ hnat_entry_bind:
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 		       0, sizeof(struct hnat_accounting));
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct) {
-			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone =
-				ct->zone;
-			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
-				CTINFO2DIR(ctinfo);
-		}
+		if (ct)
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone = ct->zone;
 	}
 
 	return 0;
@@ -3090,11 +3086,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 			0, sizeof(struct hnat_accounting));
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct) {
+		if (ct)
 			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone = ct->zone;
-			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
-										CTINFO2DIR(ctinfo);
-		}
 	}
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)

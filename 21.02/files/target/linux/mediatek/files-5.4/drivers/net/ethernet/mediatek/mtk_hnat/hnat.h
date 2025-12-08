@@ -936,7 +936,6 @@ struct hnat_accounting {
 	u64 bytes;
 	u64 packets;
 	struct nf_conntrack_zone zone;
-	u8 dir;
 };
 
 enum mtk_hnat_version {
