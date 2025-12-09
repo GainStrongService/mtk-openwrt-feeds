@@ -1,12 +1,12 @@
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -1651,14 +1651,14 @@ define Device/mediatek_mt7987a-rfb
-   DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-sfp blkid
+@@ -1816,14 +1816,14 @@ define Device/mediatek_mt7987a-rfb
+   DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-sfp
    KERNEL_LOADADDR := 0x40000000
    KERNEL := kernel-bin | gzip
 -  KERNEL_INITRAMFS := kernel-bin | lzma | \
 +  KERNEL_INITRAMFS := kernel-bin | lzma | secure-boot-initramfs | \
-         fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+ 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
    IMAGES := sysupgrade.itb
    KERNEL_INITRAMFS_SUFFIX := .itb
    KERNEL_IN_UBI := 1
