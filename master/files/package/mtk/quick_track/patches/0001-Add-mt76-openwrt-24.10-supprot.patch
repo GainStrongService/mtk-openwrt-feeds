@@ -1,15 +1,15 @@
-From 3b4eab5f19ac80189ce517ca82966cb32dda23a1 Mon Sep 17 00:00:00 2001
+From 7e95bdbe144572f4f6c0e9ee22337d4f0a688e63 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 3 Jun 2025 11:34:45 +0800
 Subject: [PATCH] Add mt76 openwrt-24.10 supprot
 
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
- Makefile                  |  9 ++++---
- indigo_api_callback_dut.c | 14 +++++++++--
- vendor_specific.h         | 13 +++++-----
- vendor_specific_dut.c     | 53 +++++++++++++++++++++------------------
- 4 files changed, 52 insertions(+), 37 deletions(-)
+ Makefile                  |  9 ++--
+ indigo_api_callback_dut.c | 13 +++++-
+ vendor_specific.h         | 13 +++---
+ vendor_specific_dut.c     | 90 ++++++++++++++++++++++-----------------
+ 4 files changed, 73 insertions(+), 52 deletions(-)
 
 diff --git a/Makefile b/Makefile
 index 9a64b6e..2457279 100644
@@ -39,7 +39,7 @@ index 9a64b6e..2457279 100644
  
  # Define the app is for DUT or platform
 diff --git a/indigo_api_callback_dut.c b/indigo_api_callback_dut.c
-index 2f3af3c..9641652 100644
+index 2f3af3c..1d8eaa5 100644
 --- a/indigo_api_callback_dut.c
 +++ b/indigo_api_callback_dut.c
 @@ -494,6 +494,12 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
@@ -74,15 +74,7 @@ index 2f3af3c..9641652 100644
          strcat(request, buffer);
      }
      /* disassoc_timer=%s */
-@@ -1702,6 +1711,7 @@ static int send_ap_btm_handler(struct packet_wrapper *req, struct packet_wrapper
-         sprintf(buffer, " pref=1");
-         strcat(request, buffer);
-     }
-+
-     indigo_logger(LOG_LEVEL_DEBUG, "cmd:%s", request);
- 
-     /* Open hostapd UDS socket */
-@@ -3407,7 +3417,7 @@ static int start_wps_ap_handler(struct packet_wrapper *req, struct packet_wrappe
+@@ -3407,7 +3416,7 @@ static int start_wps_ap_handler(struct packet_wrapper *req, struct packet_wrappe
          /* Please implement the wsc pin validation function to
           * identify the invalid PIN code and DONOT start wps.
           * */
@@ -129,7 +121,7 @@ index 84d4bd6..02945db 100644
  #ifdef _WTS_OPENWRT_
  #define HOSTAPD_SUPPORT_MBSSID 0
 diff --git a/vendor_specific_dut.c b/vendor_specific_dut.c
-index 42c980b..269de3e 100644
+index 42c980b..bcbb9b2 100644
 --- a/vendor_specific_dut.c
 +++ b/vendor_specific_dut.c
 @@ -33,10 +33,10 @@ int detect_number_radio() {
@@ -232,7 +224,7 @@ index 42c980b..269de3e 100644
      char buffer[BUFFER_LEN];
      char mac_addr[S_BUFFER_LEN];
  
-+    snprintf(buffer, sizeof(buffer), "fw3 stop");
++    snprintf(buffer, sizeof(buffer), "fw3 stop 2> /dev/null");
 +    system(buffer);
 +
      /* Vendor: add codes to let ControlApp have full control of hostapd */
@@ -249,6 +241,52 @@ index 42c980b..269de3e 100644
      int len = 0, is_valid = 0;
      char pipebuf[S_BUFFER_LEN];
      char *parameter_ap[] = {"cat", WSC_SETTINGS_FILE_AP, NULL, NULL};
+@@ -520,23 +523,30 @@ void get_mld_link_mac(char *mac_addr, size_t size, char *band) {
+             if (ptr != NULL) {
+                 sscanf(ptr, "%*s %s", name);
+                 if (!strncmp(name, if_name, strlen(if_name))) {
+-                    /* link 0:
+-                         addr 00:03:7f:12:66:60
+-                         channel 36 (5180 MHz), width: 80 MHz, center1: 5210 MHz
+-                         txpower 28.00 dBm
++                    /* MLD with links:
++                        - link ID  0 link addr 00:0c:43:2b:b3:54
++                        channel 6 (2437 MHz), width: 20 MHz, center1: 2437 MHz
++                        txpower 30.00 dBm
++                        - link ID  1 link addr 02:0c:43:f3:ca:6d
++                        channel 36 (5180 MHz), width: 20 MHz, center1: 5180 MHz
++                        txpower 30.00 dBm
+                     */
+                     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+-                        ptr = strstr(buffer, "link");
+-                        if (ptr != NULL) {
+-                            fgets(buffer, sizeof(buffer), fp);
+-                            sscanf(buffer, "%*s %s", addr);
+-                            fgets(buffer, sizeof(buffer), fp);
+-                            ptr = strchr(buffer, '(');
+-                            sscanf(ptr+1, "%d", &freq);
+-                            if (verify_band_from_freq(freq, band_id) == 0) {
+-                                snprintf(mac_addr, size, "%s", addr);
+-                                break;
+-                            }
++                        ptr = strstr(buffer, "- link ID ");
++                        if (!ptr)
++                            continue;
++
++                        sscanf(buffer, "%*s link ID  %*d link addr %17s", addr);
++                        addr[17] = '\0';
++                        fgets(buffer, sizeof(buffer), fp);
++                        ptr = strchr(buffer, '(');
++                        if (!ptr)
++                            continue;
++
++                        sscanf(ptr+1, "%d", &freq);
++                        if (verify_band_from_freq(freq, band_id) == 0) {
++                            snprintf(mac_addr, size, "%s", addr);
++                            break;
+                         }
+                     }
+                     if (mac_addr[0])
 -- 
 2.45.2
 
