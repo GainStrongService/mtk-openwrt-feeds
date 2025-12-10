@@ -157,7 +157,7 @@ define BuildPackage/U-Boot
 endef
 
 define U-Boot/mt7981_rfb-spim-nand-nmbm
-  NAME:=MT7981 Reference Board (SPI-NAND-NMBM)
+  NAME:=MT7981 NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7981a-rfb
   UBOOT_CONFIG:= mt7981_spim_nand_rfb
@@ -169,7 +169,7 @@ define U-Boot/mt7981_rfb-spim-nand-nmbm
 endef
 
 define U-Boot/mt7981_rfb-nor
-  NAME:=MT7981 Reference Board (NOR)
+  NAME:=MT7981 NOR Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7981-rfb
   UBOOT_CONFIG:=mt7981_spim_nor_rfb
@@ -182,7 +182,7 @@ define U-Boot/mt7981_rfb-nor
 endef
 
 define U-Boot/mt7981_rfb-emmc
-  NAME:=MT7981 Reference Board (EMMC)
+  NAME:=MT7981 EMMC Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7981-rfb
   UBOOT_CONFIG:=mt7981_emmc_rfb
@@ -194,7 +194,7 @@ define U-Boot/mt7981_rfb-emmc
 endef
 
 define U-Boot/mt7981_rfb-sd
-  NAME:=MT7981 Reference Board (SDMMC)
+  NAME:=MT7981 SD Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7981-rfb
   UBOOT_CONFIG:=mt7981_emmc_rfb
@@ -206,7 +206,7 @@ define U-Boot/mt7981_rfb-sd
 endef
 
 define U-Boot/mt7986_rfb-spim-nand-nmbm
-  NAME:=MT7986A Reference Board (SPI-NAND-NMBM)
+  NAME:=MT7986A NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:= mt7986_spim_nand_rfb
@@ -218,7 +218,7 @@ define U-Boot/mt7986_rfb-spim-nand-nmbm
 endef
 
 define U-Boot/mt7986_rfb-nor
-  NAME:=MT7986A Reference Board (NOR)
+  NAME:=MT7986A NOR Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:=mt7986_spim_nor_rfb
@@ -231,7 +231,7 @@ define U-Boot/mt7986_rfb-nor
 endef
 
 define U-Boot/mt7986_rfb-emmc
-  NAME:=MT7986A Reference Board (EMMC)
+  NAME:=MT7986A EMMC Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:=mt7986a_emmc_rfb
@@ -243,7 +243,7 @@ define U-Boot/mt7986_rfb-emmc
 endef
 
 define U-Boot/mt7986_rfb-sd
-  NAME:=MT7986A Reference Board (SDMMC)
+  NAME:=MT7986A SD Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:=mt7986a_sd_rfb
@@ -255,7 +255,7 @@ define U-Boot/mt7986_rfb-sd
 endef
 
 define U-Boot/mt7987_rfb-spim-nand
-  NAME:=MT7987A Reference Board (SPI-NAND-UBI)
+  NAME:=MT7987A NAND-UBI Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7987a-rfb
   UBOOT_CONFIG:=mt7987_spim_nand_ubi_rfb
@@ -267,7 +267,7 @@ define U-Boot/mt7987_rfb-spim-nand
 endef
 
 define U-Boot/mt7987_rfb-spim-nand-nmbm
-  NAME:=MT7987A Reference Board (SPI-NAND-NMBM)
+  NAME:=MT7987A NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7987a-rfb
   UBOOT_CONFIG:= mt7987_spim_nand_nmbm_rfb
@@ -279,7 +279,7 @@ define U-Boot/mt7987_rfb-spim-nand-nmbm
 endef
 
 define U-Boot/mt7987_rfb-nor
-  NAME:=MT7987A Reference Board (NOR)
+  NAME:=MT7987A NOR Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7987a-rfb
   UBOOT_CONFIG:=mt7987_spim_nor_rfb
@@ -292,7 +292,7 @@ define U-Boot/mt7987_rfb-nor
 endef
 
 define U-Boot/mt7987_rfb-emmc
-  NAME:=MT7987A Reference Board (EMMC)
+  NAME:=MT7987A EMMC Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7987a-rfb
   UBOOT_CONFIG:=mt7987_emmc_rfb
@@ -304,7 +304,7 @@ define U-Boot/mt7987_rfb-emmc
 endef
 
 define U-Boot/mt7987_rfb-sd
-  NAME:=MT7987A Reference Board (SDMMC)
+  NAME:=MT7987A SD Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7987a-rfb
   UBOOT_CONFIG:=mt7987_sd_rfb
@@ -316,7 +316,7 @@ define U-Boot/mt7987_rfb-sd
 endef
 
 define U-Boot/mt7988_rfb-spim-nand
-  NAME:=MT7988A Reference Board (SPI-NAND-UBI)
+  NAME:=MT7988A NAND-UBI Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
   UBOOT_CONFIG:=mt7988_spim_nand_ubi_rfb
@@ -324,11 +324,11 @@ define U-Boot/mt7988_rfb-spim-nand
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
-  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-ubi-comb
 endef
 
 define U-Boot/mt7988_rfb-spim-nand-nmbm
-  NAME:=MT7988A Reference Board (SPI-NAND-NMBM)
+  NAME:=MT7988A NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
   UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
@@ -336,11 +336,11 @@ define U-Boot/mt7988_rfb-spim-nand-nmbm
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
-  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-ubi-comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-comb
 endef
 
 define U-Boot/mt7988_rfb-nor
-  NAME:=MT7988A Reference Board (NOR)
+  NAME:=MT7988A NOR Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
   UBOOT_CONFIG:=mt7988_spim_nor_rfb
@@ -353,7 +353,7 @@ define U-Boot/mt7988_rfb-nor
 endef
 
 define U-Boot/mt7988_rfb-emmc
-  NAME:=MT7988A Reference Board (EMMC)
+  NAME:=MT7988A EMMC Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
   UBOOT_CONFIG:=mt7988_emmc_rfb
@@ -365,9 +365,105 @@ define U-Boot/mt7988_rfb-emmc
 endef
 
 define U-Boot/mt7988_rfb-sd
-  NAME:=MT7988A Reference Board (SDMMC)
+  NAME:=MT7988A SD Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
+  UBOOT_CONFIG:=mt7988_sd_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-sdmmc-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-snand
+  NAME:=BananaPi BPi-R4 NAND-UBI
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4
+  UBOOT_CONFIG:=mt7988_spim_nand_ubi_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand-ubi
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-ubi-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-snand-nmbm
+  NAME:=BananaPi BPi-R4 NAND-NMBM
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4
+  UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-emmc
+  NAME:=BananaPi BPi-R4 EMMC
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4
+  UBOOT_CONFIG:=mt7988_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-emmc-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-sdmmc
+  NAME:=BananaPi BPi-R4 SD
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4
+  UBOOT_CONFIG:=mt7988_sd_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-sdmmc-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-poe-snand
+  NAME:=BananaPi BPi-R4 2.5GE NAND-UBI
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-poe
+  UBOOT_CONFIG:=mt7988_spim_nand_ubi_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand-ubi
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-ubi-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-poe-snand-nmbm
+  NAME:=BananaPi BPi-R4 2.5GE NAND-NMBM
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-poe
+  UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand-ubi
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-spim-nand-ubi-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-poe-emmc
+  NAME:=BananaPi BPi-R4 2.5GE EMMC
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-poe
+  UBOOT_CONFIG:=mt7988_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7988
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7988-emmc-comb
+endef
+
+define U-Boot/mt7988_bananapi_bpi-r4-poe-sdmmc
+  NAME:=BananaPi BPi-R4 2.5GE SD
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-poe
   UBOOT_CONFIG:=mt7988_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=sdmmc
@@ -394,7 +490,15 @@ UBOOT_TARGETS := \
 	mt7988_rfb-spim-nand-nmbm \
 	mt7988_rfb-nor \
 	mt7988_rfb-emmc \
-	mt7988_rfb-sd
+	mt7988_rfb-sd \
+	mt7988_bananapi_bpi-r4-snand \
+	mt7988_bananapi_bpi-r4-snand-nmbm \
+	mt7988_bananapi_bpi-r4-emmc \
+	mt7988_bananapi_bpi-r4-sdmmc \
+	mt7988_bananapi_bpi-r4-poe-snand \
+	mt7988_bananapi_bpi-r4-poe-snand-nmbm \
+	mt7988_bananapi_bpi-r4-poe-emmc \
+	mt7988_bananapi_bpi-r4-poe-sdmmc
 
 UBOOT_CUSTOMIZE_CONFIG := \
 	--disable TOOLS_KWBIMAGE \
