@@ -64,7 +64,6 @@ static int user_input_to_ip(const char __user *buffer, size_t count,
 			    loff_t *pos, __be32 *addr)
 {
 	char ipstr[64];
-	size_t n;
 
 	if (*pos)
 		return -ENOTSUPP;
@@ -72,8 +71,10 @@ static int user_input_to_ip(const char __user *buffer, size_t count,
 	if (count > sizeof(ipstr) - 1)
 		return -E2BIG;
 
-	n = copy_from_user(ipstr, buffer, count);
-	ipstr[n] = 0;
+	if (copy_from_user(ipstr, buffer, count))
+		return -EINVAL;
+
+	ipstr[count] = 0;
 
 	*addr = string_to_ip(ipstr);
 
