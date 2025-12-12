@@ -13,7 +13,7 @@
 #include "lookaside.h"
 #include "crypto-eip197-inline-ddk.h"
 
-#define REQ_PKT_NUM 10
+#define REQ_PKT_NUM 100
 
 void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mod);
 int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
