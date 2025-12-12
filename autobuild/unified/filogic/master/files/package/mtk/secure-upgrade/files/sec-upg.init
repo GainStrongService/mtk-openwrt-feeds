@@ -1,0 +1,74 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-2.0-only
+
+START=99
+ANTI_ROLLBACK=1
+NAME=sec-upg
+
+FW_SVN_FILE="/proc/device-tree/chosen/fw_ar_ver"
+
+SEC_UPG_DEBUGFS="/sys/kernel/debug/sec_upg"
+
+DEV_BL_SVN_FILE="${SEC_UPG_DEBUGFS}/bl_ar_ver"
+DEV_FW_SVN_FILE="${SEC_UPG_DEBUGFS}/fw_ar_ver"
+DEV_SVN_LOCK_FILE="${SEC_UPG_DEBUGFS}/ar_ver_lock"
+
+update_svn() {
+	local svn_node="$1"
+	local svn=$2
+
+	echo $svn > "$svn_node" || return 1
+}
+
+update_bl_svn() {
+	[ ! -w "$DEV_BL_SVN_FILE" ] && return 1
+
+	# BL version is already in BL31, set to 0 as dummy value
+	update_svn "$DEV_BL_SVN_FILE" 0 || return 1
+}
+
+update_fw_svn() {
+	local fw_svn
+
+	[ ! -r "$FW_SVN_FILE" ] && return 1
+
+	fw_svn=$(cat "$FW_SVN_FILE" 2>/dev/null)
+	if ! echo "$fw_svn" | grep -qE '^[0-9]+$'; then
+		logger -t "${NAME}" "Invalid firmware SVN"
+		return 1
+	fi
+
+	if [ -w "$DEV_FW_SVN_FILE" ]; then
+		update_svn "$DEV_FW_SVN_FILE" $fw_svn || return 1
+	elif [ -w "$DEV_BL_SVN_FILE" ]; then
+		# not support separate FW version, update to BL version
+		update_svn "$DEV_BL_SVN_FILE" $fw_svn || return 1
+	else
+		return 1
+	fi
+}
+
+lock_svn() {
+	[ ! -w "$DEV_SVN_LOCK_FILE" ] && return 1
+
+	echo 1 > "$DEV_SVN_LOCK_FILE" || return 1
+}
+
+start() {
+	if [ "$ANTI_ROLLBACK" -eq 1 ]; then
+		update_bl_svn || {
+			logger -t "${NAME}" "Failed to update bootloader SVN"
+			return 1
+		}
+
+		update_fw_svn || {
+			logger -t "${NAME}" "Failed to update firmware SVN"
+			return 1
+		}
+
+		lock_svn || {
+			logger -t "${NAME}" "Failed to lock SVN"
+			return 1
+		}
+	fi
+}

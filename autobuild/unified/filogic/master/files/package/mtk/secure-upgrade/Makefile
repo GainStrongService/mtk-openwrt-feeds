@@ -55,12 +55,16 @@ endef
 
 define Package/secure-upgrade-utils/install
 	$(INSTALL_DIR) $(1)/etc/keys
+	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/lib/upgrade
 	$(CP) $(PKG_BUILD_DIR)/fit_key.dtb $(1)/etc/keys
 	$(CP) ./files/secure_check.sh $(1)/lib/upgrade
+	$(CP) ./files/sec-upg.init $(1)/etc/init.d/sec-upg
 ifneq ($(CONFIG_MTK_ANTI_ROLLBACK),y)
 	sed -i -e 's/ANTI_ROLLBACK=1/ANTI_ROLLBACK=0/g' \
 		$(1)/lib/upgrade/secure_check.sh
+	sed -i -e 's/ANTI_ROLLBACK=1/ANTI_ROLLBACK=0/g' \
+		$(1)/etc/init.d/sec-upg
 endif
 endef
 
