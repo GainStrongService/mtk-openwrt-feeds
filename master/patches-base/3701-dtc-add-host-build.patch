@@ -1,0 +1,26 @@
+--- a/package/utils/dtc/Makefile
++++ b/package/utils/dtc/Makefile
+@@ -20,6 +20,7 @@ PKG_CPE_ID:=cpe:/a:dtc_project:dtc
+ PKG_INSTALL:=1
+ 
+ include $(INCLUDE_DIR)/package.mk
++include $(INCLUDE_DIR)/host-build.mk
+ include $(INCLUDE_DIR)/meson.mk
+ 
+ define Package/dtc
+@@ -95,6 +96,10 @@ MESON_ARGS += \
+ 	-Dpython=disabled \
+ 	-Dstatic-build=$(if $(CONFIG_DTC_STATIC_BUILD),true,false)
+ 
++MESON_HOST_ARGS += $(MESON_ARGS)
++
++HOST_LDFLAGS += -Wl,-rpath=$(STAGING_DIR_HOSTPKG)/lib
++
+ define Build/InstallDev
+ 	$(INSTALL_DIR) $(1)/usr/lib
+ 	$(INSTALL_DIR) $(1)/usr/include
+@@ -105,3 +110,4 @@ endef
+ $(eval $(call BuildPackage,dtc))
+ $(eval $(call BuildPackage,fdt-utils))
+ $(eval $(call BuildPackage,libfdt))
++$(eval $(call HostBuild))

@@ -1,0 +1,98 @@
+--- a/scripts/mkits.sh
++++ b/scripts/mkits.sh
+@@ -38,6 +38,7 @@ usage() {
+ 	printf "\n\t-s ==> set FDT load address to 'addr' (hex)"
+ 	printf "\n\t-S ==> add signature at configurations with hint 'sign_key_name'"
+ 	printf "\n\t-b ==> set signature algorithm to 'sign_algo'"
++	printf "\n\t-B ==> set firmware encryption algorithm"
+ 	printf "\n\t\t(can be specified more than once)\n"
+ 	exit 1
+ }
+@@ -51,7 +52,7 @@ LOADABLES=
+ DTOVERLAY=
+ DTADDR=
+ 
+-while getopts ":A:a:c:C:D:d:e:f:i:k:l:n:o:O:v:r:s:H:S:b:" OPTION
++while getopts ":A:a:c:C:D:d:e:f:i:k:l:n:o:O:v:r:s:H:S:b:B:" OPTION
+ do
+ 	case $OPTION in
+ 		A ) ARCH=$OPTARG;;
+@@ -74,6 +75,7 @@ do
+ 		v ) VERSION=$OPTARG;;
+ 		S ) SIGN_KEY_NAME=$OPTARG;;
+ 		b ) SIGN_ALG=$OPTARG;;
++		B ) FW_ENC_ALG=$OPTARG;;
+ 		* ) echo "Invalid option passed to '$0' (options:$*)"
+ 		usage;;
+ 	esac
+@@ -92,6 +94,38 @@ if [ -n "${COMPATIBLE}" ]; then
+ 	COMPATIBLE_PROP="compatible = \"${COMPATIBLE}\";"
+ fi
+ 
++# Conditionally create cipher node in FIT
++if [ -n "${FW_ENC_ALG}" ]; then
++	KERNEL_FDT_CIPHER_NODE="
++			cipher {
++				algo = \"${FW_ENC_ALG}\";
++				key-name-hint = \"kernel_key\";
++			};
++"
++	if [ -n "${INITRD}" ]; then
++		RAMDISK_CIPHER_NODE="
++			cipher {
++				algo = \"${FW_ENC_ALG}\";
++				key-name-hint = \"rootfs_key\";
++			};
++"
++		if ! echo "${INITRD}" | grep -q "cpio"; then
++			INITRD_SIZE=`stat -c %s ${INITRD}`
++
++			PKCS_PADDING_BYTES=$((16 - (INITRD_SIZE) % 16))
++			if [ "${PKCS_PADDING_BYTES}" -eq 0 ]; then
++				PKCS_PADDING_BYTES=16
++			fi
++
++			PADDING_SIZE=$((4096 - (INITRD_SIZE + PKCS_PADDING_BYTES) % 4096))
++
++			dd if="${INITRD}" of="${INITRD}.plaintext"
++			dd if=/dev/zero of="${INITRD}.plaintext" seek=${INITRD_SIZE} bs=1 count=${PADDING_SIZE}
++			INITRD="${INITRD}.plaintext"
++		fi
++	fi
++fi
++
+ [ "$FDTADDR" ] && {
+ 	DTADDR="$FDTADDR"
+ }
+@@ -113,6 +147,7 @@ if [ -n "${DTB}" ]; then
+ 			hash${REFERENCE_CHAR}2 {
+ 				algo = \"${HASH}\";
+ 			};
++			${KERNEL_FDT_CIPHER_NODE}
+ 		};
+ "
+ 	FDT_PROP="fdt = \"fdt${REFERENCE_CHAR}$FDTNUM\";"
+@@ -133,6 +168,7 @@ if [ -n "${INITRD}" ]; then
+ 			hash${REFERENCE_CHAR}2 {
+ 				algo = \"${HASH}\";
+ 			};
++			${RAMDISK_CIPHER_NODE}
+ 		};
+ "
+ 	INITRD_PROP="ramdisk=\"initrd${REFERENCE_CHAR}${INITRDNUM}\";"
+@@ -227,6 +263,7 @@ OVCONFIGS=""
+ 			hash${REFERENCE_CHAR}2 {
+ 				algo = \"${HASH}\";
+ 			};
++			${KERNEL_FDT_CIPHER_NODE}
+ 		};
+ "
+ 	OVCONFIGS="$OVCONFIGS
+@@ -263,6 +300,7 @@ DATA="/dts-v1/;
+ 			hash${REFERENCE_CHAR}2 {
+ 				algo = \"$HASH\";
+ 			};
++			${KERNEL_FDT_CIPHER_NODE}
+ 		};
+ ${FDT_NODE}
+ ${FDTOVERLAY_NODE}

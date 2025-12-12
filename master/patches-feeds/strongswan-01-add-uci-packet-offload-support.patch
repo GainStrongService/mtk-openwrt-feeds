@@ -1,0 +1,54 @@
+--- a/feeds/packages/net/strongswan/files/swanctl.init
++++ b/feeds/packages/net/strongswan/files/swanctl.init
+@@ -325,7 +325,7 @@ config_child() {
+ 	esac
+ 
+ 	case "$hw_offload" in
+-	yes|no|auto|"")
++	yes|no|auto|crypto|packet|"")
+ 		;;
+ 	*)
+ 		fatal "hw_offload value $hw_offload invalid"
+--- a/feeds/packages/net/strongswan/files/ipsec.config
++++ b/feeds/packages/net/strongswan/files/ipsec.config
+@@ -1,2 +1,38 @@
+-# For strongSwan ipsec config documentation see
+-# https://openwrt.org/docs/guide-user/services/vpn/strongswan/start
++config 'ipsec'
++
++config 'remote' 'TEST'
++	option 'enabled' '0'
++	option 'gateway' '10.10.20.253'
++	option 'authentication_method' 'psk'
++	option 'pre_shared_key' '123456789'
++	option 'mode' 'tunnel'
++	list 'crypto_proposal' 'phase_1_settings'
++	list 'tunnel' 'TUNNEL'
++	list 'transport' 'TRANSPORT'
++
++config 'crypto_proposal' 'phase_1_settings'
++	option 'encryption_algorithm' 'aes128'
++	option 'hash_algorithm' 'sha1'
++	option 'dh_group' 'modp768'
++
++config 'tunnel' 'TUNNEL'
++	option 'mode' 'add'
++	list 'local_subnet' '192.168.1.0/24'
++	list 'remote_subnet' '192.168.2.0/24'
++	list 'crypto_proposal' 'phase_2_settings'
++	option 'keyexchange' 'ikev2'
++	option 'ikelifetime' '10800'
++	option 'lifetime' '3600'
++
++config tunnel 'TRANSPORT'
++	option keyexchange 'ikev2'
++	option ikelifetime '10800'
++	option lifetime '3600'
++	option startaction 'none'
++	option hw_offload 'packet'
++	list crypto_proposal 'phase_2_settings'
++
++config 'crypto_proposal' 'phase_2_settings'
++	option 'encryption_algorithm' 'aes128'
++	option 'hash_algorithm' 'sha1'
++	option 'dh_group' 'modp768'

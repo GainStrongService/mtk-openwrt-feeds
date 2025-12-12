@@ -1,0 +1,48 @@
+--- a/feeds/packages/utils/lvm2/Makefile	2025-10-21 09:58:20.891818001 +0800
++++ b/feeds/packages/utils/lvm2/Makefile	2025-10-21 10:09:18.324060151 +0800
+@@ -65,6 +65,15 @@
+ 
+ endef
+ 
++define Package/dmsetup
++  SECTION:=utils
++  CATEGORY:=Utilities
++  SUBMENU:=Disc
++  TITLE:=The Linux Kernel Device Mapper userspace setup utility
++  URL:=https://sourceware.org/dm/
++  DEPENDS:=+libdevmapper
++endef
++
+ define Package/lvm2/default
+   SECTION:=utils
+   CATEGORY:=Utilities
+@@ -143,6 +152,12 @@
+ 
+ Package/libdevmapper-selinux/install = $(Package/libdevmapper/install)
+ 
++define Package/dmsetup/install
++	$(INSTALL_DIR) $(1)/sbin
++	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/dmsetup $(1)/sbin
++	ln -sf dmsetup $(1)/sbin/dmstats
++endef
++
+ define Package/lvm2/install
+ 	$(INSTALL_DIR) $(1)/sbin
+ 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/lvm $(1)/sbin
+@@ -159,7 +174,7 @@
+ 	$(INSTALL_BIN) ./files/lvm2.init $(1)/etc/init.d/lvm2
+ 	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+ 	$(INSTALL_DATA) ./files/lvm2.hotplug $(1)/etc/hotplug.d/block/20-lvm2
+-	$(FIND) $(PKG_INSTALL_DIR)/usr/sbin/ -type l -print0 | xargs -0 -r $(CP) -a -t $(1)/sbin/
++	$(FIND) $(PKG_INSTALL_DIR)/usr/sbin/ -type l ! -name dmstats -print0 | xargs -0 -r $(CP) -a -t $(1)/sbin/
+ endef
+ 
+ Package/lvm2-selinux/install = $(Package/lvm2/install)
+@@ -180,6 +195,7 @@
+ 
+ $(eval $(call BuildPackage,libdevmapper))
+ $(eval $(call BuildPackage,libdevmapper-selinux))
++$(eval $(call BuildPackage,dmsetup))
+ $(eval $(call BuildPackage,lvm2))
+ $(eval $(call BuildPackage,lvm2-selinux))
+ $(eval $(call HostBuild))

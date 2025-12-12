@@ -1,0 +1,54 @@
+From: Weijie Gao <weijie.gao@mediatek.com>
+Subject: [PATCH 4/8] mediatek: filogic: add support for MediaTek RBFs upgrade
+
+Add support for MediaTek RBFs upgrade (both normal and dual-image)
+
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+
+--- a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
++++ b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+@@ -1,5 +1,5 @@
+ REQUIRE_IMAGE_METADATA=1
+-RAMFS_COPY_BIN='fitblk fit_check_sign'
++RAMFS_COPY_BIN='fitblk blkid fit_check_sign'
+ 
+ asus_initial_setup()
+ {
+@@ -66,6 +66,29 @@ platform_do_upgrade() {
+ 	local board=$(board_name)
+ 
+ 	case "$board" in
++	mediatek,mt7981-rfb|\
++	mediatek,mt7988a-rfb)
++		[ -e /dev/fit0 ] && fitblk /dev/fit0
++		[ -e /dev/fitrw ] && fitblk /dev/fitrw
++		export_fitblk_bootdev
++		case "$CI_METHOD" in
++		emmc)
++			mmc_do_upgrade "$1"
++			;;
++		default)
++			default_do_upgrade "$1"
++			;;
++		ubi)
++			CI_KERNPART="firmware"
++			ubi_do_upgrade "$1"
++			;;
++		*)
++			if grep \"rootfs_data\" /proc/mtd; then
++				default_do_upgrade "$1"
++			fi
++			;;
++		esac
++		;;
+ 	abt,asr3000|\
+ 	asus,zenwifi-bt8-ubootmod|\
+ 	bananapi,bpi-r3|\
+@@ -291,6 +314,7 @@ platform_copy_config() {
+ 	bananapi,bpi-r4-poe|\
+ 	cmcc,rax3000m|\
+ 	gatonetworks,gdsp|\
++	mediatek,mt7981-rfb|\
+ 	mediatek,mt7988a-rfb)
+ 		if [ "$CI_METHOD" = "emmc" ]; then
+ 			emmc_copy_config

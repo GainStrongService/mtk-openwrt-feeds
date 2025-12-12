@@ -1,0 +1,28 @@
+--- a/boot/bootm.c
++++ b/boot/bootm.c
+@@ -1208,13 +1208,23 @@ static int bootm_host_load_image(const v
+ 
+ int bootm_host_load_images(const void *fit, int cfg_noffset)
+ {
++	static uint8_t image_types[] = {
++		IH_TYPE_KERNEL,
++		IH_TYPE_FLATDT,
++		IH_TYPE_RAMDISK,
++		IH_TYPE_FIRMWARE,
++		IH_TYPE_X86_SETUP,
++		IH_TYPE_LOADABLE,
++		IH_TYPE_FPGA,
++		IH_TYPE_STANDALONE,
++	};
+ 	int err = 0;
+ 	int i;
+ 
+-	for (i = 0; i < IH_TYPE_COUNT; i++) {
++	for (i = 0; i < ARRAY_SIZE(image_types); i++) {
+ 		int ret;
+ 
+-		ret = bootm_host_load_image(fit, i, cfg_noffset);
++		ret = bootm_host_load_image(fit, image_types[i], cfg_noffset);
+ 		if (!err && ret && ret != -ENOENT)
+ 			err = ret;
+ 

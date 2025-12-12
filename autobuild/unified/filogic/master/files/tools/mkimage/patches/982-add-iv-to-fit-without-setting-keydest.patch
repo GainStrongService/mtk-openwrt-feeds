@@ -1,0 +1,16 @@
+--- a/lib/aes/aes-encrypt.c
++++ b/lib/aes/aes-encrypt.c
+@@ -91,6 +91,13 @@ int image_aes_add_cipher_data(struct ima
+ 		goto done;
+ 	}
+ 
++	if (!keydest && !info->ivname) {
++		/* At least, store the IV in the FIT image */
++		ret = fdt_setprop(fit, node_noffset, "iv",
++				  info->iv, info->cipher->iv_len);
++		goto done;
++	}
++
+ 	/* Either create or overwrite the named cipher node */
+ 	parent = fdt_subnode_offset(keydest, 0, FIT_CIPHER_NODENAME);
+ 	if (parent == -FDT_ERR_NOTFOUND) {

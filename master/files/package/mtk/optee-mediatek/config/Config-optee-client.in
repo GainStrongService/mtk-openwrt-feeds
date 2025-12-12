@@ -1,0 +1,49 @@
+menu "OP-TEE Client Configuration"
+	depends on PACKAGE_optee-mediatek
+	choice OPTEE_CLIENT_LOG_LEVEL
+		bool "OP-TEE Client Log Level"
+		default OPTEE_CLIENT_LOG_LEVEL_ERROR
+		config OPTEE_CLIENT_LOG_LEVEL_NONE
+			bool "NONE"
+		config OPTEE_CLIENT_LOG_LEVEL_ERROR
+			bool "ERROR"
+		config OPTEE_CLIENT_LOG_LEVEL_INFO
+			bool "INFO"
+		config OPTEE_CLIENT_LOG_LEVEL_DEBUG
+			bool "DEBUG"
+		config OPTEE_CLIENT_LOG_LEVEL_FLOW
+			bool "FLOW"
+	endchoice
+
+	choice OPTEE_SUPP_LOG_LEVEL
+		bool "OP-TEE Supplicant Log Level"
+		default OPTEE_SUPP_LOG_LEVEL_ERROR
+		config OPTEE_SUPP_LOG_LEVEL_NONE
+			bool "NONE"
+		config OPTEE_SUPP_LOG_LEVEL_ERROR
+			bool "ERROR"
+		config OPTEE_SUPP_LOG_LEVEL_INFO
+			bool "INFO"
+		config OPTEE_SUPP_LOG_LEVEL_DEBUG
+			bool "DEBUG"
+		config OPTEE_SUPP_LOG_LEVEL_FLOW
+			bool "FLOW"
+	endchoice
+
+	config OPTEE_TA_TEST_PATH
+		bool "OP-TEE TA Test Path"
+		default n
+
+	config OPTEE_FS_PARENT_PATH
+		string "OP-TEE FS Parent Path"
+		default "/data/tee"
+		help
+		  Determine root directoy for TEE filesystem
+
+	config OPTEE_RPMB_EMU
+		bool "OP-TEE Client RPMB IOCTL EMULATION"
+		default y
+		depends on !OPTEE_RPMB_FS
+		help
+		  RPMB IOCTL emulation for testing device without real eMMC device
+endmenu
