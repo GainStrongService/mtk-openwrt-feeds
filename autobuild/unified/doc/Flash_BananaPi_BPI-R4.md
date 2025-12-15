@@ -15,7 +15,7 @@ The MediaTek official U-Boot and ATF for BananaPi BPI-R4 are now built automatic
   ```
 - This will generate the correct U-Boot and ATF images for BPIR4 and place them in the `autobuild_release` directory along with the OpenWrt firmware.
 
-**Note:** For more details, refer to [MediaTek_OpenWrt_26xx_User_Guide.md](MediaTek_OpenWrt_26xx_User_Guide.md).
+**Note:** For more details, refer to [MediaTek_OpenWrt_2512_User_Guide.md](MediaTek_OpenWrt_2512_User_Guide.md).
 
 ### Key Differences Between MediaTek and OpenWrt Official Builds
 
@@ -150,8 +150,8 @@ If your BPIR4 device is running a non-MediaTek official U-Boot (e.g., stock U-Bo
      - Command: Use the `mtkupgrade` command to upgrade the relevant images.
    - `Partition table`: Upgrade EMMC GPT table: `GPT_SD_mt798x_itb`
       - After updating the partition table, you should use the `mmc part` command to ensure the partition table is reloaded
-   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/mt7988-sdmmc-comb-bl2-*.img`
-   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/mt7988_bananapi_bpi-r4-sdmmc-u-boot-*.fip`
+   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988-sdmmc-comb-bl2-*.img`
+   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988_bananapi_bpi-r4-sdmmc-u-boot-*.fip`
 6. **Power off the board, change the boot selector to SD (A=1, B=1), and power on the board**
 7. **Flash OpenWrt Firmware:**
    - use `setenv` and `saveenv` config to apply flash device dts overlay
@@ -220,8 +220,8 @@ If your BPIR4 device is running a non-MediaTek official U-Boot (e.g., stock U-Bo
       ```
    - Use the boot menu or U-Boot commands to flash BL2 and FIP from the `autobuild_release` directory.
      - Command: Use the `mtkupgrade` command to upgrade the relevant images.
-   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/mt7988-spim-nand-comb-bl2-*.img`
-   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/mt7988_bananapi_bpi-r4-snand-nmbm-u-boot-*.fip`
+   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988-spim-nand-comb-bl2-*.img`
+   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988_bananapi_bpi-r4-snand-nmbm-u-boot-*.fip`
 5. **Power off the board, change the boot selector to NAND (A=0, B=1), and power on the board**
 6. **Flash OpenWrt Firmware:**
    - use `setenv` and `saveenv` config to apply flash device dts overlay
@@ -280,8 +280,8 @@ If your BPIR4 device is running a non-MediaTek official U-Boot (e.g., stock U-Bo
             - 0x000000200000-0x000008000000 : "ubi"
    - Use the boot menu or U-Boot commands to flash BL2 and FIP from the `autobuild_release` directory to nand flash.
      - Command: Use the `mtkupgrade` command to upgrade the relevant images.
-   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/mt7988-spim-nand-ubi-comb-bl2-*.img`
-   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/mt7988_bananapi_bpi-r4-snand-u-boot-*.fip`
+   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988-spim-nand-ubi-comb-bl2-*.img`
+   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988_bananapi_bpi-r4-snand-u-boot-*.fip`
 5. **Power off the board, change the boot selector to NAND (A=0, B=1), and power on the board**
 6. **Flash OpenWrt Firmware:**
    - use `setenv` and `saveenv` config to apply flash device dts overlay
@@ -361,8 +361,8 @@ he MT7988 SoC on the BPIR4 has only one MMC controller. SD and EMMC have separat
      - Command: Use the `mtkupgrade` command to upgrade the relevant images.
    - `Partition table`: Upgrade EMMC GPT table: `GPT_EMMC_mt798x_itb`
      - After updating the partition table, you should use the `mmc part` command to ensure the partition table is reloaded
-   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/mt7988-emmc-comb-bl2-*.img`
-   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/mt7988_bananapi_bpi-r4-emmc-u-boot-*.fip`
+   - `ATF BL2`: Upgrade BL2 image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988-emmc-comb-bl2-*.img`
+   - `ATF FIP`: Upgrade FIP image, found under `autobuild_release/filogic*/bootloader-mt7988/mt7988_bananapi_bpi-r4-emmc-u-boot-*.fip`
 
 6. **Power off the board, change the boot selector to EMMC (A=1, B=0), and power on the board**
 7. **Flash OpenWrt Firmware:**
@@ -378,8 +378,7 @@ he MT7988 SoC on the BPIR4 has only one MMC controller. SD and EMMC have separat
      - After the firmware upgrade, U-Boot will automatically boot into OpenWrt.
 
 
----
-## Release Note
+***
 | Revision | Date       | Author   | Description     |
 |:---      |:---        |:---      |:---             |
-| v1.0     | 2025/12/09 | Sam Shih | Initial Version |
+| v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |

@@ -1,4 +1,4 @@
-# Mediatek OpenWrt SDK User Guide (Platform Only, Kernel 6.12, OpenWrt master/26.xx)
+# Mediatek OpenWrt SDK User Guide (Platform Only, Kernel 6.12, OpenWrt 25.12)
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -14,7 +14,7 @@
 
 ## Introduction
 
-This document provides comprehensive, step-by-step instructions for building the OpenWrt platform firmware for MediaTek devices (kernel 6.12, OpenWrt master/26.xx) using the MediaTek SDK. It is intended for platform-only builds (without Wi-Fi support). The guide covers environment setup, source code acquisition, autobuild usage, bootloader preparation and flashing, and system image generation.
+This document provides comprehensive, step-by-step instructions for building the OpenWrt platform firmware for MediaTek devices (kernel 6.12, OpenWrt 25.12) using the MediaTek SDK. It is intended for platform-only builds (without Wi-Fi support). The guide covers environment setup, source code acquisition, autobuild usage, bootloader preparation and flashing, and system image generation.
 
 ---
 
@@ -45,10 +45,9 @@ Obtain the necessary OpenWrt source code and feeds. For MediaTek platforms, use 
 #### OpenWrt Source
 
 ```bash
-git clone --branch master https://git.openwrt.org/openwrt/openwrt.git openwrt
+git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
 cd openwrt
-# Checkout to a tested commit if required
-git checkout df950f4cfddd6696fe72f51d4260152f08bd643f
+git checkout 6d7fbcccacb70f2c9425e78b063175ff3cd39297
 cd -
 ```
 
@@ -57,7 +56,8 @@ cd -
 ```bash
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
 cd mtk-openwrt-feeds
-git checkout d6397aaf69fbb442f913b2853cac2991962ef905
+# If necessary, you can manually switch to the following verified commit ID, or just use default value
+git checkout d700864a98353c5e344277177f574c30a6d7159d
 cd -
 ```
 
@@ -73,7 +73,8 @@ cd openwrt
 
 ### Modify Feed Revisions
 
-Update feed revisions in the autobuild configuration file as needed:
+Update the feed revisions in the autobuild configuration file as needed.
+If this file is not found, the default is `openwrt-25.12` for all feeds.
 
 ```bash
 vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
@@ -81,9 +82,10 @@ vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
 
 Example:
 ```bash
-packages 9c563686e2a96ccbad4ad51f8aa636c5322e6821
-luci 87375a5cf045ac7891eca474919e9e185c734cc3
-routing 149ea45cc223597262415823bcdca3effc601bc2
+# If necessary, you can manually switch to the following verified commit ID, or just use default value
+luci 946f77ac26de60b4f5209d4d33cf2bc0ef08f878
+routing b43e4ac560ccbafba21dc3ab0dbe57afc07e7b88
+packages 11068c4abfa02a36f89d542354af70a41b4059b8
 ```
 
 ### Build the Target
@@ -103,7 +105,7 @@ For a pure-platform build (MT7988/MT7987 RFB) with the MediaTek official bootloa
 
    For incremental builds, you can use:
    ```bash
-   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
+   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh
    ```
    Or use the standard OpenWrt build command for more control:
    ```bash
@@ -135,27 +137,31 @@ You can also build the SDK manually, step by step, for more flexibility and debu
   ```
 
 - **How autobuild_unified work in prepare stage?**
-  
+
   The autobuild unified system is a multi-level SDK patch/replace script system with inheritance mechanisms and easy-to-use input parameters. The first-level target `filogic` is for pure-platform builds, including most drivers, common packages, and modules. The second-level target `mac80211` adds Wi-Fi (mac80211) kernel modules and packages, and some platform driver patches that may differ by Wi-Fi target. Multi-level targets like `filogic-mac80211-*` inherit the basic platform part from `filogic` and the Wi-Fi part from `mac80211`, with pre-defined configs in child levels. You can use simple build commands to customize the SDK as required.
 
-  for more details, check the scripts in mtk-openwrt-feeds:  
+  for more details, check the scripts in mtk-openwrt-feeds:
+
   https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/autobuild.sh
   https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/rules
   https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/scripts/
 
 - **Prepare the SDK for Platform-Only Build:**
+
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic prepare
   ```
   This command applies all necessary patches and feeds for a pure-platform SDK.
 
 - **Check Available Input Parameters:**
+
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic help
   ```
   This will display all available input parameters for customizing the SDK.
 
-- **Switch to Mediatek Official U-Boot:**  
+- **Switch to Mediatek Official U-Boot:**
+
   To use the Mediatek official U-Boot (with full boot menu and additional support) instead of the OpenWrt official  bootloader, run:
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic prepare bootloader=1
@@ -163,6 +169,7 @@ You can also build the SDK manually, step by step, for more flexibility and debu
   This command applies the necessary patches to use the Mediatek official U-Boot and ATF in `package/boot`.
 
 - **Clean or Reset the SDK:**
+
   If switching between different targets or configurations, use the `clean` or `fullclean` commands to avoid conflicts.
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
@@ -173,8 +180,8 @@ You can also build the SDK manually, step by step, for more flexibility and debu
   ```
   The difference between 'clean' and 'fullclean' is that 'clean' will not re-install feeds that have not changed. Normally, the 'clean' command is sufficient and saves time waiting for long downloads. However, if you suspect the feeds may have residual issues due to a bug, you can use 'fullclean' instead.
 
-- After the SDK is prepared, you can use build command from the autobuild_unified, or just use the openwrt 
-  original command
+- After the SDK is prepared, you can use build command from the autobuild_unified, or just use the openwrt original command
+
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
   ```
@@ -182,6 +189,7 @@ You can also build the SDK manually, step by step, for more flexibility and debu
 
 - Additionally, a release script is available to collect the required images into the `./autobuild_release` folder.
   After building, use the following command to collect the relevant images from the build results:
+
   ```bash
   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh release
   ```
@@ -204,7 +212,8 @@ This command applies the necessary patches to use the MediaTek official U-Boot a
 After the SDK has been prepared with `bootloader=1` at least once,
 you can use the following commands to build and collect MediaTek official ATF and U-Boot images:
 
-- **Build BL2/BL31 images:**  
+- **Build BL2/BL31 images:**
+
   Clean the build directory if needed:
   ```bash
   rm -rf build_dir/target-aarch64_cortex-a53_musl/arm-trusted-firmware-mediatek-mt798*
@@ -252,7 +261,8 @@ you can use the following commands to build and collect MediaTek official ATF an
 
   The output images are located in `staging_dir/target-aarch64_cortex-a53_musl/image/`.
 
-- **Build FIP images:**  
+- **Build FIP images:**
+
   Please ensure that BL2/BL31 images exist under `staging_dir/target-aarch64_cortex-a53_musl/image/`,
   or the build will fail due to missing images required for generating FIP images. Build BL2/BL31 first,
   then build FIP to ensure all required images exist in the SDK.
@@ -268,7 +278,8 @@ you can use the following commands to build and collect MediaTek official ATF an
   make package/boot/uboot-mediatek/compile -j24
   ```
 
-- **Collect bootloader images:**  
+- **Collect bootloader images:**
+
   By default, bootloader-related images are stored in `./staging_dir/target-aarch64_cortex-a53_musl/image`.
   If you want to collect bootloader images into `./autobuild_release`, you also need to specify the `bootloader` parameter for the release command:
   ```bash
@@ -367,12 +378,12 @@ block-beta
 The NMBM-based image is output here after the autobuild script finishes:
 
 BL2
-- `autobuild_release/filogic/mt7987-spim-nand0-nmbm-comb-bl2-*.img`
-- `autobuild_release/filogic/mt7988-spim-nand-comb-bl2-*.img`
+- `autobuild_release/filogic/bootloader-mt7987/mt7987-spim-nand0-nmbm-comb-bl2-*.img`
+- `autobuild_release/filogic/bootloader-mt7988/mt7988-spim-nand-comb-bl2-*.img`
 
 FIP
-- `autobuild_release/filogic/mt7987_rfb-spim-nand-nmbm-u-boot-*.fip`
-- `autobuild_release/filogic/mt7988_rfb-spim-nand-nmbm-u-boot-*.fip`
+- `autobuild_release/filogic/bootloader-mt7987/mt7987_rfb-spim-nand-nmbm-u-boot-*.fip`
+- `autobuild_release/filogic/bootloader-mt7988/mt7988_rfb-spim-nand-nmbm-u-boot-*.fip`
 
 The other is the FULL-UBI bad-block solution
 
@@ -428,14 +439,14 @@ block-beta
 The FULL-UBI-based image is output here after the autobuild script finishes:
 
 BL2
-- `autobuild_release/filogic/mt7987-spim-nand0-ubi-comb-bl2-*.img`
-- `autobuild_release/filogic/mt7988-spim-nand-ubi-comb-bl2-*.img`
+- `autobuild_release/filogic/bootloader-mt7987/mt7987-spim-nand0-ubi-comb-bl2-*.img`
+- `autobuild_release/filogic/bootloader-mt7988/mt7988-spim-nand-ubi-comb-bl2-*.img`
 
 FIP
-- `autobuild_release/filogic/mt7987_rfb-spim-nand-u-boot-*.fip`
-- `autobuild_release/filogic/mt7988_rfb-spim-nand-u-boot-*.fip`
+- `autobuild_release/filogic/bootloader-mt7987/mt7987_rfb-spim-nand-u-boot-*.fip`
+- `autobuild_release/filogic/bootloader-mt7988/mt7988_rfb-spim-nand-u-boot-*.fip`
 
- 
+
 
 To flash the bootloader using the MediaTek U-Boot boot menu:
 1. **BL2 Upgrade:**
@@ -549,8 +560,7 @@ mt7988a-rfb-eth2-mxl.dtso
 mt7988a-rfb-eth2-sfp.dtso
 ```
 
----
-## Release Note
+***
 | Revision | Date       | Author   | Description     |
 |:---      |:---        |:---      |:---             |
-| v1.0     | 2025/10/28 | Sam Shih | Initial Version |
+| v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |

@@ -4,7 +4,7 @@ Document to Build BananaPi BPI-R4 for Mediatek OpenWrt SDK
 Introduction
 ------------
 
-This document provides step-by-step instructions for building the OpenWrt firmware for the BananaPi BPI-R4 using the Mediatek SDK. It supports both OpenWrt 24.10 (latest stable) and OpenWrt master/26.xx (trunk, future release). The process involves setting up a build environment, downloading the source code, configuring the build settings, and compiling the firmware image.
+This document provides step-by-step instructions for building the OpenWrt firmware for the BananaPi BPI-R4 using the Mediatek SDK. It supports both OpenWrt 24.10 and OpenWrt 25.12 (latest stable branch). The process involves setting up a build environment, downloading the source code, configuring the build settings, and compiling the firmware image.
 
 Official BananaPi BPI-R4 documentation: [BananaPi BPI-R4 Documentation](https://docs.banana-pi.org/en/BPI-R4/BananaPi_BPI-R4)
 
@@ -26,24 +26,42 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 Building the Firmware
 ---------------------
 
-## [A] OpenWrt master (Trunk, Future Release) -- MediaTek SDK
+## [A] OpenWrt 25.12 (Latest Stable Branch) -- MediaTek SDK
 
 ### Clone the Repository
-Start by obtaining the latest OpenWrt master source code and feeds:
+Start by obtaining the OpenWrt 25.12 source code and feeds:
 
 1.  **Clone the OpenWrt Source Code**:
     ```bash
     git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
+    cd openwrt
+    git checkout 6d7fbcccacb70f2c9425e78b063175ff3cd39297
+    cd -
     ```
 
 2.  **Clone the MTK OpenWrt Feeds**:
     ```bash
     git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    cd mtk-openwrt-feeds
+    git checkout d700864a98353c5e344277177f574c30a6d7159d
+    cd -
     ```
 
 ### Set Up the Autobuild Environment
 
 The `autobuild_unified` system simplifies the firmware build process for the BananaPi BPI-R4 by automating tasks such as patching the SDK, preparing necessary patches and configurations, and fetching required packages and feeds.
+
+#### Modify Feed Revisions
+
+Create or update the feed revision file to ensure the correct package versions are used for OpenWrt-25.12:
+
+```bash
+cat <<EOF > ./mtk-openwrt-feeds/autobuild/unified/feed_revision
+luci 946f77ac26de60b4f5209d4d33cf2bc0ef08f878
+routing b43e4ac560ccbafba21dc3ab0dbe57afc07e7b88
+packages 11068c4abfa02a36f89d542354af70a41b4059b8
+EOF
+```
 
 Navigate to the directory containing the OpenWrt source code:
 
@@ -90,19 +108,23 @@ Start by obtaining the necessary OpenWrt 24.10 source code and feeds:
 1.  **Clone the OpenWrt Source Code:**
     ```bash
     git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
-    cd openwrt && git checkout 9fa8e7e9a3a98282fac09880b014e980e476796d && cd -
+    cd openwrt
+    # (Optional) Checkout the latest stable commit for openwrt-24.10 if needed
+    # git checkout <official-openwrt-24.10-commit-id>
+    cd -
     ```
 
 2.  **Build the Code:**
     ```bash
     cd openwrt
+    ./scripts/feeds update -a
     ./scripts/feeds install -a
     make menuconfig
     # Target System: MediaTek ARM
     # Subtarget: Filogic 8x0 (MT798x)
     # Target Profile: BananaPi BPI-R4
     # Exit & Save menuconfig
-    make -j24
+    make -j$(nproc)
     ```
 
 3. **Flashing the Bootloader**
@@ -151,8 +173,92 @@ Start by obtaining the necessary OpenWrt 24.10 source code and feeds:
     Please refer to the following document for a summary of these differences, as well as a guide for converting between the MediaTek bootloader and the OpenWrt official bootloader:
     [Flash_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)      
 
+
 ---
-## Release Note
+
+## [C] OpenWrt 24.10 (Stable) -- MediaTek SDK
+
+### Clone the Repository
+
+Start by obtaining the OpenWrt 24.10 MediaTek SDK source code and feeds:
+
+1. **Clone the OpenWrt Source Code:**
+    ```bash
+    git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
+    cd openwrt
+    git checkout 58a0211f8201ab622b7b11d31629d6d755bd6526
+    cd -
+    ```
+
+2. **Clone the MTK OpenWrt Feeds:**
+    ```bash
+    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    cd mtk-openwrt-feeds
+    git checkout d700864a98353c5e344277177f574c30a6d7159d
+    cd -
+    ```
+
+3. **Set Up the Autobuild Environment**
+
+Create or update the feed revision file for OpenWrt-24.10 MediaTek SDK:
+
+```bash
+cat <<EOF > ./mtk-openwrt-feeds/autobuild/unified/feed_revision
+luci d88390be4ec9722cb427fee03368fc8c8582627d
+routing 178a40d321d6c11f18528f34777f4e24ce62b19a
+packages 72d6156c5d88519bb390cd7fb3e2f80e9e106082
+EOF
+```
+
+Navigate to the directory containing the OpenWrt source code:
+```bash
+cd openwrt
+```
+
+### Build the Target -- One-Step Build (Recommended)
+Choose the desired SKU, e.g., Filogic 850 (MT7987) Reference Board and BananaPi BPI-R4:
+- Platform Only
+    ```bash
+    bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic bootloader=1 log_file=make
+    ```
+- Filogic 660 (MT7992) NIC
+    ```bash
+    bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7992 bootloader=1 log_file=make
+    ```
+- Filogic 680 (MT7996) NIC
+    ```bash
+    bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7996 bootloader=1 log_file=make
+    ```
+
+This command will:
+- Build the OpenWrt firmware for BPI-R4
+- Build and package the MediaTek official U-Boot & ATF for BPI-R4 (./autobuild_release/bootloader-mt7988)
+- Output all images (including bootloader) to the autobuild_release directory
+
+All images will be output to the `autobuild_release` directory.
+
+#### Incremental Build
+
+After the initial build, you can use:
+```bash
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh
+```
+Or use the standard OpenWrt build command:
+```bash
+make V=s -j$(nproc)
+```
+
+#### Clean the OpenWrt Source Tree
+If needed, clean the OpenWrt source directory using:
+
+`bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean`
+
+### Flashing the Firmware and Bootloader
+
+For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4, please refer to [Flash_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
+
+
+***
 | Revision | Date       | Author   | Description     |
 |:---      |:---        |:---      |:---             |
-| v1.0     | 2025/12/09 | Sam Shih | Initial Version |
+| v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |
