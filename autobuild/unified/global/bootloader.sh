@@ -63,7 +63,12 @@ filogic_collect_bootloader_images() {
 	bootloader_dir="${staging_dir}/../image/"
 
 	local file_count=0
-	local files=
+
+	# Prepare subfolders
+	for sub in mt7981 mt7986 mt7987 mt7988; do
+		mkdir -p "${ab_bin_release}/bootloader-${sub}"
+		rm -rf "${ab_bin_release}/bootloader-${sub}"/*
+	done
 
 	if [ -z "${build_time}" ]; then
 		build_time=$(date +%Y%m%d%H%M%S)
@@ -75,9 +80,21 @@ filogic_collect_bootloader_images() {
 		local file_no_ext=${file%.*}
 		local file_name=${file_no_ext##*/}
 		local file_ext=${file##*.}
+		local subfolder=""
 
-		exec_log "cp -rf \"${file}\" \"${ab_bin_release}/${file_name}-${build_time}.${file_ext}\""
-		((file_count++))
+		case "$file_name" in
+			mt7981*)	subfolder="bootloader-mt7981" ;;
+			mt7986*)	subfolder="bootloader-mt7986" ;;
+			mt7987*)	subfolder="bootloader-mt7987" ;;
+			mt7988*)	subfolder="bootloader-mt7988" ;;
+			*)		subfolder="" ;;
+		esac
+
+		if [ -n "$subfolder" ]; then
+			local release_dir="${ab_bin_release}/${subfolder}"
+			exec_log "cp -rf \"${file}\" \"${release_dir}/${file_name}-${build_time}.${file_ext}\""
+			((file_count++))
+		fi
 	done
 
 	log_info "Total ${file_count} image files copied."
