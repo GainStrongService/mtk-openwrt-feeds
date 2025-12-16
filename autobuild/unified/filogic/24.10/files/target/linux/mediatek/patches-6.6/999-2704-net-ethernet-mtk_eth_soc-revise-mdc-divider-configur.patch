@@ -1,6 +1,6 @@
-From 4a52cc4a27cfa1e648082f8abbbc8dfa75c44dc9 Mon Sep 17 00:00:00 2001
+From 558ea0c37532f55ae945ce431f68775ab887f511 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Fri, 24 Jan 2025 11:53:38 +0800
+Date: Tue, 16 Dec 2025 22:35:16 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: revise mdc divider configuration
 
 In the current method, the MDC divider was reset to the default setting
@@ -9,96 +9,89 @@ divider configuration function to mtk_hw_init().
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 62 ++++++++++++++-------
- 1 file changed, 43 insertions(+), 19 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 54 ++++++++++++++++-----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  1 +
+ 2 files changed, 42 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 082b32a..19b651f 100644
+index b9f8fd6..0287f68 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1002,11 +1002,11 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
+@@ -975,9 +975,25 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
  	.mac_link_up = mtk_mac_link_up,
  };
  
--static int mtk_mdio_init(struct mtk_eth *eth)
-+static int mtk_mdio_config(struct mtk_eth *eth)
- {
- 	unsigned int max_clk = 2500000, divider;
- 	struct device_node *mii_np;
--	int ret;
-+	int ret = 0;
- 	u32 val;
- 
- 	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
-@@ -1020,23 +1020,6 @@ static int mtk_mdio_init(struct mtk_eth *eth)
- 		goto err_put_node;
- 	}
- 
--	eth->mii_bus = devm_mdiobus_alloc(eth->dev);
--	if (!eth->mii_bus) {
--		ret = -ENOMEM;
--		goto err_put_node;
--	}
--
--	eth->mii_bus->name = "mdio";
--	eth->mii_bus->read = mtk_mdio_read_c22;
--	eth->mii_bus->write = mtk_mdio_write_c22;
--	eth->mii_bus->read_c45 = mtk_mdio_read_c45;
--	eth->mii_bus->write_c45 = mtk_mdio_write_c45;
--	eth->mii_bus->reset = mtk_mdio_reset;
--	eth->mii_bus->priv = eth;
--	eth->mii_bus->parent = eth->dev;
--
--	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
--
- 	if (!of_property_read_u32(mii_np, "clock-frequency", &val)) {
- 		if (val > MDC_MAX_FREQ || val < MDC_MAX_FREQ / MDC_MAX_DIVIDER) {
- 			dev_err(eth->dev, "MDIO clock frequency out of range");
-@@ -1059,6 +1042,43 @@ static int mtk_mdio_init(struct mtk_eth *eth)
- 
- 	dev_dbg(eth->dev, "MDC is running on %d Hz\n", MDC_MAX_FREQ / divider);
- 
-+err_put_node:
-+	of_node_put(mii_np);
-+	return ret;
++static void mtk_mdio_config(struct mtk_eth *eth)
++{
++	u32 val;
++
++	/* Configure MDC Divider */
++	val = FIELD_PREP(PPSC_MDC_CFG, eth->mdc_divider);
++
++	/* Configure MDC Turbo Mode */
++	if (mtk_is_netsys_v3_or_greater(eth))
++		mtk_m32(eth, 0, MISC_MDC_TURBO, MTK_MAC_MISC_V3);
++	else
++		mtk_m32(eth, 0, PPSC_MDC_TURBO, MTK_PPSC);
++
++	mtk_m32(eth, PPSC_MDC_CFG, val, MTK_PPSC);
 +}
 +
-+static int mtk_mdio_init(struct mtk_eth *eth)
-+{
-+	struct device_node *mii_np;
-+	int ret;
+ static int mtk_mdio_init(struct mtk_eth *eth)
+ {
+-	unsigned int max_clk = 2500000, divider;
++	unsigned int max_clk = 2500000, min_clk, divider, output;
+ 	struct device_node *mii_np;
+ 	int ret;
+ 	u32 val;
+@@ -1011,26 +1027,34 @@ static int mtk_mdio_init(struct mtk_eth *eth)
+ 	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
+ 
+ 	if (!of_property_read_u32(mii_np, "clock-frequency", &val)) {
+-		if (val > MDC_MAX_FREQ || val < MDC_MAX_FREQ / MDC_MAX_DIVIDER) {
++		if (mtk_is_netsys_v3_or_greater(eth) &&
++		    (eth->soc->caps != MT7988_CAPS))
++			min_clk = (2 * MDC_MAX_FREQ) / (MDC_MAX_DIVIDER + 1);
++		else
++			min_clk = MDC_MAX_FREQ / MDC_MAX_DIVIDER;
 +
-+	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
-+	if (!mii_np) {
-+		dev_err(eth->dev, "no %s child node found", "mdio-bus");
-+		return -ENODEV;
++		if (val > MDC_MAX_FREQ || val < min_clk) {
+ 			dev_err(eth->dev, "MDIO clock frequency out of range");
+ 			ret = -EINVAL;
+ 			goto err_put_node;
+ 		}
+ 		max_clk = val;
+ 	}
+-	divider = min_t(unsigned int, DIV_ROUND_UP(MDC_MAX_FREQ, max_clk), 63);
+-
+-	/* Configure MDC Turbo Mode */
+-	if (mtk_is_netsys_v3_or_greater(eth))
+-		mtk_m32(eth, 0, MISC_MDC_TURBO, MTK_MAC_MISC_V3);
+ 
+-	/* Configure MDC Divider */
+-	val = FIELD_PREP(PPSC_MDC_CFG, divider);
+-	if (!mtk_is_netsys_v3_or_greater(eth))
+-		val |= PPSC_MDC_TURBO;
+-	mtk_m32(eth, PPSC_MDC_CFG, val, MTK_PPSC);
++	if (mtk_is_netsys_v3_or_greater(eth) &&
++	    (eth->soc->caps != MT7988_CAPS)) {
++		divider = min_t(unsigned int,
++				DIV_ROUND_UP(2 * MDC_MAX_FREQ, max_clk) - 1, 63);
++		output = (2 * MDC_MAX_FREQ) / (divider + 1);
++	} else {
++		divider = min_t(unsigned int,
++				DIV_ROUND_UP(MDC_MAX_FREQ, max_clk), 63);
++		output = MDC_MAX_FREQ / divider;
 +	}
-+
-+	if (!of_device_is_available(mii_np)) {
-+		ret = -ENODEV;
-+		goto err_put_node;
-+	}
-+
-+	eth->mii_bus = devm_mdiobus_alloc(eth->dev);
-+	if (!eth->mii_bus) {
-+		ret = -ENOMEM;
-+		goto err_put_node;
-+	}
-+
-+	eth->mii_bus->name = "mdio";
-+	eth->mii_bus->read = mtk_mdio_read_c22;
-+	eth->mii_bus->write = mtk_mdio_write_c22;
-+	eth->mii_bus->read_c45 = mtk_mdio_read_c45;
-+	eth->mii_bus->write_c45 = mtk_mdio_write_c45;
-+	eth->mii_bus->reset = mtk_mdio_reset;
-+	eth->mii_bus->priv = eth;
-+	eth->mii_bus->parent = eth->dev;
-+
-+	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
+ 
+-	dev_dbg(eth->dev, "MDC is running on %d Hz\n", MDC_MAX_FREQ / divider);
++	eth->mdc_divider = divider;
++	mtk_mdio_config(eth);
++	dev_dbg(eth->dev, "MDC is running on %d Hz\n", output);
+ 
  	ret = of_mdiobus_register(eth->mii_bus, mii_np);
  
- err_put_node:
-@@ -4349,6 +4369,10 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
+@@ -4165,6 +4189,10 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
  	else
  		mtk_hw_reset(eth);
  
@@ -109,6 +102,18 @@ index 082b32a..19b651f 100644
  	if (mtk_is_netsys_v3_or_greater(eth)) {
  		/* Set FE to PDMAv2 if necessary */
  		val = mtk_r32(eth, MTK_FE_GLO_MISC);
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index 3520980..b768ce0 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1380,6 +1380,7 @@ struct mtk_eth {
+ 	struct clk			*clks[MTK_CLK_MAX];
+ 
+ 	struct mii_bus			*mii_bus;
++	unsigned int			mdc_divider;
+ 	struct work_struct		pending_work;
+ 	unsigned long			state;
+ 
 -- 
 2.45.2
 
