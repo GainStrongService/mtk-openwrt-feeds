@@ -137,6 +137,23 @@ define Device/mediatek_mt7987a-spim-nand-cob-an8801sb
 endef
 TARGET_DEVICES += mediatek_mt7987a-spim-nand-cob-an8801sb
 
+define Device/mediatek_mt7987a-spim-nand-cob-an8811hb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7987a-spim-nand-cob-an8811hb
+  DEVICE_DTS := mt7987a-spim-nand-cob-an8811hb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7987a-spim-snand-cob-an8811hb
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mediatek_mt7987a-spim-nand-cob-an8811hb
+
 define Device/mediatek_mt7987a-spim-nand-evb
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7987a-spim-nand-evb
