@@ -17,12 +17,12 @@
 #include <linux/version.h>
 #include <linux/interrupt.h>
 
-#define AN8811HB_PHY_ID		0xc0ff04a0
+#define AN8811HB_PHY_ID			0xc0ff04a0
 
-#define AN8811HB_MD32_DM	"airoha/an8811hb/EthMD32_CRC.DM.bin"
-#define AN8811HB_MD32_DSP	"airoha/an8811hb/EthMD32_CRC.DSP.bin"
+#define AN8811HB_MD32_DM		"airoha/an8811hb/EthMD32_CRC.DM.bin"
+#define AN8811HB_MD32_DSP		"airoha/an8811hb/EthMD32_CRC.DSP.bin"
 
-#define AN8811HB_DRIVER_VERSION	"v0.0.4"
+#define AN8811HB_DRIVER_VERSION		"v0.0.8"
 
 #define AIR_FW_ADDR_DM	0x00000000
 #define AIR_FW_ADDR_DSP	0x00100000
@@ -51,6 +51,8 @@
 #define AIR_BPBUS_RD_ADDR_LOW		0x16
 #define AIR_BPBUS_RD_DATA_HIGH		0x17
 #define AIR_BPBUS_RD_DATA_LOW		0x18
+
+#define AIR_PBUS_MODE_ADDR_HIGH		0x1c
 
 /* Registers on MDIO_MMD_VEND1 */
 #define AIR_8811_PHY_FW_STATUS		0x8009
@@ -112,9 +114,6 @@
 
 #define AIR_PHY_MD32FW_VERSION		0x3b3c
 
-#define AN8811HB_GPIO_OUTPUT		0x5cf8b8
-#define   AN8811HB_GPIO_OUTPUT_345		(BIT(3) | BIT(4) | BIT(5))
-
 #define AN8811HB_CRC_PM_SET1		0xF020C
 #define AN8811HB_CRC_PM_MON2		0xF0218
 #define AN8811HB_CRC_PM_MON3		0xF021C
@@ -130,9 +129,25 @@
 #define AN8811HB_RX_POLARITY		0x5ce61c
 #define   AN8811HB_RX_POLARITY_NORMAL		BIT(7)
 
+#define AN8811HB_GPIO_OUTPUT		0x5cf8b8
+#define   AN8811HB_GPIO_OUTPUT_MASK		GENMASK(15, 0)
+#define   AN8811HB_GPIO_OUTPUT_345		(BIT(3) | BIT(4) | BIT(5))
+#define   AN8811HB_GPIO_OUTPUT_0115		(BIT(0) | BIT(1) | BIT(15))
+
+#define AN8811HB_GPIO_SEL		0x5cf8bc
+#define   AN8811HB_GPIO_SEL_0_MASK		GENMASK(3, 0)
+#define   AN8811HB_GPIO_SEL_1_MASK		GENMASK(7, 4)
+#define   AN8811HB_GPIO_SEL_15_MASK		GENMASK(31, 28)
+#define   AN8811HB_GPIO_SEL_0			BIT(0)
+#define   AN8811HB_GPIO_SEL_1			0
+#define   AN8811HB_GPIO_SEL_15			BIT(29)
+
 #define AN8811HB_HWTRAP1		0x5cf910
 #define AN8811HB_HWTRAP2		0x5cf914
 #define   AN8811HB_HWTRAP2_CKO			BIT(28)
+#define   AN8811HB_HWTRAP2_PKG			(BIT(12) | BIT(13) | BIT(14))
+#define AN8811HB_PRO_ID			0x5cf920
+#define   AN8811HB_PRO_ID_VERSION		GENMASK(3, 0)
 
 #define AN8811HB_CLK_DRV		0x5cf9e4
 #define AN8811HB_CLK_DRV_CKO_MASK		GENMASK(14, 12)
@@ -191,6 +206,7 @@
 #define AN8811HB_CNT_HSGMII_TX_ERR	0x5C90B8
 
 #define AN8811HB_CNT_LDPC_STA		0x30124
+#define   AN8811HB_CNT_LDPC_STA_CLEAR		(BIT(26) | BIT(25) | BIT(24))
 #define   AN8811HB_CNT_LDPC_STA_TOG		BIT(31)
 #define AN8811HB_CNT_LDPC_FAIL_63	0x301a4
 #define AN8811HB_CNT_LDPC_FAIL_31	0x301a0
@@ -262,6 +278,7 @@ enum air_led_trigger_netdev_modes {
 };
 
 enum air_port_mode {
+	AIR_PORT_MODE_FORCE_10,
 	AIR_PORT_MODE_FORCE_100,
 	AIR_PORT_MODE_FORCE_1000,
 	AIR_PORT_MODE_FORCE_2500,
@@ -318,10 +335,14 @@ enum air_cable_pair_status {
 	AIR_PAIR_CABLE_STATUS_LAST = 0xff
 };
 
-/* Default LED setup:
+/* Default LED setup of AN8811HBN:
  * GPIO5 <-> LED0  On: Link detected, blink Rx/Tx
  * GPIO4 <-> LED1  On: Link detected at 2500 and 1000 Mbps
  * GPIO3 <-> LED2  On: Link detected at 2500 and  100 Mbps
+ * Default LED setup of AN8811HBCN:
+ * GPIO1  <-> LED0  On: Link detected, blink Rx/Tx
+ * GPIO0  <-> LED1  On: Link detected at 2500 and 1000 Mbps
+ * GPIO15 <-> LED2  On: Link detected at 2500 and  100 Mbps
  */
 #define AIR_DEFAULT_TRIGGER_LED0 (BIT(AIR_TRIGGER_NETDEV_LINK)      | \
 				  BIT(AIR_TRIGGER_NETDEV_RX)        | \
@@ -361,6 +382,9 @@ struct an8811hb_priv {
 	bool			tcpc_first_read;
 	struct phy_device	*phydev;
 	unsigned int		cko_en;
+	unsigned int		pro_id;
+	unsigned int		pkg_sel;
+	unsigned int		surge;
 };
 
 enum {
@@ -412,6 +436,7 @@ enum {
 #define DEBUGFS_DRIVER_INFO	"drvinfo"
 #define DEBUGFS_PORT_MODE	"port_mode"
 #define DEBUGFS_BUCKPBUS_OP	"buckpbus_op"
+#define DEBUGFS_PBUS_OP		"pbus_op"
 #define DEBUGFS_POLARITY	"polarity"
 #define DEBUGFS_LINK_STATUS	"link_status"
 #define DEBUGFS_DBG_REG_SHOW	"dbg_regs_show"
@@ -419,6 +444,7 @@ enum {
 #define DEBUGFS_MII_CL45_OP	"cl45_op"
 #define DEBUGFS_LED_MODE	"led_mode"
 #define DEBUGFS_CABLE_DIAG	"cable_diag"
+#define DEBUGFS_TEMPERATURE	"temp"
 
 #define GET_BIT(val, bit) ((val & BIT(bit)) >> bit)
 
@@ -457,6 +483,101 @@ static int air_phy_read_page(struct phy_device *phydev)
 static int air_phy_write_page(struct phy_device *phydev, int page)
 {
 	return __phy_write(phydev, AIR_EXT_PAGE_ACCESS, page);
+}
+
+static int __air_pbus_reg_write(struct phy_device *phydev,
+				u32 pbus_reg, u32 pbus_data)
+{
+	struct mii_bus *bus = phydev->mdio.bus;
+	int phy_addr = phydev->mdio.addr;
+	int pbus_addr = phy_addr + 8;
+	int ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, AIR_EXT_PAGE_ACCESS,
+			      (pbus_reg >> 16));
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, AIR_PBUS_MODE_ADDR_HIGH,
+			      ((pbus_reg & GENMASK(15, 6)) >> 6));
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, ((pbus_reg & GENMASK(5, 2)) >> 2),
+			      (pbus_data & GENMASK(15, 0)));
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, 0x10,
+			      ((pbus_data & GENMASK(31, 16)) >> 16));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int __air_pbus_reg_read(struct phy_device *phydev,
+			       u32 pbus_reg, u32 *pbus_data)
+{
+	struct mii_bus *bus = phydev->mdio.bus;
+	int phy_addr = phydev->mdio.addr;
+	int pbus_addr = phy_addr + 8;
+	int pbus_data_low, pbus_data_high, i;
+	int ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, AIR_EXT_PAGE_ACCESS,
+			      (pbus_reg >> 16));
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, pbus_addr, AIR_PBUS_MODE_ADDR_HIGH,
+			      (pbus_reg & GENMASK(15, 6)) >> 6);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < 2; i++) {
+		pbus_data_low = __mdiobus_read(bus, pbus_addr,
+					       (pbus_reg & GENMASK(5, 2)) >> 2);
+		if (pbus_data_low < 0)
+			return pbus_data_low;
+	}
+
+	pbus_data_high = __mdiobus_read(bus, pbus_addr, 0x10);
+	if (pbus_data_high < 0)
+		return pbus_data_high;
+
+	*pbus_data = pbus_data_low | (pbus_data_high << 16);
+
+	return 0;
+}
+
+static int air_pbus_reg_read(struct phy_device *phydev,
+			     unsigned int pbus_reg, u32 *pbus_data)
+{
+	int ret;
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+
+	mutex_lock(&mbus->mdio_lock);
+	ret = __air_pbus_reg_read(phydev, pbus_reg, pbus_data);
+	mutex_unlock(&mbus->mdio_lock);
+	return ret;
+}
+
+static int air_pbus_reg_write(struct phy_device *phydev,
+			      unsigned int pbus_reg, u32 pbus_data)
+{
+	int ret = 0;
+	struct device *dev = phydev_dev(phydev);
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+
+	mutex_lock(&mbus->mdio_lock);
+	ret = __air_pbus_reg_write(phydev, pbus_reg, pbus_data);
+	mutex_unlock(&mbus->mdio_lock);
+	if (ret) {
+		dev_err(dev, "__air_pbus_reg_write, ret: %d\n", ret);
+		return ret;
+	}
+	return ret;
 }
 
 static int __air_buckpbus_reg_write(struct phy_device *phydev,
@@ -722,6 +843,28 @@ static int air_write_buf(struct phy_device *phydev, u32 address,
 	return phy_restore_page(phydev, saved_page, ret);
 }
 
+static int an8811hb_surge_protect_cfg(struct phy_device *phydev)
+{
+	struct an8811hb_priv *priv = phydev->priv;
+	struct device *dev = phydev_dev(phydev);
+	int ret = 0;
+
+	if (device_property_read_bool(dev, "airoha,surge-5r")) {
+		priv->surge = 1;
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_1, 0x0);
+		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_2, 0x0);
+		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_3, 0x1100);
+		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_4, 0x00b0);
+		if (ret < 0)
+			return ret;
+		phydev_info(phydev, "surge protection mode - 5R\n");
+	} else {
+		priv->surge = 0;
+		phydev_info(phydev, "surge protection mode - 0R\n");
+	}
+	return ret;
+}
+
 static int an8811hb_wait_mcu_ready(struct phy_device *phydev)
 {
 	int retry = MAX_RETRY;
@@ -730,7 +873,7 @@ static int an8811hb_wait_mcu_ready(struct phy_device *phydev)
 
 #if (KERNEL_VERSION(5, 7, 0) <= LINUX_VERSION_CODE)
 	while (retry-- > 0) {
-		mdelay(500);
+		msleep(500);
 
 		ret = air_buckpbus_reg_read(phydev, AIR_PHY_FW_CTRL_1, &reg_value);
 		if (ret < 0)
@@ -764,26 +907,16 @@ static int an8811hb_wait_mcu_ready(struct phy_device *phydev)
 	}
 #else
 	do {
-		mdelay(300);
+		msleep(300);
 
-		reg_value = phy_read_mmd(phydev, 0x1e, 0x8009);
-		if (reg_value == AIR_8811_PHY_READY) {
+		ret = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+					 AIR_8811_PHY_FW_STATUS);
+		if (ret == AIR_8811_PHY_READY) {
 			phydev_info(phydev, "AN8811HB PHY ready!\n");
 			return 0;
 		}
-
-		air_buckpbus_reg_read(phydev, AIR_PHY_FW_CTRL_1, &reg_value);
-		if (reg_value != AIR_PHY_FW_CTRL_1_FINISH) {
-			phydev_dbg(phydev, "%d: reg 0x%x val 0x%x!\n",
-				   __LINE__, AIR_PHY_FW_CTRL_1, reg_value);
-			ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
-						AIR_PHY_FW_CTRL_1_FINISH);
-			if (ret < 0)
-				return ret;
-		}
 	} while (--retry);
-
-	phydev_err(phydev, "MD32 FW is not ready.(Status 0x%x)\n", reg_value);
+	phydev_err(phydev, "MD32 FW is not ready.(Status 0x%x, 0x%x)\n", ret, reg_value);
 	air_buckpbus_reg_read(phydev, 0x3b3c, &reg_value);
 	phydev_err(phydev,
 	"Check MD32 FW Version(0x3b3c) : %08x\n", reg_value);
@@ -799,7 +932,7 @@ static int an8811hb_check_crc(struct phy_device *phydev, u32 set1,
 			     u32 mon2, u32 mon3)
 {
 	int retry = MAX_RETRY;
-	u32 pbus_value;
+	u32 pbus_value = 0;
 	int ret;
 
 	/* Configure CRC */
@@ -812,9 +945,9 @@ static int an8811hb_check_crc(struct phy_device *phydev, u32 set1,
 	phydev_dbg(phydev, "%d: reg 0x%x val %u!\n", __LINE__, set1, pbus_value);
 
 	do {
-		mdelay(300);
+		msleep(300);
 		air_buckpbus_reg_read(phydev, mon2, &pbus_value);
-		phydev_dbg(phydev, "%d: reg 0x%x val 0x%x!\n", __LINE__, mon2, pbus_value);
+		phydev_dbg(phydev, "%d: reg 0x%x val %u!\n", __LINE__, mon2, pbus_value);
 		if (pbus_value & AN8811HB_CRC_ST) {
 			phydev_dbg(phydev, "AN8811HB CRC ready!\n");
 			air_buckpbus_reg_read(phydev, mon3, &pbus_value);
@@ -822,7 +955,7 @@ static int an8811hb_check_crc(struct phy_device *phydev, u32 set1,
 			if (pbus_value & AN8811HB_CRC_CHECK_PASS)
 				phydev_info(phydev, "CRC Check PASS!\n");
 			else
-				phydev_info(phydev, "CRC Check FAIL!(%lu)\n",
+				phydev_info(phydev, "CRC Check FAIL!(0x%lx)\n",
 					    pbus_value & AN8811HB_CRC_CHECK_PASS);
 
 			break;
@@ -845,13 +978,56 @@ static int an8811hb_check_crc(struct phy_device *phydev, u32 set1,
 	return 0;
 }
 
+static int an8811hb_set_zero(struct phy_device *phydev)
+{
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int ret;
+
+	phydev_info(phydev, "%s: start\n", __func__);
+	mutex_lock(&mbus->mdio_lock);
+
+	ret = __air_pbus_reg_write(phydev, 0x5cf9f8, 0x10000);
+	if (ret < 0)
+		goto unlock;
+
+	ret = __air_pbus_reg_write(phydev, 0x5cf9fc, 0x0);
+
+	msleep(50);
+unlock:
+	mutex_unlock(&mbus->mdio_lock);
+	return ret;
+}
+
+static int an8811hb_set_one(struct phy_device *phydev)
+{
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int ret;
+
+	phydev_info(phydev, "%s: start\n", __func__);
+	mutex_lock(&mbus->mdio_lock);
+
+	ret = __air_pbus_reg_write(phydev, 0x5cf9fc, 0x10000);
+	if (ret < 0)
+		goto unlock;
+
+	ret = __air_pbus_reg_write(phydev, 0x5cf9f8, 0x10001);
+	if (ret < 0)
+		goto unlock;
+
+	msleep(50);
+unlock:
+	mutex_unlock(&mbus->mdio_lock);
+	return ret;
+}
+
 static int an8811hb_load_firmware(struct phy_device *phydev)
 {
 	struct an8811hb_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	const struct firmware *fw1, *fw2;
 	const char *firmware;
-	int ret;
+	int ret, retry;
+	u32 reg_val;
 
 	ret = request_firmware_direct(&fw1, AN8811HB_MD32_DM, dev);
 	if (ret < 0) {
@@ -863,9 +1039,7 @@ static int an8811hb_load_firmware(struct phy_device *phydev)
 	phydev_info(phydev, "%s: crc32=0x%x\n",
 		    firmware, ~crc32(~0, fw1->data, fw1->size));
 
-#ifdef CONFIG_AIR_AN8811HB_PHY_DEBUGFS
 	priv->dm_crc32 = ~crc32(~0, fw1->data, fw1->size);
-#endif
 
 	ret = request_firmware_direct(&fw2, AN8811HB_MD32_DSP, dev);
 	if (ret < 0) {
@@ -877,9 +1051,15 @@ static int an8811hb_load_firmware(struct phy_device *phydev)
 	phydev_info(phydev, "%s: crc32=0x%x\n",
 		    firmware, ~crc32(~0, fw2->data, fw2->size));
 
-#ifdef CONFIG_AIR_AN8811HB_PHY_DEBUGFS
 	priv->dsp_crc32 = ~crc32(~0, fw2->data, fw2->size);
-#endif
+
+	ret = an8811hb_set_zero(phydev);
+	if (ret < 0)
+		goto an8811hb_load_firmware_out;
+
+	ret = an8811hb_set_one(phydev);
+	if (ret < 0)
+		goto an8811hb_load_firmware_out;
 
 	ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
 				     AIR_PHY_FW_CTRL_1_START);
@@ -904,10 +1084,23 @@ static int an8811hb_load_firmware(struct phy_device *phydev)
 	if (ret < 0)
 		goto an8811hb_load_firmware_out;
 
-	ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
-				     AIR_PHY_FW_CTRL_1_FINISH);
-	if (ret < 0)
-		goto an8811hb_load_firmware_out;
+	retry = 10;
+	do {
+		msleep(300);
+
+		ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
+					AIR_PHY_FW_CTRL_1_FINISH);
+		if (ret < 0)
+			goto an8811hb_load_firmware_out;
+
+		air_buckpbus_reg_read(phydev, AIR_PHY_FW_CTRL_1, &reg_val);
+		if (reg_val == AIR_PHY_FW_CTRL_1_FINISH)
+			break;
+
+		phydev_info(phydev, "%d: reg 0x%x val 0x%x!\n",
+			    __LINE__, AIR_PHY_FW_CTRL_1, reg_val);
+
+	} while (--retry);
 
 	ret = an8811hb_wait_mcu_ready(phydev);
 
@@ -928,7 +1121,7 @@ an8811hb_load_firmware_rel1:
 	return ret;
 }
 
-int an8811hb_cko_cfg(struct phy_device *phydev)
+static int an8811hb_cko_cfg(struct phy_device *phydev)
 {
 	struct an8811hb_priv *priv = phydev->priv;
 	struct device *dev = phydev_dev(phydev);
@@ -958,9 +1151,19 @@ int an8811hb_cko_cfg(struct phy_device *phydev)
 
 static int an8811hb_restart_mcu(struct phy_device *phydev)
 {
-	int ret;
+	int ret, retry;
+	u32 reg_val = 0;
 
-	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_8811_PHY_FW_STATUS, 0x0);
+	ret = an8811hb_set_zero(phydev);
+	if (ret < 0)
+		return ret;
+
+	ret = an8811hb_set_one(phydev);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			    AIR_8811_PHY_FW_STATUS, 0x0);
 	if (ret < 0)
 		return ret;
 
@@ -969,10 +1172,47 @@ static int an8811hb_restart_mcu(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
-				     AIR_PHY_FW_CTRL_1_FINISH);
+	retry = MAX_RETRY;
+	do {
+		msleep(300);
+
+		ret = air_buckpbus_reg_write(phydev, AIR_PHY_FW_CTRL_1,
+					AIR_PHY_FW_CTRL_1_FINISH);
+		if (ret < 0)
+			return ret;
+
+		air_buckpbus_reg_read(phydev, AIR_PHY_FW_CTRL_1, &reg_val);
+		if (reg_val == AIR_PHY_FW_CTRL_1_FINISH)
+			break;
+
+		phydev_info(phydev, "%d: reg 0x%x val 0x%x!\n",
+			    __LINE__, AIR_PHY_FW_CTRL_1, reg_val);
+
+	} while (--retry);
+
+	msleep(200);
+
+	ret = phy_read(phydev, MII_BMCR);
 	if (ret < 0)
 		return ret;
+	ret &= ~BMCR_PDOWN;
+	ret = phy_write(phydev, MII_BMCR, ret);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	phydev_info(phydev, "%s: BMCR: 0x%x\n", __func__, ret);
+
+	msleep(100);
+
+	ret = air_buckpbus_reg_read(phydev, 0x3a9c, &reg_val);
+	if (ret < 0)
+		return ret;
+	phydev_info(phydev, "%s: reg 0x3a9c val 0x%x!\n",
+		    __func__, reg_val);
+
 
 	return an8811hb_wait_mcu_ready(phydev);
 }
@@ -1113,14 +1353,41 @@ static int air_leds_init(struct phy_device *phydev, int num, int dur, int mode)
 		air_led_hw_control_set(phydev, i, priv->led[i].rules);
 	}
 
+	phydev_info(phydev, "LEDs initialized successfully\n");
+
 	return 0;
 }
 
 static int an8811hb_config(struct phy_device *phydev)
 {
+	struct an8811hb_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	u32 pbus_value;
 	int ret = 0;
+
+	/* Configure led gpio pins as output */
+	if (priv->pkg_sel) {
+		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_OUTPUT,
+					      AN8811HB_GPIO_OUTPUT_MASK,
+					      AN8811HB_GPIO_OUTPUT_0115);
+		if (ret < 0)
+			return ret;
+		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_SEL,
+					      AN8811HB_GPIO_SEL_0_MASK |
+					      AN8811HB_GPIO_SEL_1_MASK |
+					      AN8811HB_GPIO_SEL_15_MASK,
+					      AN8811HB_GPIO_SEL_0 |
+					      AN8811HB_GPIO_SEL_1 |
+					      AN8811HB_GPIO_SEL_15);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_OUTPUT,
+					      AN8811HB_GPIO_OUTPUT_345,
+					      AN8811HB_GPIO_OUTPUT_345);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Serdes polarity */
 	pbus_value = 0;
@@ -1152,6 +1419,13 @@ static int an8811hb_config(struct phy_device *phydev)
 		return ret;
 	}
 
+	ret = an8811hb_surge_protect_cfg(phydev);
+	if (ret < 0) {
+		phydev_err(phydev,
+			   "an8811hb_surge_protect_cfg fail. (ret=%d)\n", ret);
+		return ret;
+	}
+
 	/* Co-Clock Output */
 	ret = an8811hb_cko_cfg(phydev);
 	if (ret)
@@ -1164,7 +1438,7 @@ static int an8811hb_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct an8811hb_priv *priv;
-	u32 phy_id;
+	u32 reg_val;
 	int ret;
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct an8811hb_priv),
@@ -1173,9 +1447,9 @@ static int an8811hb_probe(struct phy_device *phydev)
 		return -ENOMEM;
 	phydev->priv = priv;
 
-	phy_id = phy_read(phydev, MII_PHYSID1) << 16;
-	phy_id |= phy_read(phydev, MII_PHYSID2);
-	if (phy_id != AN8811HB_PHY_ID) {
+	reg_val = phy_read(phydev, MII_PHYSID1) << 16;
+	reg_val |= phy_read(phydev, MII_PHYSID2);
+	if (reg_val != AN8811HB_PHY_ID) {
 		phydev_err(phydev, "AN8811HB can't be detected.\n");
 		return 0;
 	}
@@ -1204,12 +1478,19 @@ static int an8811hb_probe(struct phy_device *phydev)
 
 	priv->phydev = phydev;
 
-	/* Configure led gpio pins as output */
-	ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_OUTPUT,
-				      AN8811HB_GPIO_OUTPUT_345,
-				      AN8811HB_GPIO_OUTPUT_345);
+	ret = air_buckpbus_reg_read(phydev, AN8811HB_PRO_ID, &reg_val);
 	if (ret < 0)
 		return ret;
+	priv->pro_id = (reg_val & AN8811HB_PRO_ID_VERSION) + 1;
+
+	ret = air_buckpbus_reg_read(phydev, AN8811HB_HWTRAP2, &reg_val);
+	if (ret < 0)
+		return ret;
+	priv->pkg_sel = (reg_val & AN8811HB_HWTRAP2_PKG) >> 12;
+
+	phydev_info(phydev, "%s(%d) Version: E%d\n",
+		    priv->pkg_sel ? "AN8811HBCN" : "AN8811HBN",
+		    priv->pkg_sel, priv->pro_id);
 
 	if (!device_property_read_bool(dev, "airoha,phy-handle")) {
 		ret = an8811hb_config(phydev);
@@ -1254,13 +1535,6 @@ static int an8811hb_config_init(struct phy_device *phydev)
 
 static int an8811hb_get_features(struct phy_device *phydev)
 {
-#if (KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE)
-	linkmode_set_bit_array(phy_basic_ports_array,
-			       ARRAY_SIZE(phy_basic_ports_array),
-			       phydev->supported);
-
-	return genphy_c45_pma_read_abilities(phydev);
-#else
 	int ret;
 
 	ret = genphy_read_abilities(phydev);
@@ -1282,7 +1556,6 @@ static int an8811hb_get_features(struct phy_device *phydev)
 			phydev->supported);
 
 	return 0;
-#endif
 }
 
 //#if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
@@ -1299,11 +1572,6 @@ static int an8811hb_config_aneg(struct phy_device *phydev)
 	int ret;
 	u32 adv;
 
-	if (phydev->autoneg == AUTONEG_DISABLE) {
-		phydev_warn(phydev, "Disabling autoneg is not supported\n");
-		return -EINVAL;
-	}
-
 	adv = linkmode_adv_to_mii_10gbt_adv_t(phydev->advertising);
 
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
@@ -1314,6 +1582,44 @@ static int an8811hb_config_aneg(struct phy_device *phydev)
 		changed = true;
 
 	return __genphy_config_aneg(phydev, changed);
+}
+
+static int an8811hb_update_duplex(struct phy_device *phydev)
+{
+	int lpa, bmcr;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		lpa = phy_read(phydev, MII_LPA);
+		if (lpa < 0)
+			return lpa;
+
+		switch (phydev->speed) {
+		case SPEED_2500:
+		case SPEED_1000:
+			phydev->duplex = DUPLEX_FULL;
+			break;
+		case SPEED_100:
+			phydev->duplex = (lpa & LPA_100FULL) ?
+					  DUPLEX_FULL : DUPLEX_HALF;
+			break;
+		case SPEED_10:
+			phydev->duplex = (lpa & LPA_10FULL) ?
+					  DUPLEX_FULL : DUPLEX_HALF;
+			break;
+		}
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
+		bmcr = phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
+
+		if (phydev->speed == SPEED_2500)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = (bmcr & BMCR_FULLDPLX) ?
+					  DUPLEX_FULL : DUPLEX_HALF;
+	}
+
+	return 0;
 }
 
 static int an8811hb_read_status(struct phy_device *phydev)
@@ -1346,14 +1652,13 @@ static int an8811hb_read_status(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Get link partner 2.5GBASE-T ability */
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_PMA_NG_EXTABLE);
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-			 phydev->lp_advertising,
-			 val & BIT(5));
-
-	if (phydev->autoneg_complete)
-		phy_resolve_aneg_pause(phydev);
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		/* Get link partner 2.5GBASE-T ability */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_PMA_NG_EXTABLE);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				phydev->lp_advertising,
+				val & BIT(5));
+	}
 
 	if (!phydev->link)
 		return 0;
@@ -1362,6 +1667,7 @@ static int an8811hb_read_status(struct phy_device *phydev)
 	val = phy_read(phydev, AIR_AUX_CTRL_STATUS);
 	if (val < 0)
 		return val;
+
 	switch (val & AIR_AUX_CTRL_STATUS_SPEED_MASK) {
 	case AIR_AUX_CTRL_STATUS_SPEED_2500:
 		phydev->speed = SPEED_2500;
@@ -1377,12 +1683,18 @@ static int an8811hb_read_status(struct phy_device *phydev)
 		break;
 	default:
 		phydev->speed = SPEED_2500;
-		phydev_err(phydev, "%s: Default Speed: 0x%x\n", __func__, val);
-		break;
+		phydev->duplex = DUPLEX_FULL;
+		phydev_err(phydev, "%s: Unknown speed value: 0x%x, defaulting to 2500M\n",
+			   __func__, val);
 	}
 
-	/* Only supports full duplex */
-	phydev->duplex = DUPLEX_FULL;
+	/* Update duplex mode based on speed and negotiation status */
+	ret = an8811hb_update_duplex(phydev);
+	if (ret < 0)
+		return ret;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete)
+		phy_resolve_aneg_pause(phydev);
 
 	return 0;
 }
@@ -1459,12 +1771,48 @@ static void an8811hb_remove(struct phy_device *phydev)
 
 static int an8811hb_resume(struct phy_device *phydev)
 {
-	return genphy_resume(phydev);
+	int ret = 0;
+
+	phydev_info(phydev, "%s: start!\n", __func__);
+
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	ret &= ~BMCR_PDOWN;
+	ret = phy_write(phydev, MII_BMCR, ret);
+	if (ret < 0)
+		return ret;
+
+	phydev_info(phydev, "%s: end!\n", __func__);
+
+	return 0;
 }
 
 static int an8811hb_suspend(struct phy_device *phydev)
 {
-	return genphy_suspend(phydev);
+	int ret = 0;
+
+	phydev_info(phydev, "%s: start!\n", __func__);
+
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	ret |= BMCR_ANRESTART;
+	ret = phy_write(phydev, MII_BMCR, ret);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	ret |= BMCR_PDOWN;
+	ret = phy_write(phydev, MII_BMCR, ret);
+	if (ret < 0)
+		return ret;
+
+	phydev_info(phydev, "%s: end!\n", __func__);
+
+	return 0;
 }
 
 #ifdef CONFIG_AIR_AN8811HB_PHY_DEBUGFS
@@ -1509,9 +1857,31 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 	struct an8811hb_priv *priv = phydev->priv;
 
 	switch (dbg_mode) {
+	case AIR_PORT_MODE_FORCE_10:
+		pr_notice("\nForce 10M\n");
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), BIT(6) | BIT(5));
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_mmd_reg_modify(phydev, 0x7, 0x20, BIT(7), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_BMCR, BMCR_ANRESTART, BMCR_ANRESTART);
+		if (ret < 0)
+			break;
+		priv->need_an = 1;
+		break;
 	case AIR_PORT_MODE_FORCE_100:
 		pr_notice("\nForce 100M\n");
-		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8), BIT(8));
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), BIT(8) | BIT(7));
 		if (ret < 0)
 			break;
 		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), 0);
@@ -1527,7 +1897,10 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		break;
 	case AIR_PORT_MODE_FORCE_1000:
 		pr_notice("\nForce 1000M\n");
-		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8), 0);
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), 0);
 		if (ret < 0)
 			break;
 		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), BIT(9));
@@ -1543,7 +1916,10 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		break;
 	case AIR_PORT_MODE_FORCE_2500:
 		pr_notice("\nForce 2500M\n");
-		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8), 0);
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), 0);
 		if (ret < 0)
 			break;
 		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), 0);
@@ -1559,7 +1935,10 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		break;
 	case AIR_PORT_MODE_AUTONEGO:
 		pr_notice("\nAutonego mode\n");
-		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8), BIT(8));
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), BIT(6) | BIT(5));
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), BIT(8) | BIT(7));
 		if (ret < 0)
 			break;
 		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), BIT(9));
@@ -1602,14 +1981,17 @@ static int airphy_info_show(struct seq_file *seq, void *v)
 	unsigned int val = 0, tx, rx;
 
 	seq_puts(seq, "<<AIR AN8811HB Driver info>>\n");
+	seq_printf(seq, "| CHIP              : %s(%d)\n",
+		   priv->pkg_sel ? "AN8811HBCN" : "AN8811HBN", priv->pkg_sel);
 	air_buckpbus_reg_read(phydev, 0x5cf914, &val);
 	seq_printf(seq, "| Boot mode         : %s\n",
 		   ((val & BIT(22)) >> 22) ? "Flash" : "Download Code");
-
 	seq_printf(seq, "| Driver Version    : %s\n",
 		   AN8811HB_DRIVER_VERSION);
 	seq_printf(seq, "| MD32 FW Version   : %08x\n",
 		   priv->firmware_version);
+
+	seq_printf(seq, "| IC Version        : E%02d\n", priv->pro_id);
 
 	air_buckpbus_reg_read(phydev, AN8811HB_TX_POLARITY, &tx);
 	air_buckpbus_reg_read(phydev, AN8811HB_RX_POLARITY, &rx);
@@ -1991,6 +2373,16 @@ static int airphy_ldpc_counter_show(struct phy_device *phydev,
 		return ret;
 	seq_printf(seq, "%010u |\n", pkt_cnt);
 
+	ret = air_buckpbus_reg_modify(phydev, AN8811HB_CNT_LDPC_STA,
+				      AN8811HB_CNT_LDPC_STA_CLEAR,
+				      AN8811HB_CNT_LDPC_STA_CLEAR);
+	if (ret < 0)
+		return ret;
+	ret = air_buckpbus_reg_modify(phydev, AN8811HB_CNT_LDPC_STA,
+				      AN8811HB_CNT_LDPC_STA_CLEAR, 0);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -2005,55 +2397,90 @@ static int air_get_autonego(struct phy_device *phydev, int *an)
 		*an = AUTONEG_ENABLE;
 	else
 		*an = AUTONEG_DISABLE;
+
 	return 0;
 }
 
 static int air_ref_clk_speed(struct phy_device *phydev, int para)
 {
-	int ret;
+	int ret, lpa, bmcr;
 	struct an8811hb_priv *priv = phydev->priv;
 	int saved_page;
 	struct device *dev = phydev_dev(phydev);
 
 	saved_page = phy_select_page(phydev, AIR_PHY_PAGE_STANDARD);
+
+	ret = __phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (ret & BMCR_ANENABLE)
+		priv->an = AUTONEG_ENABLE;
+	else
+		priv->an = AUTONEG_DISABLE;
+
 	ret = __phy_write(phydev, 0x1f, 0x0);
+
 	/* Get real speed from vendor register */
 	ret = __phy_read(phydev, AIR_AUX_CTRL_STATUS);
 	if (ret < 0)
 		return ret;
+
+	lpa = __phy_read(phydev, MII_LPA);
+	if (lpa < 0)
+		return lpa;
+
 	switch (ret & AIR_AUX_CTRL_STATUS_SPEED_MASK) {
 	case AIR_AUX_CTRL_STATUS_SPEED_2500:
-		if (para == AIR_PARA_PRIV)
-			priv->speed = SPEED_2500;
-		else
-			phydev->speed = SPEED_2500;
+		priv->speed = SPEED_2500;
 		break;
 	case AIR_AUX_CTRL_STATUS_SPEED_1000:
-		if (para == AIR_PARA_PRIV)
-			priv->speed = SPEED_1000;
-		else
-			phydev->speed = SPEED_1000;
+		priv->speed = SPEED_1000;
 		break;
 	case AIR_AUX_CTRL_STATUS_SPEED_100:
-		if (para == AIR_PARA_PRIV)
-			priv->speed = SPEED_100;
-		else
-			phydev->speed = SPEED_100;
+		priv->speed = SPEED_100;
 		break;
 	case AIR_AUX_CTRL_STATUS_SPEED_10:
-		if (para == AIR_PARA_PRIV)
-			priv->speed = SPEED_10;
-		else
-			phydev->speed = SPEED_10;
+		priv->speed = SPEED_10;
 		break;
 	default:
-		if (para == AIR_PARA_PRIV)
-			priv->speed = SPEED_2500;
-		else
-			phydev->speed = SPEED_2500;
+		priv->speed = SPEED_2500;
+		priv->duplex = DUPLEX_FULL;
 		dev_err(dev, "%s: Default Speed: 0x%x\n", __func__, ret);
 		break;
 	}
+
+	if (priv->an == AUTONEG_ENABLE) {
+		lpa = __phy_read(phydev, MII_LPA);
+		if (lpa < 0)
+			return lpa;
+
+		switch (priv->speed) {
+		case SPEED_2500:
+		case SPEED_1000:
+			priv->duplex = DUPLEX_FULL;
+			break;
+		case SPEED_100:
+			priv->duplex = (lpa & LPA_100FULL) ?
+					DUPLEX_FULL : DUPLEX_HALF;
+			break;
+		case SPEED_10:
+			priv->duplex = (lpa & LPA_10FULL) ?
+					DUPLEX_FULL : DUPLEX_HALF;
+			break;
+		}
+	} else if (priv->an == AUTONEG_DISABLE) {
+		bmcr = __phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
+
+		if (priv->speed == SPEED_2500)
+			priv->duplex = DUPLEX_FULL;
+		else
+			priv->duplex = (bmcr & BMCR_FULLDPLX) ?
+					DUPLEX_FULL : DUPLEX_HALF;
+	}
+
 	return phy_restore_page(phydev, saved_page, ret);
 }
 
@@ -2079,9 +2506,11 @@ static int air_read_status(struct phy_device *phydev)
 	}
 	if (reg & BMSR_LSTATUS) {
 		priv->link = 1;
+
 		ret = air_ref_clk_speed(phydev, AIR_PARA_PRIV);
 		if (ret < 0)
 			return ret;
+
 		reg = phy_read(phydev, MII_ADVERTISE);
 		if (reg < 0)
 			return reg;
@@ -2090,7 +2519,6 @@ static int air_read_status(struct phy_device *phydev)
 	} else
 		priv->link = 0;
 
-	priv->duplex = DUPLEX_FULL;
 	return 0;
 }
 
@@ -2202,6 +2630,7 @@ static void airphy_port_mode_help(void)
 		  "echo 2500 > /[debugfs]/port_mode\n"
 		  "echo 1000 > /[debugfs]/port_mode\n"
 		  "echo 100 > /[debugfs]/port_mode\n"
+		  "echo 10 > /[debugfs]/port_mode\n"
 		  "echo power up/down >  /[debugfs]/port_mode\n");
 }
 
@@ -2234,6 +2663,8 @@ static ssize_t airphy_port_mode(struct file *file, const char __user *ptr,
 		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_1000);
 	} else if (!strncmp("100", cmd, strlen("100"))) {
 		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_100);
+	} else if (!strncmp("10", cmd, strlen("10"))) {
+		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_10);
 	} else if (!strncmp("re-an", cmd, strlen("re-an"))) {
 		val = phy_read(phydev, MII_BMCR) | BIT(9);
 		ret = phy_write(phydev, MII_BMCR, val);
@@ -2314,6 +2745,85 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		}
 	} else
 		airphy_debugfs_buckpbus_help();
+
+	return count;
+}
+
+static void airphy_debugfs_pbus_help(void)
+{
+	pr_notice("\nUsage:\n"
+		  "[debugfs] = /sys/kernel/debug/mdio-bus\':[phy_addr]\n"
+		  "Read:\n"
+		  "echo r [pbus_register] > /[debugfs]/pbus_op\n"
+		  "Write:\n"
+		  "echo w [pbus_register] [value] > /[debugfs]/pbus_op\n");
+}
+
+static ssize_t airphy_debugfs_pbus(struct file *file,
+				       const char __user *buffer, size_t count,
+				       loff_t *data)
+{
+	struct phy_device *phydev = file->private_data;
+	char buf[64];
+	int ret = 0, i;
+	unsigned int reg, val, num;
+
+	memset(buf, 0, 64);
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+
+	if (buf[0] == 'w') {
+		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
+			return -EFAULT;
+
+		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
+			phydev_addr(phydev), reg, val);
+		ret = air_pbus_reg_write(phydev, reg, val);
+		if (ret < 0) {
+			pr_notice("\nbuckpbus_reg_write fail\n");
+			return -EIO;
+		}
+		ret = air_pbus_reg_read(phydev, reg, &val);
+		if (ret < 0) {
+			pr_notice("\nair_pbus_reg_read fail\n");
+			return -EIO;
+		}
+		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
+			phydev_addr(phydev), reg, val);
+	} else if (buf[0] == 'r') {
+		if (sscanf(buf, "r %15x", &reg) == -1)
+			return -EFAULT;
+
+		ret = air_pbus_reg_read(phydev, reg, &val);
+		if (ret < 0) {
+			pr_notice("\nair_pbus_reg_read fail\n");
+			return -EIO;
+		}
+		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
+		phydev_addr(phydev), reg, val);
+	} else if (buf[0] == 'x') {
+		if (sscanf(buf, "x %15x %6d", &reg, &num) == -1)
+			return -EFAULT;
+		if (num > 0x1000 || num == 0) {
+			pr_notice("\nphy%d: number(0x%x) is invalid number\n",
+				phydev_addr(phydev), num);
+			return -EFAULT;
+		}
+		for (i = 0; i < num; i++) {
+			ret = air_pbus_reg_read(phydev, (reg + (i * 4)), &val);
+			if (ret < 0) {
+				pr_notice("\nair_pbus_reg_read fail at reg=0x%x\n",
+					reg + (i * 4));
+				return -EIO;
+			}
+			pr_notice("phy=%d, reg=0x%x, val=0x%x",
+				phydev_addr(phydev), reg + (i * 4), val);
+			pr_notice("");
+		}
+	} else
+		airphy_debugfs_pbus_help();
 
 	return count;
 }
@@ -2402,13 +2912,18 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 	air_buckpbus_reg_read(phydev, 0x5cE660, &val);
 	seq_printf(seq, "| RG_DA_QP_LCK        : 0x%08x |\n", val);
 
+	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_OUTPUT, &val);
+	seq_printf(seq, "| RG_GPIO_OUT         : 0x%08x |\n", val);
+	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_SEL, &val);
+	seq_printf(seq, "| RG_GPIO_SEL         : 0x%08x |\n", val);
+
 	air_buckpbus_reg_read(phydev, 0x21C100, &val);
 	seq_printf(seq, "| RG_MAC_CONF         : 0x%08x |\n", val);
 	air_buckpbus_reg_read(phydev, 0x3a9c, &val);
 	seq_printf(seq, "| RG_SW_DBG_FLAG      : 0x%08x |\n", val);
 
 	seq_printf(seq, "| RG_MD32_FW_READY    : 0x%08x |\n",
-		   phy_read_mmd(phydev, 0x1e, 0x8009));
+		   phy_read_mmd(phydev, MDIO_MMD_VEND1, AIR_8811_PHY_FW_STATUS));
 	air_buckpbus_reg_read(phydev, 0x3a48, &val);
 	seq_printf(seq, "| RG_WHILE_LOOP_COUNT : 0x%08x |\n", val);
 
@@ -2418,6 +2933,40 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 static int airphy_dbg_regs_show_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, dbg_regs_show, inode->i_private);
+}
+
+static int airphy_temp_show(struct seq_file *seq, void *v)
+{
+	struct phy_device *phydev = seq->private;
+	struct an8811hb_priv *priv = phydev->priv;
+	int ret = 0;
+	u32 pbus_value = 0;
+	int temp_value = 0;
+
+	seq_puts(seq, "<<AIR AN8811HB Temp>>\n");
+
+	if (priv->firmware_version < 0x25120701) {
+		seq_puts(seq, "Not support.\n");
+		return 0;
+	}
+
+	ret = air_buckpbus_reg_read(phydev, 0x3a7c, &pbus_value);
+	if (ret < 0) {
+		pr_notice("\nair_buckpbus_reg_read fail\n");
+		return -EIO;
+	}
+
+	temp_value = (int)pbus_value - 273;
+
+	seq_printf(seq, "| Temperature  : %dC |\n", temp_value);
+	seq_puts(seq, "\n");
+
+	return 0;
+}
+
+static int airphy_temp_show_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, airphy_temp_show, inode->i_private);
 }
 
 static void airphy_debugfs_cl22_help(void)
@@ -2845,6 +3394,13 @@ static const struct file_operations airphy_debugfs_buckpbus_fops = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations airphy_debugfs_pbus_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = airphy_debugfs_pbus,
+	.llseek = noop_llseek,
+};
+
 static const struct file_operations airphy_port_mode_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -2896,6 +3452,14 @@ static const struct file_operations airphy_cable_diag_fops = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations airphy_temp_fops = {
+	.owner = THIS_MODULE,
+	.open = airphy_temp_show_open,
+	.read = seq_read,
+	.llseek = noop_llseek,
+	.release = single_release,
+};
+
 int airphy_debugfs_init(struct phy_device *phydev)
 {
 	int ret = 0;
@@ -2918,6 +3482,9 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_BUCKPBUS_OP, S_IFREG | 0200,
 			    dir, phydev,
 			    &airphy_debugfs_buckpbus_fops);
+	debugfs_create_file(DEBUGFS_PBUS_OP, S_IFREG | 0200,
+			    dir, phydev,
+			    &airphy_debugfs_pbus_fops);
 	debugfs_create_file(DEBUGFS_PORT_MODE, S_IFREG | 0200,
 			    dir, phydev,
 			    &airphy_port_mode_fops);
@@ -2939,6 +3506,9 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_CABLE_DIAG, S_IFREG | 0200,
 			    dir, phydev,
 			    &airphy_cable_diag_fops);
+	debugfs_create_file(DEBUGFS_TEMPERATURE, S_IFREG | 0444,
+			    dir, phydev,
+			    &airphy_temp_fops);
 
 	priv->debugfs_root = dir;
 
