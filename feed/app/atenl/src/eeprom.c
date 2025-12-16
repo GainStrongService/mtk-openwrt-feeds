@@ -196,7 +196,7 @@ atenl_eeprom_init_max_size(struct atenl *an)
 static void
 atenl_eeprom_init_band_cap(struct atenl *an)
 {
-#define EAGLE_BAND_SEL(index)	MT_EE_WIFI_EAGLE_CONF##index##_BAND_SEL
+#define CONNAC3_BAND_SEL(index)		MT_EE_WIFI_CONNAC3_CONF_BAND##index##_SEL
 	u8 *eeprom = an->eeprom_data;
 
 	if (is_mt7915(an)) {
@@ -253,64 +253,37 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 				break;
 			}
 		}
-	} else if (is_mt7996(an)) {
+	} else if (is_connac3(an)) {
 		struct atenl_band *anb;
 		u8 val, band_sel;
-		u8 band_sel_mask[3] = {EAGLE_BAND_SEL(0), EAGLE_BAND_SEL(1),
-				       EAGLE_BAND_SEL(2)};
+		u8 band_sel_mask[MAX_BAND_NUM] = {CONNAC3_BAND_SEL(0), CONNAC3_BAND_SEL(1),
+						  CONNAC3_BAND_SEL(2)};
+		u16 band_sel_offs[MAX_BAND_NUM] = {MT_EE_WIFI_CONF, MT_EE_WIFI_CONF,
+						   MT_EE_WIFI_CONF + 1};
 		int i;
 
-		for (i = 0; i < 3; i++) {
-			val = eeprom[MT_EE_WIFI_CONF + i];
+		for (i = 0; i < MAX_BAND_NUM; i++) {
+			val = eeprom[band_sel_offs[i]];
 			band_sel = FIELD_GET(band_sel_mask[i], val);
 			anb = &an->anb[i];
 
 			anb->valid = true;
 			switch (band_sel) {
-			case MT_EE_EAGLE_BAND_SEL_2GHZ:
+			case MT_EE_CONNAC3_BAND_SEL_2GHZ:
 				anb->cap = BAND_TYPE_2G;
 				break;
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_LOW:
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_HIGH:
-			case MT_EE_EAGLE_BAND_SEL_5GHZ:
+			case MT_EE_CONNAC3_BAND_SEL_5GHZ_LOW:
+			case MT_EE_CONNAC3_BAND_SEL_5GHZ_HIGH:
+			case MT_EE_CONNAC3_BAND_SEL_5GHZ:
 				anb->cap = BAND_TYPE_5G;
 				break;
-			case MT_EE_EAGLE_BAND_SEL_6GHZ_LOW:
-			case MT_EE_EAGLE_BAND_SEL_6GHZ_HIGH:
-			case MT_EE_EAGLE_BAND_SEL_6GHZ:
+			case MT_EE_CONNAC3_BAND_SEL_6GHZ_LOW:
+			case MT_EE_CONNAC3_BAND_SEL_6GHZ_HIGH:
+			case MT_EE_CONNAC3_BAND_SEL_6GHZ:
 				anb->cap = BAND_TYPE_6G;
 				break;
 			default:
-				break;
-			}
-		}
-	} else if (is_mt7992(an) || is_mt7990(an)) {
-		struct atenl_band *anb;
-		u8 val, band_sel;
-		u8 band_sel_mask[2] = {EAGLE_BAND_SEL(0), EAGLE_BAND_SEL(1)};
-		int i;
-
-		for (i = 0; i < 2; i++) {
-			val = eeprom[MT_EE_WIFI_CONF + i];
-			band_sel = FIELD_GET(band_sel_mask[i], val);
-			anb = &an->anb[i];
-
-			anb->valid = true;
-			switch (band_sel) {
-			case MT_EE_EAGLE_BAND_SEL_2GHZ:
-				anb->cap = BAND_TYPE_2G;
-				break;
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_LOW:
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_HIGH:
-			case MT_EE_EAGLE_BAND_SEL_5GHZ:
-				anb->cap = BAND_TYPE_5G;
-				break;
-			case MT_EE_EAGLE_BAND_SEL_6GHZ_LOW:
-			case MT_EE_EAGLE_BAND_SEL_6GHZ_HIGH:
-			case MT_EE_EAGLE_BAND_SEL_6GHZ:
-				anb->cap = BAND_TYPE_6G;
-				break;
-			default:
+				anb->valid = false;
 				break;
 			}
 		}
@@ -322,40 +295,53 @@ atenl_eeprom_init_antenna_cap(struct atenl *an)
 {
 	switch (an->chip_id) {
 	case MT7915_DEVICE_ID:
-		if (an->anb[0].cap == BAND_TYPE_2G_5G)
-			an->anb[0].chainmask = 0xf;
-		else {
-			an->anb[0].chainmask = 0x3;
-			an->anb[1].chainmask = 0xc;
+		if (an->anb[0].cap == BAND_TYPE_2G_5G) {
+			an->anb[0].chainmask = FIELD_GET(GENMASK(2, 0),
+							 an->eeprom_data[MT_EE_WIFI_CONF]);
+			an->anb[0].rx_chainmask = FIELD_GET(GENMASK(5, 3),
+							    an->eeprom_data[MT_EE_WIFI_CONF]);
+		} else {
+			an->anb[0].chainmask = FIELD_GET(GENMASK(1, 0),
+							 an->eeprom_data[MT_EE_WIFI_CONF + 3]);
+			an->anb[1].chainmask = FIELD_GET(GENMASK(5, 4),
+							 an->eeprom_data[MT_EE_WIFI_CONF + 3]);
+
+			an->anb[0].rx_chainmask = FIELD_GET(GENMASK(3, 2),
+							    an->eeprom_data[MT_EE_WIFI_CONF + 3]);
+			an->anb[1].rx_chainmask = FIELD_GET(GENMASK(7, 6),
+							    an->eeprom_data[MT_EE_WIFI_CONF + 3]);
 		}
 		break;
 	case MT7916_EEPROM_CHIP_ID:
 	case MT7916_DEVICE_ID:
-		an->anb[0].chainmask = 0x3;
-		an->anb[1].chainmask = 0x3;
-		break;
 	case MT7981_DEVICE_ID:
-		an->anb[0].chainmask = 0x3;
-		an->anb[1].chainmask = 0x7;
-		break;
 	case MT7986_DEVICE_ID:
-		an->anb[0].chainmask = 0xf;
-		an->anb[1].chainmask = 0xf;
+		an->anb[0].chainmask = FIELD_GET(GENMASK(2, 0),
+						 an->eeprom_data[MT_EE_WIFI_CONF]);
+		an->anb[1].chainmask = FIELD_GET(GENMASK(2, 0),
+						 an->eeprom_data[MT_EE_WIFI_CONF + 1]);
+
+		an->anb[0].rx_chainmask = FIELD_GET(GENMASK(5, 3),
+						    an->eeprom_data[MT_EE_WIFI_CONF]);
+		an->anb[1].rx_chainmask = FIELD_GET(GENMASK(5, 3),
+						    an->eeprom_data[MT_EE_WIFI_CONF + 1]);
 		break;
 	case MT7996_DEVICE_ID:
-		/* TODO: handle 4T5R */
-		an->anb[0].chainmask = 0xf;
-		an->anb[1].chainmask = 0xf;
-		an->anb[2].chainmask = 0xf;
-		break;
 	case MT7992_DEVICE_ID:
-		/* TODO: handle BE7200 2i5i 5T5R */
-		an->anb[0].chainmask = 0xf;
-		an->anb[1].chainmask = 0xf;
-		break;
 	case MT7990_DEVICE_ID:
-		an->anb[0].chainmask = 0x3;
-		an->anb[1].chainmask = 0x7;
+		an->anb[0].chainmask = FIELD_GET(GENMASK(5, 3),
+						 an->eeprom_data[MT_EE_WIFI_CONF + 1]);
+		an->anb[1].chainmask = FIELD_GET(GENMASK(2, 0),
+						 an->eeprom_data[MT_EE_WIFI_CONF + 2]);
+		an->anb[2].chainmask = FIELD_GET(GENMASK(5, 3),
+						 an->eeprom_data[MT_EE_WIFI_CONF + 2]);
+
+		an->anb[0].rx_chainmask = FIELD_GET(GENMASK(2, 0),
+						    an->eeprom_data[MT_EE_WIFI_CONF + 3]);
+		an->anb[1].rx_chainmask = FIELD_GET(GENMASK(5, 3),
+						    an->eeprom_data[MT_EE_WIFI_CONF + 3]);
+		an->anb[2].rx_chainmask = FIELD_GET(GENMASK(2, 0),
+						    an->eeprom_data[MT_EE_WIFI_CONF + 4]);
 		break;
 	default:
 		break;
@@ -699,6 +685,33 @@ atenl_eeprom_sync_to_driver(struct atenl *an)
 		atenl_nl_write_eeprom(an, i, &an->eeprom_data[i], 16);
 }
 
+static void
+atenl_eeprom_get_cap(struct atenl *an)
+{
+	static const char * const cap_to_radio[] = {
+		[BAND_TYPE_UNUSE] = "invalid",
+		[BAND_TYPE_2G] = "2g",
+		[BAND_TYPE_5G] = "5g",
+		[BAND_TYPE_2G_5G] = "2/5g",
+		[BAND_TYPE_6G] = "6g",
+		[BAND_TYPE_2G_6G] = "2/6g",
+		[BAND_TYPE_5G_6G] = "5/6g",
+		[BAND_TYPE_2G_5G_6G] = "2/5/6g",
+	};
+	int i;
+
+	for (i = 0; i < MAX_BAND_NUM; i++) {
+		struct atenl_band *anb;
+
+		if (!get_band_val(an, i, valid))
+			continue;
+
+		anb = &an->anb[i];
+		atenl_info("band %d: %s radio, tx antenna %x, rx antenna %x\n",
+			   i, cap_to_radio[anb->cap], anb->chainmask, anb->rx_chainmask);
+	}
+}
+
 void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 {
 	an->cmd_mode = true;
@@ -710,6 +723,8 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 		atenl_eeprom_write_flash(an);
 	} else if (!strncmp(cmd, "clear eeprom all", 16)) {
 		atenl_eeprom_clear_flash(an);
+	} else if (!strncmp(cmd, "get cap", 7)) {
+		atenl_eeprom_get_cap(an);
 	} else if (!strncmp(cmd, "eeprom", 6)) {
 		char *s = strchr(cmd, ' ');
 
