@@ -96,15 +96,6 @@ index 48fe924..4443929 100644
  	hwmon_dev = devm_hwmon_device_register_with_info(dev, hwmon_name,
  							 phydev,
  							 &gpy_hwmon_chip_info,
-@@ -557,7 +598,7 @@ static int gpy_update_interface(struct phy_device *phydev)
- 	/* Interface mode is fixed for USXGMII and integrated PHY */
- 	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII ||
- 	    phydev->interface == PHY_INTERFACE_MODE_INTERNAL)
--		return -EINVAL;
-+		return 0;
- 
- 	/* Automatically switch SERDES interface between SGMII and 2500-BaseX
- 	 * according to speed. Disable ANEG in 2500-BaseX mode.
 @@ -1284,6 +1325,29 @@ static struct phy_driver gpy_drivers[] = {
  		.get_wol	= gpy_get_wol,
  		.set_loopback	= gpy_loopback,
