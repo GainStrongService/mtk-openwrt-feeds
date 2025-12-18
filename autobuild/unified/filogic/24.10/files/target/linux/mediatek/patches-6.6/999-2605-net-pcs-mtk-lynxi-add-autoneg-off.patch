@@ -1,6 +1,6 @@
-From 21759e11fa16feac1f84af8927485683a2cb3bad Mon Sep 17 00:00:00 2001
+From b4ce939d35241f64ef5bf2bf6afb84e5be4744ce Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 8 Apr 2025 12:46:39 +0800
+Date: Thu, 18 Dec 2025 21:42:15 +0800
 Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
  1 file changed, 30 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
-index 48fc5a1..319cbb7 100644
+index ed37399..9700145 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
-@@ -49,9 +49,9 @@
+@@ -48,9 +48,9 @@
  #define SGMII_IF_MODE_SGMII		BIT(0)
  #define SGMII_SPEED_DUPLEX_AN		BIT(1)
  #define SGMII_SPEED_MASK		GENMASK(3, 2)
@@ -24,7 +24,7 @@ index 48fc5a1..319cbb7 100644
  #define SGMII_DUPLEX_HALF		BIT(4)
  #define SGMII_REMOTE_FAULT_DIS		BIT(8)
  
-@@ -140,23 +140,40 @@ static void mtk_pcs_lynxi_get_state(struct phylink_pcs *pcs,
+@@ -138,23 +138,40 @@ static void mtk_pcs_lynxi_get_state(struct phylink_pcs *pcs,
  				    struct phylink_link_state *state)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
@@ -72,8 +72,8 @@ index 48fc5a1..319cbb7 100644
 +	}
  
  	/* Continuously repeat re-configuration sequence until link comes up */
- 	if (!state->link && time_after(jiffies, mpcs->link_poll_expire)) {
-@@ -258,8 +275,8 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+ 	if (!state->link) {
+@@ -254,8 +271,8 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  
  	/* Update the sgmsys mode register */
  	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,

@@ -1,6 +1,6 @@
-From 6e9ec5ade644eeb136c6b827d72fac80bf2c3817 Mon Sep 17 00:00:00 2001
+From 1f8132a904eb2a4344a0b53b45908819aaf4a774 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Fri, 9 May 2025 13:22:14 +0800
+Date: Thu, 18 Dec 2025 21:42:15 +0800
 Subject: [PATCH] net: pcs: mtk_lynxi add mt7987 support
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
@@ -9,12 +9,12 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
-index 674befb..c40f031 100644
+index 88f797d..ed37399 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
-@@ -488,9 +488,12 @@ static int mtk_pcs_lynxi_probe(struct platform_device *pdev)
- 	if (of_property_read_bool(np->parent, "mediatek,phya_trx_ck"))
- 		flags |= MTK_SGMII_FLAG_PHYA_TRX_CK;
+@@ -442,9 +442,12 @@ static int mtk_pcs_lynxi_probe(struct platform_device *pdev)
+ 	if (of_property_read_bool(np->parent, "mediatek,pnswap"))
+ 		flags |= MTK_SGMII_FLAG_PN_SWAP;
  
 -	mpcs->rstc = of_reset_control_get_shared(np->parent, NULL);
 -	if (IS_ERR(mpcs->rstc))
@@ -28,7 +28,7 @@ index 674befb..c40f031 100644
  
  	reset_control_deassert(mpcs->rstc);
  	mpcs->sgmii_sel = devm_clk_get_enabled(dev, "sgmii_sel");
-@@ -546,6 +549,7 @@ static int mtk_pcs_lynxi_remove(struct platform_device *pdev)
+@@ -500,6 +503,7 @@ static int mtk_pcs_lynxi_remove(struct platform_device *pdev)
  }
  
  static const struct of_device_id mtk_pcs_lynxi_of_match[] = {
