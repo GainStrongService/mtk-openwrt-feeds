@@ -1778,10 +1778,10 @@ bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
 	ret = true;
 
 free_request:
-	kfree(state);
 	ahash_request_free(areq);
 free_ahash:
 	crypto_free_ahash(atfm);
+	kfree(state);
 
 	return ret;
 }
