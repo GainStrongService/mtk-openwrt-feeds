@@ -132,7 +132,7 @@
  		skb->dev = netdev;
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -440,6 +440,10 @@
+@@ -437,6 +437,10 @@
  
  #define MTK_TX_DMA_BUF_SHIFT	8
  
@@ -143,7 +143,7 @@
  /* QDMA V2 descriptor txd6 */
  #define TX_DMA_INS_VLAN_V2	BIT(16)
  /* QDMA V2 descriptor txd5 */
-@@ -449,6 +453,8 @@
+@@ -446,6 +450,8 @@
  #define TX_DMA_SPTAG_V3         BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -152,7 +152,7 @@
  #define TX_DMA_FPORT_SHIFT_V2	8
  #define TX_DMA_FPORT_MASK_V2	0xf
  #define TX_DMA_SWC_V2		BIT(30)
-@@ -531,6 +537,10 @@
+@@ -528,6 +534,10 @@
  /* PDMA V2 descriptor rxd6 */
  #define RX_DMA_GET_FLUSH_RSN_V2	GENMASK(2, 0)
  #define RX_DMA_GET_AGG_CNT_V2	GENMASK(23, 16)
@@ -163,7 +163,7 @@
  
  /* PHY Polling and SMI Master Control registers */
  #define MTK_PPSC		0x10000
-@@ -1469,6 +1479,9 @@ struct mtk_tx_dma_desc_info {
+@@ -1466,6 +1476,9 @@ struct mtk_tx_dma_desc_info {
  	u32		size;
  	u16		vlan_tci;
  	u16		qid;
@@ -173,3 +173,15 @@
  	u8		gso:1;
  	u8		csum:1;
  	u8		vlan:1;
+@@ -1902,6 +1915,11 @@ static inline bool mtk_interface_mode_is
+ 	}
+ }
+ 
++/* tunnel offload related */
++extern u32 (*mtk_get_tnl_netsys_params)(struct sk_buff *skb);
++extern struct net_device *(*mtk_get_tnl_dev)(u8 tops_crsn);
++extern void (*mtk_set_tops_crsn)(struct sk_buff *skb, u8 tops_crsn);
++
+ /* read the hardware status register */
+ void mtk_stats_update_mac(struct mtk_mac *mac);
+ 
