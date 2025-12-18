@@ -1252,6 +1252,13 @@ static int aeon_read_pid(struct phy_device *phydev)
 	pid1 = aeon_cl45_read(phydev, MDIO_MMD_PMAPMD, 2);
 	if (pid1 < 0)
 		return pid1;
+
+	if (pid1 == 0x7500 && param1) {
+		aeon_cl45_write(phydev, MDIO_MMD_VEND1, 0x53, 0xFFFF);
+		aeon_cl45_write(phydev, MDIO_MMD_VEND1, 0x54, 0xFFFF);
+		aeon_cl45_write(phydev, MDIO_MMD_VEND1, 0x55, 0xFFFF);
+	}
+
 	pid2 = aeon_cl45_read(phydev, MDIO_MMD_PMAPMD, 3);
 	if (pid2 < 0)
 		return pid2;
