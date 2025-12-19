@@ -219,7 +219,13 @@
 +};
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-bananapi-bpi-r4.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-bananapi-bpi-r4.dtsi
-@@ -11,9 +11,10 @@
+@@ -6,14 +6,15 @@
+ #include <dt-bindings/input/input.h>
+ #include <dt-bindings/leds/common.h>
+ #include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
+-
+ #include "mt7988a.dtsi"
++#include "mt7988a-pinctrl.dtsi"
  
  / {
  	chosen {
@@ -233,7 +239,42 @@
  	};
  
  	fan: pwm-fan {
-@@ -578,46 +579,6 @@
+@@ -522,34 +523,6 @@
+ 			groups = "2p5gbe_led0";
+ 		};
+ 	};
+-
+-	mmc0_pins_emmc_45: mmc0-emmc-45-pins {
+-		mux {
+-			function = "flash";
+-			groups = "emmc_45";
+-		};
+-	};
+-
+-	mmc0_pins_emmc_51: mmc0-emmc-51-pins {
+-		mux {
+-			function = "flash";
+-			groups = "emmc_51";
+-		};
+-	};
+-
+-	mmc0_pins_sdcard: mmc0-sdcard-pins {
+-		mux {
+-			function = "flash";
+-			groups = "sdcard";
+-		};
+-	};
+-
+-	spi0_flash_pins: spi0-flash-pins {
+-		mux {
+-			function = "spi";
+-			groups = "spi0", "spi0_wp_hold";
+-		};
+-	};
+ };
+ 
+ &pwm {
+@@ -578,46 +551,6 @@
  	status = "okay";
  };
  
