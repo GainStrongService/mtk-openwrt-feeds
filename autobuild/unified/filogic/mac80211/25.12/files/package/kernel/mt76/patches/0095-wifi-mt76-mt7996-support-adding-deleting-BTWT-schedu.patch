@@ -1,0 +1,80 @@
+From fd7de8db47432ef6e8f936daf0b332112f5d6f52 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 26 Sep 2025 10:29:56 +0800
+Subject: [PATCH 095/105] wifi: mt76: mt7996: support adding/deleting BTWT
+ schedule under MLD
+
+Add support to install/delete a Broadcast TWT schedule on an MLD AP by
+selecting the correct per-link BSS using the link ID.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mac.c    | 12 ++++++++----
+ mt7996/mt7996.h |  5 ++---
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 28bc8e9dc..4c6a08805 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3912,7 +3912,7 @@ int mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
+ }
+ 
+ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+-			struct ieee80211_vif *vif,
++			struct ieee80211_vif *vif, u8 link_id,
+ 			struct cfg80211_broadcast_twt_settings *btwt)
+ {
+ #define BTWT_RECOMM_RTWT 4
+@@ -3926,7 +3926,9 @@ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+-	link = mt7996_vif_link(dev, vif, 0);
++	link = mt7996_vif_link(dev, vif, link_id);
++	if (!link)
++		goto unlock;
+ 
+ 	if (dev->twt.n_agrt_bc == MT7996_MAX_BTWT_AGRT)
+ 		goto unlock;
+@@ -4014,7 +4016,7 @@ unlock:
+ 
+ int mt7996_mac_del_btwt(struct ieee80211_hw *hw,
+ 			struct ieee80211_vif *vif,
+-			u8 id)
++			u8 link_id, u8 id)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_vif_link *link;
+@@ -4024,7 +4026,9 @@ int mt7996_mac_del_btwt(struct ieee80211_hw *hw,
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+-	link = mt7996_vif_link(dev, vif, 0);
++	link = mt7996_vif_link(dev, vif, link_id);
++	if (!link)
++		goto unlock;
+ 
+ 	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
+ 		if ((dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 9c1c1cec9..ad44d3b88 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1474,11 +1474,10 @@ int mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 			     struct ieee80211_sta *sta,
+ 			     struct ieee80211_twt_setup *twt);
+ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+-			struct ieee80211_vif *vif,
++			struct ieee80211_vif *vif, u8 link_id,
+ 			struct cfg80211_broadcast_twt_settings *btwt);
+ int mt7996_mac_del_btwt(struct ieee80211_hw *hw,
+-			struct ieee80211_vif *vif,
+-			u8 id);
++			struct ieee80211_vif *vif, u8 link_id, u8 id);
+ void mt7996_sta_chsw_state_reset(struct mt7996_vif_link *mconf);
+ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+-- 
+2.45.2
+

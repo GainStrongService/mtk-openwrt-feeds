@@ -1,0 +1,149 @@
+From e07ec4755fa5b88192f2dd270aed87f792022361 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Mon, 3 Nov 2025 10:01:02 +0800
+Subject: [PATCH 094/105] wifi: mt76: mt7996: add support restricted twt demand
+ operation
+
+add_btwt can support handling TWT demand setup and restricted twt
+parameter.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+
+The Target Wake Time field is determined by the responding STA only when
+the TWT setup command is "Request". In "Demand" case, the Target Wake
+Time field is set by the requesting STA in the TWT request frame.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mac.c | 66 +++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 45 insertions(+), 21 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 3ee80773c..28bc8e9dc 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3670,8 +3670,6 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_twt_flow *flow = NULL;
+ 	u8 i, id;
+-	u64 curr_tsf, interval, future_twt;
+-	u32 rem;
+ 	int ret = -EINVAL;
+ 
+ 	if (mt7996_mac_check_twt_req(twt))
+@@ -3700,15 +3698,21 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 	if (!flow)
+ 		goto unlock;
+ 
+-	/* Calculate the future TSF and fill in the outgoing TWT action frame.
+-	 * Since the TWT field in the frame has only 16bits, we need to
+-	 * extract TSF[10:25] according to spec
+-	 */
+-	interval = (u64)le16_to_cpu(flow->mantissa) << flow->exp;
+-	curr_tsf = __mt7996_get_tsf(hw, link);
+-	div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
+-	future_twt = curr_tsf + (interval - rem);
+-	twt_agrt->bcast.twt = cpu_to_le16((u16)((future_twt >> 10) & 0xffff));
++	if (le16_get_bits(twt_agrt->req_type, IEEE80211_TWT_REQTYPE_SETUP_CMD) ==
++			  TWT_SETUP_CMD_REQUEST) {
++		u64 curr_tsf, interval, future_twt;
++		u32 rem;
++
++		/* Calculate the future TSF and fill in the outgoing TWT action frame.
++		 * Since the TWT field in the frame has only 16bits, we need to
++		 * extract TSF[10:25] according to spec
++		 */
++		interval = (u64)le16_to_cpu(flow->mantissa) << flow->exp;
++		curr_tsf = __mt7996_get_tsf(hw, link);
++		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
++		future_twt = curr_tsf + (interval - rem);
++		twt_agrt->bcast.twt = cpu_to_le16((u16)((future_twt >> 10) & 0xffff));
++	}
+ 
+ 	twt_agrt->bcast.btwt_info &= ~cpu_to_le16(IEEE80211_BTWT_INFO_PERSISTENCE);
+ 	twt_agrt->bcast.btwt_info |=
+@@ -3911,11 +3915,12 @@ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+ 			struct ieee80211_vif *vif,
+ 			struct cfg80211_broadcast_twt_settings *btwt)
+ {
++#define BTWT_RECOMM_RTWT 4
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_vif_link *link;
+ 	struct mt7996_twt_flow *flow;
+ 	int ret = -EINVAL;
+-	u8 i, table_id;
++	u8 i, table_id = MT7996_MAX_TWT_AGRT;
+ 	u64 interval, curr_tsf;
+ 	u32 rem;
+ 
+@@ -3926,32 +3931,49 @@ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+ 	if (dev->twt.n_agrt_bc == MT7996_MAX_BTWT_AGRT)
+ 		goto unlock;
+ 
++	switch (btwt->setup_cmd) {
++	case TWT_SETUP_CMD_REQUEST:
++		break;
++	case TWT_SETUP_CMD_DEMAND:
++		/* TWT responding STA decides persistence for DEMAND setup */
++		btwt->persist = 255;
++		break;
++	default:
++		ret = -EOPNOTSUPP;
++		goto unlock;
++	}
++
+ 	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
++		u8 tmp_table_id = i + MT7996_BTWT_AGRT_OFFSET;
++
+ 		/* Per IEEE802.11ax clause 26.8.3.2, btwt_id must be unique to
+ 		 * identify each BTWT service period. An exceptions to the rule
+ 		 * is when btwt_id=0, in this case multiple BTWT service periods
+ 		 * with btwt_id=0 are permitted.
+ 		 */
+ 		if (btwt->id != 0 &&
+-		    (dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
+-		    btwt->id == (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff))
++		    (dev->twt.table_mask & BIT(tmp_table_id)) &&
++		    btwt->id == (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff)) {
++			ret = -EEXIST;
+ 			goto unlock;
+-	}
+-
+-	for (i = MT7996_BTWT_AGRT_OFFSET; i < MT7996_MAX_TWT_AGRT; i++) {
+-		if ((dev->twt.table_mask & BIT(i)) == 0) {
+-			table_id = i;
+-			break;
+ 		}
++
++		if (table_id == MT7996_MAX_TWT_AGRT &&
++		    !(dev->twt.table_mask & BIT(tmp_table_id)))
++			table_id = tmp_table_id;
+ 	}
+ 
+-	if (table_id >= MT7996_MAX_TWT_AGRT)
++	if (table_id >= MT7996_MAX_TWT_AGRT) {
++		ret = -ENOSPC;
+ 		goto unlock;
++	}
+ 
+ 	flow = &dev->twt.btwt_flow[table_id - MT7996_BTWT_AGRT_OFFSET];
+ 	memset(flow, 0, sizeof(*flow));
+ 	INIT_LIST_HEAD(&flow->list);
+ 	flow->peer_id_grp_id = btwt->id | MCU_TWT_BTWT_ID_BIT;
++	if (btwt->recommendation == BTWT_RECOMM_RTWT)
++		flow->peer_id_grp_id |= MCU_TWT_RTWT_ID_BIT;
+ 
+ 	flow->table_id = table_id;
+ 	flow->duration = btwt->min_wake_dur;
+@@ -3966,6 +3988,8 @@ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+ 	flow->tsf = curr_tsf + interval - rem;
+ 	flow->flowtype = btwt->flow_type;
+ 	flow->trigger = btwt->trigger;
++	flow->tid_dl_bmp = btwt->dl_tid_bmp;
++	flow->tid_ul_bmp = btwt->ul_tid_bmp;
+ 
+ 	/* Here, we maintain the table_id by ourselves and directly add BTWT SP
+ 	 * by MCU_TWT_AGRT_ADD. MTK proprietary driver handles it differently.
+-- 
+2.45.2
+

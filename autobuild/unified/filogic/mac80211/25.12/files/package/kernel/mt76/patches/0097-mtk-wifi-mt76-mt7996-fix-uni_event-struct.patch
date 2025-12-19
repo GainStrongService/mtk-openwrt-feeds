@@ -1,0 +1,42 @@
+From ed2755d14ee5be781d8a1edb9582b5d2e76a2e0c Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 10 Dec 2025 19:02:48 +0800
+Subject: [PATCH 097/105] mtk: wifi: mt76: mt7996: fix uni_event struct
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mcu.c | 2 +-
+ mt7996/mcu.h | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index eb7349562..6b7796854 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -249,7 +249,7 @@ mt7996_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+ 		event = (struct mt7996_mcu_uni_event *)skb->data;
+ 		ret = le32_to_cpu(event->status);
+ 		/* skip invalid event */
+-		if (mcu_cmd != event->cid)
++		if (mcu_cmd != le16_to_cpu(event->cid))
+ 			ret = -EAGAIN;
+ 	} else {
+ 		skb_pull(skb, sizeof(struct mt7996_mcu_rxd));
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 90b26367c..b828b9e32 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -25,8 +25,8 @@ struct mt7996_mcu_rxd {
+ };
+ 
+ struct mt7996_mcu_uni_event {
+-	u8 cid;
+-	u8 __rsv[3];
++	__le16 cid;
++	u8 __rsv[2];
+ 	__le32 status; /* 0: success, others: fail */
+ } __packed;
+ 
+-- 
+2.45.2
+

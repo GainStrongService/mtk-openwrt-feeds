@@ -1,0 +1,28 @@
+From 48993ff42e065b66a0e034dfaeb932b7333e7320 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+Date: Wed, 19 Nov 2025 16:09:51 +0800
+Subject: [PATCH 125/128] mtk: mac80211: remove the duplicated nl80211
+ attribute
+
+remove the duplicated nl80211 attribute
+
+Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+---
+ net/wireless/nl80211.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 431dcd95..b8dcaafa 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -962,7 +962,6 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+ 	[NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_MLO_TTLM_DLINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+ 	[NL80211_ATTR_MLO_TTLM_ULINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+-	[NL80211_ATTR_EML_CAPABILITY] = { .type = NLA_U16 },
+ 	[NL80211_ATTR_ASSOC_SPP_AMSDU] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_VIF_RADIO_MASK] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_SUPPORTED_SELECTORS] =
+-- 
+2.45.2
+

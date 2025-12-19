@@ -1,0 +1,259 @@
+From 17e4808f37804422ca4bc850cdae24a894256c3a Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+Date: Wed, 5 Nov 2025 11:12:04 +0800
+Subject: [PATCH 243/254] mtk: hostapd: add support for emlsr enablement on one
+ link
+
+Add support for emlsr enablement on one link
+
+Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+---
+ hostapd/config_file.c             |  2 ++
+ hostapd/hostapd.conf              |  5 +++++
+ src/ap/ap_config.h                |  1 +
+ src/ap/ap_drv_ops.c               |  3 ++-
+ src/ap/hostapd.c                  |  2 ++
+ src/ap/hostapd.h                  |  3 ++-
+ src/ap/ieee802_11_eht.c           | 15 ++++++++++++++-
+ src/common/ieee802_11_defs.h      |  1 +
+ src/drivers/driver.h              |  4 +++-
+ src/drivers/driver_nl80211.c      |  8 ++++++--
+ src/drivers/driver_nl80211.h      |  1 +
+ src/drivers/driver_nl80211_capa.c |  9 +++++++++
+ 12 files changed, 48 insertions(+), 6 deletions(-)
+
+diff --git a/hostapd/config_file.c b/hostapd/config_file.c
+index c2fb71dc5..3f7738ac7 100644
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -5264,6 +5264,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 		bss->eml_disable = atoi(pos);
+ 	} else if (os_strcmp(buf, "eml_resp") == 0) {
+ 		bss->eml_resp = atoi(pos);
++	} else if (os_strcmp(buf, "emlsr_on_one_link") == 0) {
++		bss->emlsr_on_one_link = atoi(pos);
+ 	} else if (os_strcmp(buf, "epcs_disabled") == 0) {
+ 		bss->epcs_disabled = atoi(pos);
+ 	} else if (os_strcmp(buf, "neg_ttlm_support_mode") == 0) {
+diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
+index 9d5a845a5..abaa476b5 100644
+--- a/hostapd/hostapd.conf
++++ b/hostapd/hostapd.conf
+@@ -1171,6 +1171,11 @@ wmm_ac_vo_acm=0
+ # 1 = AP sends EML Operating Mode Notification frame to the station
+ #eml_resp=1
+ 
++# EMLSR Enablement On One Link Support
++# 0 = AP does not enable EMLSR on one link
++# 1 = AP enable EMLSR on one link
++#emlsr_on_one_link=0
++
+ # EPCS priority acess
+ # 0 = Enable EPCS priority access on AP MLD
+ # 1 = Disable EPCS priority access on AP MLD
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index b2da95999..ad64b3529 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -984,6 +984,7 @@ struct hostapd_bss_config {
+ 
+ 	u8 eml_disable;
+ 	u8 eml_resp;
++	u8 emlsr_on_one_link;
+ 
+ 	bool epcs_disabled;
+ #ifdef CONFIG_TESTING_OPTIONS
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 268fd078d..abb81cf84 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -1285,7 +1285,8 @@ void hostapd_get_mld_capa(struct hostapd_iface *iface)
+ 
+ 	hapd->driver->get_mld_capab(hapd->drv_priv, WPA_IF_AP_BSS,
+ 				    &iface->mld_eml_capa,
+-				    &iface->mld_mld_capa);
++				    &iface->mld_mld_capa,
++				    &iface->ext_mld_capa_and_ops);
+ }
+ 
+ 
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index cff0c9a62..63e167501 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -2755,6 +2755,8 @@ static void hostapd_mld_started(struct hostapd_iface *iface)
+ 			hapd->mld->eml_disable = hapd->conf->eml_disable;
+ 		if (hapd->conf->eml_resp)
+ 			hapd->mld->eml_resp = hapd->conf->eml_resp;
++		if (hapd->conf->emlsr_on_one_link)
++			hapd->mld->emlsr_on_one_link = hapd->conf->emlsr_on_one_link;
+ 
+ 		if (hapd->conf->epcs_disabled)
+ 			hapd->mld->epcs_disabled = hapd->conf->epcs_disabled;
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index fc4f6cd60..f9557e021 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -609,6 +609,7 @@ struct hostapd_mld {
+ 	u16 removed_links;
+ 	u8 eml_disable;
+ 	u8 eml_resp;
++	u8 emlsr_on_one_link;
+ 
+ 	struct attlm_settings new_attlm;
+ 	struct hostapd_data *fbss;
+@@ -696,7 +697,7 @@ struct hostapd_iface {
+ 	const u8 *extended_capa, *extended_capa_mask;
+ 	unsigned int extended_capa_len;
+ 
+-	u16 mld_eml_capa, mld_mld_capa;
++	u16 mld_eml_capa, mld_mld_capa, ext_mld_capa_and_ops;
+ 
+ 	unsigned int drv_max_acl_mac_addrs;
+ 
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index a9951ee19..32e919d75 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -538,9 +538,13 @@ u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 		BASIC_MULTI_LINK_CTRL_PRES_BSS_PARAM_CH_COUNT |
+ 		BASIC_MULTI_LINK_CTRL_PRES_MLD_CAPA;
+ 
+-	if (!hapd->mld->eml_disable)
++	if (!hapd->mld->eml_disable) {
+ 		control |= BASIC_MULTI_LINK_CTRL_PRES_EML_CAPA;
+ 
++		if (hapd->mld->emlsr_on_one_link)
++			control |= BASIC_MULTI_LINK_CTRL_PRES_EXT_MLD_CAP;
++	}
++
+ 	/*
+ 	 * Set the basic Multi-Link common information. Hard code the common
+ 	 * info length to 13 based on the length of the present fields:
+@@ -553,6 +557,9 @@ u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 	if (hapd->mld->eml_disable)
+ 		common_info_len -= 2; /* EML Capabilities (2) */
+ 
++	if (!hapd->mld->eml_disable && hapd->mld->emlsr_on_one_link)
++		common_info_len += 2; /* Extended MLD Capabilities and Operations (2) */
++
+ 	if (include_mld_id && hostapd_get_mld_id(hapd)) {
+ 		/* AP MLD ID */
+ 		control |= BASIC_MULTI_LINK_CTRL_PRES_AP_MLD_ID;
+@@ -604,6 +611,12 @@ u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 		   mld_cap);
+ 	wpabuf_put_le16(buf, mld_cap);
+ 
++	if (!hapd->mld->eml_disable && hapd->mld->emlsr_on_one_link) {
++		wpa_printf(MSG_DEBUG, "MLD: Extended MLD Capabilities=0x%x",
++			   hapd->iface->ext_mld_capa_and_ops);
++		wpabuf_put_le16(buf, hapd->iface->ext_mld_capa_and_ops);
++	}
++
+ 	if (include_mld_id && hostapd_get_mld_id(hapd)) {
+ 		wpa_printf(MSG_DEBUG, "MLD: AP MLD ID=0x%x",
+ 			   hostapd_get_mld_id(hapd));
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index c8581ab19..899f9cfe6 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -2930,6 +2930,7 @@ struct eht_ml_basic_common_info {
+ 	 * Medium Synchronization Delay Information: 2 octets
+ 	 * EML Capabilities: 2 octets
+ 	 * MLD Capabilities and Operations: 2 octets
++	 * Extended MLD Capabilities And Operations: 2 octets
+ 	 * AP MLD ID: 1 octet
+ 	 */
+ 	u8 variable[];
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index dc5fa6366..16232ad95 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -5313,10 +5313,12 @@ struct wpa_driver_ops {
+ 	 * @type: Interface type for which to get MLD capabilities
+ 	 * @eml_capa: EML capabilities
+ 	 * @mld_capa_and_ops: MLD Capabilities and Operations
++	 * @ext_mld_capa_and_ops: Extended MLD Capabilities and Operations
+ 	 * Returns: 0 on success or -1 on failure
+ 	 */
+ 	int (*get_mld_capab)(void *priv, enum wpa_driver_if_type type,
+-			     u16 *eml_capa, u16 *mld_capa_and_ops);
++			     u16 *eml_capa, u16 *mld_capa_and_ops,
++			     u16 *ext_mld_capa_and_ops);
+ 
+ 	/**
+ 	 * p2p_lo_start - Start offloading P2P listen to device
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 87fea99ae..0a54f93d6 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -14985,14 +14985,15 @@ static int nl80211_get_ext_capab(void *priv, enum wpa_driver_if_type type,
+ 
+ 
+ static int nl80211_get_mld_capab(void *priv, enum wpa_driver_if_type type,
+-				 u16 *eml_capa, u16 *mld_capa_and_ops)
++				 u16 *eml_capa, u16 *mld_capa_and_ops,
++				 u16 *ext_mld_capa_and_ops)
+ {
+ 	struct i802_bss *bss = priv;
+ 	struct wpa_driver_nl80211_data *drv = bss->drv;
+ 	enum nl80211_iftype nlmode;
+ 	unsigned int i;
+ 
+-	if (!eml_capa || !mld_capa_and_ops)
++	if (!eml_capa || !mld_capa_and_ops || !ext_mld_capa_and_ops)
+ 		return -1;
+ 
+ 	nlmode = wpa_driver_nl80211_if_type(type);
+@@ -15000,6 +15001,7 @@ static int nl80211_get_mld_capab(void *priv, enum wpa_driver_if_type type,
+ 	/* By default, set to zero */
+ 	*eml_capa = 0;
+ 	*mld_capa_and_ops = 0;
++	*ext_mld_capa_and_ops = 0;
+ 
+ 	/* Replace the default value if a per-interface type value exists */
+ 	for (i = 0; i < drv->num_iface_capa; i++) {
+@@ -15007,6 +15009,8 @@ static int nl80211_get_mld_capab(void *priv, enum wpa_driver_if_type type,
+ 			*eml_capa = drv->iface_capa[i].eml_capa;
+ 			*mld_capa_and_ops =
+ 				drv->iface_capa[i].mld_capa_and_ops;
++			*ext_mld_capa_and_ops =
++				drv->iface_capa[i].ext_mld_capa_and_ops;
+ 			break;
+ 		}
+ 	}
+diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
+index 865493a1a..a90fa0e4d 100644
+--- a/src/drivers/driver_nl80211.h
++++ b/src/drivers/driver_nl80211.h
+@@ -129,6 +129,7 @@ struct wpa_driver_nl80211_data {
+ 		unsigned int ext_capa_len;
+ 		u16 eml_capa;
+ 		u16 mld_capa_and_ops;
++		u16 ext_mld_capa_and_ops;
+ 	} iface_capa[NL80211_IFTYPE_MAX];
+ 	unsigned int num_iface_capa;
+ 	unsigned int unique_drv_id;
+diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
+index e48dd07a9..151737930 100644
+--- a/src/drivers/driver_nl80211_capa.c
++++ b/src/drivers/driver_nl80211_capa.c
+@@ -895,6 +895,15 @@ static void wiphy_info_extended_capab(struct wpa_driver_nl80211_data *drv,
+ 			   "nl80211: EML Capability: 0x%x MLD Capability: 0x%x",
+ 			   capa->eml_capa, capa->mld_capa_and_ops);
+ 
++		if (tb1[NL80211_ATTR_EML_CAPABILITY] &&
++		    tb1[NL80211_ATTR_EXT_MLD_CAPA_AND_OPS])
++			capa->ext_mld_capa_and_ops =
++				nla_get_u16(tb1[NL80211_ATTR_EXT_MLD_CAPA_AND_OPS]);
++
++		wpa_printf(MSG_DEBUG,
++			   "nl80211: Extended MLD Capabilities and Operations: 0x%x",
++			   capa->ext_mld_capa_and_ops);
++
+ 		drv->num_iface_capa++;
+ 		if (drv->num_iface_capa == NL80211_IFTYPE_MAX)
+ 			break;
+-- 
+2.45.2
+

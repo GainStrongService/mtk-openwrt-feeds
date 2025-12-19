@@ -1,0 +1,51 @@
+From 805e0e895556bf301b6ee7b1a8bbab81b60fcb43 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 30 Sep 2025 11:00:10 +0800
+Subject: [PATCH 234/254] mtk: hostapd: add def_link_map and link_map_size in
+ struct ieee80211_neg_ttlm
+
+The two variable will be used in following patches for AP MLD to send
+TTLM request.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ieee802_11_eht.c      | 2 ++
+ src/common/ieee802_11_defs.h | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 60370473f..4e1eed1d1 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -3076,6 +3076,7 @@ static int ieee802_11_parse_neg_ttlm(struct hostapd_data *hapd,
+ 		}
+ 		*direction = IEEE80211_TTLM_DIRECTION_BOTH;
+ 		neg_ttlm->valid = true;
++		neg_ttlm->def_link_map = true;
+ 		return 0;
+ 	}
+ 
+@@ -3093,6 +3094,7 @@ static int ieee802_11_parse_neg_ttlm(struct hostapd_data *hapd,
+ 		map_size = 1;
+ 	else
+ 		map_size = 2;
++	neg_ttlm->link_map_size = 2 - map_size;
+ 
+ 	for (tid = 0; tid < IEEE80211_TTLM_NUM_TIDS; tid++) {
+ 		u16 map;
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index fd2efca00..815e7aec4 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -812,6 +812,8 @@
+ struct ieee80211_neg_ttlm {
+ 	u16 dlink[IEEE80211_TTLM_NUM_TIDS];
+ 	u16 ulink[IEEE80211_TTLM_NUM_TIDS];
++	bool def_link_map;
++	bool link_map_size;
+ 	bool valid;
+ };
+ 
+-- 
+2.45.2
+

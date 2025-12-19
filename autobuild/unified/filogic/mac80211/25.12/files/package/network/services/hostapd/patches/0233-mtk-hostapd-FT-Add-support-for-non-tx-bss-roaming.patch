@@ -1,0 +1,73 @@
+From 36066e01a9449823b87790b266ac8fca4f925cdc Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Tue, 14 Oct 2025 16:36:10 +0800
+Subject: [PATCH 233/254] mtk: hostapd: FT: Add support for non-tx bss roaming
+
+FT: Add support for non-tx bss roaming.
+1. Add mde in non-tx profile
+2. Use bigtk of the tx-bss in reassoc frame if target ftr is a non-tx
+bss.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ieee802_11.c  | 13 +++++++++++--
+ src/ap/wpa_auth_ft.c |  4 ++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 922f0e734..4f57ada10 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -9321,8 +9321,8 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ 		struct hostapd_bss_config *conf;
+ 		struct hostapd_bss_config *tx_conf = tx_bss->conf;
+ 		u8 *eid_len_pos, *nontx_bss_start = eid;
+-		const u8 *auth, *rsn = NULL, *rsnx = NULL;
+-		u8 ie_count = 0, non_inherit_ie[3];
++		const u8 *auth, *rsn = NULL, *rsnx = NULL, *mde = NULL;
++		u8 ie_count = 0, non_inherit_ie[4];
+ 		u8 ext_ie_count = 0, non_inherit_ext_ie[1];
+ 		size_t auth_len = 0, xrate_len;
+ 		u16 capab_info;
+@@ -9387,6 +9387,12 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ 				os_memcpy(eid, rsnx, 2 + rsnx[1]);
+ 				eid += 2 + rsnx[1];
+ 			}
++
++			mde = get_ie(auth, auth_len, WLAN_EID_MOBILITY_DOMAIN);
++			if (mde) {
++				os_memcpy(eid, mde, 2 + mde[1]);
++				eid += 2 + mde[1];
++			}
+ 		}
+ 
+ 		eid += hostapd_mbssid_ext_capa(bss, tx_bss, eid);
+@@ -9400,6 +9406,9 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ 			non_inherit_ie[ie_count++] = WLAN_EID_EXT_SUPP_RATES;
+ 		if (!rsnx && hostapd_wpa_ie(tx_bss, WLAN_EID_RSNX))
+ 			non_inherit_ie[ie_count++] = WLAN_EID_RSNX;
++		if (!mde && hostapd_wpa_ie(tx_bss, WLAN_EID_MOBILITY_DOMAIN))
++			non_inherit_ie[ie_count++] = WLAN_EID_MOBILITY_DOMAIN;
++
+ #ifdef CONFIG_IEEE80211BE
+ 		/* For ML Probe Response frame, the solicited hapd's MLE will
+ 		 * be in the frame body */
+diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
+index 47531277c..d26e90f16 100644
+--- a/src/ap/wpa_auth_ft.c
++++ b/src/ap/wpa_auth_ft.c
+@@ -2499,6 +2499,10 @@ static u8 * wpa_ft_bigtk_subelem(struct wpa_state_machine *sm, size_t *len,
+ 		gsm = sm->mld_links[link_id].wpa_auth->group;
+ 	}
+ #endif
++	if (wpa_auth->conf.tx_bss_auth) {
++		wpa_auth = wpa_auth->conf.tx_bss_auth;
++		gsm = wpa_auth->group;
++	}
+ 	bigtk_len = wpa_cipher_key_len(wpa_auth->conf.group_mgmt_cipher);
+ 
+ 	/*
+-- 
+2.45.2
+

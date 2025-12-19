@@ -1,0 +1,53 @@
+From 64a3cf941a270946a55dc693a2fa30bd2fbf880a Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+Date: Mon, 29 Apr 2024 10:20:07 +0800
+Subject: [PATCH 058/128] mtk: mac80211: Add support for EMLSR support
+
+Send the EML capability to driver
+Specify the time for eml_capa in advance to avoid the driver setting
+padding delay and transition delay without having obtained the correct
+values.
+
+Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+---
+ net/mac80211/cfg.c     | 3 +++
+ net/wireless/nl80211.c | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index b28cf8ac..572df509 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -2333,6 +2333,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
+ 	if (ret)
+ 		return ret;
+ 
++	if (params->eml_cap)
++		sta->sta.eml_cap = params->eml_cap;
++
+ 	if (params->support_p2p_ps >= 0)
+ 		sta->sta.support_p2p_ps = params->support_p2p_ps;
+ 
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index f20ddefe..01211e5a 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -943,6 +943,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+ 	[NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_MLO_TTLM_DLINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+ 	[NL80211_ATTR_MLO_TTLM_ULINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
++	[NL80211_ATTR_EML_CAPABILITY] = { .type = NLA_U16 },
+ 	[NL80211_ATTR_ASSOC_SPP_AMSDU] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_VIF_RADIO_MASK] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_SUPPORTED_SELECTORS] =
+@@ -8415,7 +8416,6 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
+ 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+ 	}
+ 
+-
+ 	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]) {
+ 		params.link_sta_params.supported_rates =
+ 			nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
+-- 
+2.45.2
+

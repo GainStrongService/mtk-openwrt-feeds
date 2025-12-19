@@ -1,0 +1,49 @@
+From 5e8376af54f5d724e049ec647e9ef67dab97aaad Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 12 Dec 2025 17:54:09 +0800
+Subject: [PATCH 091/105] mtk: mt76: move the active scan check to the
+ beginning of mt76_scan_work()
+
+If the beacon waiting mechanism for active scanning is triggered on the
+last channel in the scan request, it does not work in the old way
+because the "scan complete" is checked first.
+
+Move the active scan check to the beginning of mt76_scan_work so that
+the mechanism can work correctly.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ scan.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/scan.c b/scan.c
+index 06203c280..a4df9d2b9 100644
+--- a/scan.c
++++ b/scan.c
+@@ -93,11 +93,6 @@ void mt76_scan_work(struct work_struct *work)
+ 
+ 	clear_bit(MT76_SCANNING_WAIT_BEACON, &phy->state);
+ 
+-	if (dev->scan.chan_idx >= req->n_channels) {
+-		mt76_scan_complete(dev, false);
+-		return;
+-	}
+-
+ 	/* move to active scan for the current scanning channel */
+ 	if (test_and_clear_bit(MT76_SCANNING_BEACON_DONE, &phy->state)) {
+ 		local_bh_disable();
+@@ -111,6 +106,11 @@ void mt76_scan_work(struct work_struct *work)
+ 		return;
+ 	}
+ 
++	if (dev->scan.chan_idx >= req->n_channels) {
++		mt76_scan_complete(dev, false);
++		return;
++	}
++
+ 	if (dev->scan.chan && phy->num_sta) {
+ 		dev->scan.chan = NULL;
+ 		mt76_set_channel(phy, &phy->main_chandef, false);
+-- 
+2.45.2
+

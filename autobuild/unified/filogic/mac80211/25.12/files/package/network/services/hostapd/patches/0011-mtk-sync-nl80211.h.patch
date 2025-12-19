@@ -1,0 +1,670 @@
+From ce67cef9e41a5922ec5b1c628a1b22cd9da21656 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 22 Dec 2025 15:56:32 +0800
+Subject: [PATCH 011/254] mtk: sync nl80211.h
+
+---
+ src/drivers/nl80211_copy.h | 472 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 466 insertions(+), 6 deletions(-)
+
+diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
+index e9ccf43fe..029a44ff0 100644
+--- a/src/drivers/nl80211_copy.h
++++ b/src/drivers/nl80211_copy.h
+@@ -1085,8 +1085,9 @@
+  *	%NL80211_ATTR_NAN_MASTER_PREF attribute and optional
+  *	%NL80211_ATTR_BANDS attributes.  If %NL80211_ATTR_BANDS is
+  *	omitted or set to 0, it means don't-care and the device will
+- *	decide what to use.  After this command NAN functions can be
+- *	added.
++ *	decide what to use. Additional cluster configuration may be
++ *	optionally provided with %NL80211_ATTR_NAN_CONFIG.
++ *	After this command NAN functions can be added.
+  * @NL80211_CMD_STOP_NAN: Stop the NAN operation, identified by
+  *	its %NL80211_ATTR_WDEV interface.
+  * @NL80211_CMD_ADD_NAN_FUNCTION: Add a NAN function. The function is defined
+@@ -1115,6 +1116,10 @@
+  *	current configuration is not changed.  If it is present but
+  *	set to zero, the configuration is changed to don't-care
+  *	(i.e. the device can decide what to do).
++ *	Additional parameters may be provided with
++ *	%NL80211_ATTR_NAN_CONFIG. User space should provide all previously
++ *	configured nested attributes under %NL80211_ATTR_NAN_CONFIG, even if
++ *	only a subset was changed.
+  * @NL80211_CMD_NAN_MATCH: Notification sent when a match is reported.
+  *	This will contain a %NL80211_ATTR_NAN_MATCH nested attribute and
+  *	%NL80211_ATTR_COOKIE.
+@@ -1330,12 +1335,42 @@
+  *      TID to Link mapping for downlink/uplink traffic.
+  *
+  * @NL80211_CMD_ASSOC_MLO_RECONF: For a non-AP MLD station, request to
+- *      add/remove links to/from the association.
++ *      add/remove links to/from the association. To indicate link
++ *      reconfiguration request results from the driver, this command is also
++ *      used as an event to notify userspace about the added links information.
++ *      For notifying the removed links information, the existing
++ *      %NL80211_CMD_LINKS_REMOVED command is used. This command is also used to
++ *      notify userspace about newly added links for the current connection in
++ *      case of AP-initiated link recommendation requests, received via
++ *      a BTM (BSS Transition Management) request or a link reconfig notify
++ *      frame, where the driver handles the link recommendation offload.
+  *
+  * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
+  *	control EPCS configuration. Used to notify userland on the current state
+  *	of EPCS.
+  *
++ * @NL80211_CMD_NAN_NEXT_DW_NOTIFICATION: This command is used to notify
++ *	user space about the next NAN Discovery Window (DW). User space may use
++ *	it to prepare frames to be sent in the next DW.
++ *	%NL80211_ATTR_WIPHY_FREQ is used to indicate the frequency of the next
++ *	DW. SDF transmission should be requested with %NL80211_CMD_FRAME and
++ *	the device/driver shall take care of the actual transmission timing.
++ *	This notification is only sent to the NAN interface owning socket
++ *	(see %NL80211_ATTR_SOCKET_OWNER flag).
++ * @NL80211_CMD_NAN_CLUSTER_JOINED: This command is used to notify
++ *	user space that the NAN new cluster has been joined. The cluster ID is
++ *	indicated by %NL80211_ATTR_MAC.
++ *
++ * @NL80211_CMD_NOTIFY_CRIT_UPDATE: Notify the userspace that the status of a
++ *	critical update event was changed.
++ *
++ * @NL80211_CMD_ADD_BROADCAST_TWT: Setup a broadcast TWT service period on a AP.
++ *	The id, mantissa and exponent of wake interval and minimum wake duration
++ *	must be given.
++ *
++ * @NL80211_CMD_DEL_BROADCAST_TWT: Delete a broadcast TWT service period on a AP.
++ * 	The id of the to-be deleted service period must be specified.
++ *
+  * @NL80211_CMD_MAX: highest used command number
+  * @__NL80211_CMD_AFTER_LAST: internal use
+  */
+@@ -1596,8 +1631,20 @@ enum nl80211_commands {
+ 	NL80211_CMD_ASSOC_MLO_RECONF,
+ 	NL80211_CMD_EPCS_CFG,
+ 
++	NL80211_CMD_NAN_NEXT_DW_NOTIFICATION,
++	NL80211_CMD_NAN_CLUSTER_JOINED,
++
+ 	/* add new commands above here */
+ 
++	/* MTK internal */
++	NL80211_CMD_ATTLM_EVENT,
++	NL80211_CMD_SET_ATTLM,
++	NL80211_CMD_SET_STA_TTLM,
++	NL80211_CMD_NOTIFY_CRIT_UPDATE,
++	NL80211_CMD_TSF_OFFSET_EVENT,
++	NL80211_CMD_ADD_BROADCAST_TWT,
++	NL80211_CMD_DEL_BROADCAST_TWT,
++
+ 	/* used to define NL80211_CMD_MAX below */
+ 	__NL80211_CMD_AFTER_LAST,
+ 	NL80211_CMD_MAX = __NL80211_CMD_AFTER_LAST - 1
+@@ -1935,8 +1982,9 @@ enum nl80211_commands {
+  *	The driver must also specify support for this with the extended
+  *	features NL80211_EXT_FEATURE_BEACON_RATE_LEGACY,
+  *	NL80211_EXT_FEATURE_BEACON_RATE_HT,
+- *	NL80211_EXT_FEATURE_BEACON_RATE_VHT and
+- *	NL80211_EXT_FEATURE_BEACON_RATE_HE.
++ *	NL80211_EXT_FEATURE_BEACON_RATE_VHT,
++ *	NL80211_EXT_FEATURE_BEACON_RATE_HE and
++ *	NL80211_EXT_FEATURE_BEACON_RATE_EHT.
+  *
+  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
+  *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
+@@ -2275,7 +2323,8 @@ enum nl80211_commands {
+  * @NL80211_ATTR_PEER_AID: Association ID for the peer TDLS station (u16).
+  *	This is similar to @NL80211_ATTR_STA_AID but with a difference of being
+  *	allowed to be used with the first @NL80211_CMD_SET_STATION command to
+- *	update a TDLS peer STA entry.
++ *	update a TDLS peer STA entry. For S1G interfaces, this is limited to
++ *	1600 for the current mac80211 implementation.
+  *
+  * @NL80211_ATTR_COALESCE_RULE: Coalesce rule information.
+  *
+@@ -2811,6 +2860,7 @@ enum nl80211_commands {
+  *
+  * @NL80211_ATTR_EML_CAPABILITY: EML Capability information (u16)
+  * @NL80211_ATTR_MLD_CAPA_AND_OPS: MLD Capabilities and Operations (u16)
++ * @NL80211_ATTR_EXT_MLD_CAPA_AND_OPS: Extended MLD Capabilities and Operations (u16)
+  *
+  * @NL80211_ATTR_TX_HW_TIMESTAMP: Hardware timestamp for TX operation in
+  *	nanoseconds (u64). This is the device clock timestamp so it will
+@@ -2880,6 +2930,9 @@ enum nl80211_commands {
+  *
+  * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
+  *	A value of 0 means all radios.
++ * @NL80211_ATTR_CNTDWN_OFFS_STA_PROF: An array of offsets (u16) to the channel
++ *	switch or color change counters in the per-STA profile corresponding to
++ *	the affected AP.
+  *
+  * @NL80211_ATTR_SUPPORTED_SELECTORS: supported BSS Membership Selectors, array
+  *	of supported selectors as defined by IEEE Std 802.11-2020 9.4.2.3 but
+@@ -2899,6 +2952,75 @@ enum nl80211_commands {
+  *	APs Support". Drivers may set additional flags that they support
+  *	in the kernel or device.
+  *
++ * @NL80211_ATTR_WIPHY_RADIO_INDEX: (int) Integer attribute denoting the index
++ *	of the radio in interest. Internally a value of -1 is used to
++ *	indicate that the radio id is not given in user-space. This means
++ *	that all the attributes are applicable to all the radios. If there is
++ *	a radio index provided in user-space, the attributes will be
++ *	applicable to that specific radio only. If the radio id is greater
++ *	thank the number of radios, error denoting invalid value is returned.
++ *
++ * @NL80211_ATTR_S1G_LONG_BEACON_PERIOD: (u8) Integer attribute that represents
++ *	the number of beacon intervals between each long beacon transmission
++ *	for an S1G BSS with short beaconing enabled. This is a required
++ *	attribute for initialising an S1G short beaconing BSS. When updating
++ *	the short beacon data, this is not required. It has a minimum value of
++ *	2 (i.e 2 beacon intervals).
++ *
++ * @NL80211_ATTR_S1G_SHORT_BEACON: Nested attribute containing the short beacon
++ *	head and tail used to set or update the short beacon templates. When
++ *	bringing up a new interface, %NL80211_ATTR_S1G_LONG_BEACON_PERIOD is
++ *	required alongside this attribute. Refer to
++ *	@enum nl80211_s1g_short_beacon_attrs for the attribute definitions.
++ *
++ * @NL80211_ATTR_BSS_PARAM: nested attribute used with %NL80211_CMD_GET_WIPHY
++ *	which indicates which BSS parameters can be modified. The attribute can
++ *	also be used as flag attribute by user-space in %NL80211_CMD_SET_BSS to
++ *	indicate that it wants strict checking on the BSS parameters to be
++ *	modified.
++ *
++ * @NL80211_ATTR_NAN_CONFIG: Nested attribute for
++ *	extended NAN cluster configuration. This is used with
++ *	%NL80211_CMD_START_NAN and %NL80211_CMD_CHANGE_NAN_CONFIG.
++ *	See &enum nl80211_nan_conf_attributes for details.
++ *	This attribute is optional.
++ * @NL80211_ATTR_NAN_NEW_CLUSTER: Flag attribute indicating that a new
++ *	NAN cluster has been created. This is used with
++ *	%NL80211_CMD_NAN_CLUSTER_JOINED
++ * @NL80211_ATTR_NAN_CAPABILITIES: Nested attribute for NAN capabilities.
++ *	This is used with %NL80211_CMD_GET_WIPHY to indicate the NAN
++ *	capabilities supported by the driver. See &enum nl80211_nan_capabilities
++ *	for details.
++ *
++ * @NL80211_ATTR_S1G_PRIMARY_2MHZ: flag attribute indicating that the S1G
++ *	primary channel is 2 MHz wide, and the control channel designates
++ *	the 1 MHz primary subchannel within that 2 MHz primary.
++ *
++ * @NL80211_ATTR_MLO_LINK_DISABLED_BMP: u16 bitmap of A-TTLM disabled links for
++ * 	the %NL80211_CMD_SET_ATTLM.
++ *
++ * @NL80211_ATTR_MLO_ATTLM_SWITCH_TIME: u16 attribute specifying the time for
++ * 	how long the Adv-TTLM is established.
++ *
++ * @NL80211_ATTR_MLO_ATTLM_DURATION: u32 attribute specifying the duration
++ * 	of the Adv-TTLM.
++ *
++ * @NL80211_ATTR_MLO_ATTLM_EVENT: Type of Adv-TTLM event for notification to
++ * 	userspace, contains a value of enum nl80211_attlm_event (u32).
++ *
++ * @NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU: u16 attribute reported by the
++ * 	driver to speciffy the switch time in TU at which the Adv-TTLM is
++ * 	established.
++ *
++ * @NL80211_ATTR_CRTI_UPDATE_EVENT: Type of critical update event for notification
++ *	to userspace, contains a value of enum nl80211_crit_update_event (u8).
++ *
++ * @NL80211_ATTR_DFS_STATE_UPDATE: Update the DFS state, especially when the radar
++ *	detection is triggered by the offchain command.
++ *
++ * @NL80211_ATTR_BROADCAST_TWT_PARAMS: Nested attribute for broadcast TWT
++ * 	service period parameters. See &enum nl80211_broadcast_twt_attributes.
++ *
+  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+@@ -3456,8 +3578,38 @@ enum nl80211_attrs {
+ 
+ 	NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS,
+ 
++	NL80211_ATTR_WIPHY_RADIO_INDEX,
++
++	NL80211_ATTR_S1G_LONG_BEACON_PERIOD,
++	NL80211_ATTR_S1G_SHORT_BEACON,
++	NL80211_ATTR_BSS_PARAM,
++	NL80211_ATTR_NAN_CONFIG,
++	NL80211_ATTR_NAN_NEW_CLUSTER,
++	NL80211_ATTR_NAN_CAPABILITIES,
++
++	NL80211_ATTR_S1G_PRIMARY_2MHZ,
++
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
++	/* MTK internal */
++	NL80211_ATTR_CNTDWN_OFFS_STA_PROF,
++
++	NL80211_ATTR_MLO_LINK_DISABLED_BMP,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME,
++	NL80211_ATTR_MLO_ATTLM_DURATION,
++	NL80211_ATTR_MLO_ATTLM_EVENT,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU,
++
++	NL80211_ATTR_CRTI_UPDATE_EVENT,
++
++	NL80211_ATTR_MLO_TSF_OFFSET_VAL,
++
++	NL80211_ATTR_VENDOR_MTK_STA,
++
++	NL80211_ATTR_DFS_STATE_UPDATE,
++	NL80211_ATTR_BROADCAST_TWT_PARAMS,
++	NL80211_ATTR_EXT_MLD_CAPA_AND_OPS,
++
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
+ 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
+@@ -3470,6 +3622,7 @@ enum nl80211_attrs {
+ #define NL80211_ATTR_SAE_DATA NL80211_ATTR_AUTH_DATA
+ #define NL80211_ATTR_CSA_C_OFF_BEACON NL80211_ATTR_CNTDWN_OFFS_BEACON
+ #define NL80211_ATTR_CSA_C_OFF_PRESP NL80211_ATTR_CNTDWN_OFFS_PRESP
++#define NL80211_ATTR_CSA_C_OFF_STA_PROF NL80211_ATTR_CNTDWN_OFFS_STA_PROF
+ 
+ /*
+  * Allow user space programs to use #ifdef on new attributes by defining them
+@@ -3701,6 +3854,22 @@ enum nl80211_eht_gi {
+ 	NL80211_RATE_INFO_EHT_GI_3_2,
+ };
+ 
++/**
++ * enum nl80211_eht_ltf - EHT long training field
++ * @NL80211_RATE_INFO_EHT_1XLTF: 3.2 usec
++ * @NL80211_RATE_INFO_EHT_2XLTF: 6.4 usec
++ * @NL80211_RATE_INFO_EHT_4XLTF: 12.8 usec
++ * @NL80211_RATE_INFO_EHT_6XLTF: 19.2 usec
++ * @NL80211_RATE_INFO_EHT_8XLTF: 25.6 usec
++ */
++enum nl80211_eht_ltf {
++	NL80211_RATE_INFO_EHT_1XLTF,
++	NL80211_RATE_INFO_EHT_2XLTF,
++	NL80211_RATE_INFO_EHT_4XLTF,
++	NL80211_RATE_INFO_EHT_6XLTF,
++	NL80211_RATE_INFO_EHT_8XLTF,
++};
++
+ /**
+  * enum nl80211_eht_ru_alloc - EHT RU allocation values
+  * @NL80211_RATE_INFO_EHT_RU_ALLOC_26: 26-tone RU allocation
+@@ -4337,6 +4506,12 @@ enum nl80211_wmm_rule {
+  *	very low power (VLP) AP, despite being NO_IR.
+  * @NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY: This channel can be active in
+  *	20 MHz bandwidth, despite being NO_IR.
++ * @NL80211_FREQUENCY_ATTR_NO_4MHZ: 4 MHz operation is not allowed on this
++ *	channel in current regulatory domain.
++ * @NL80211_FREQUENCY_ATTR_NO_8MHZ: 8 MHz operation is not allowed on this
++ *	channel in current regulatory domain.
++ * @NL80211_FREQUENCY_ATTR_NO_16MHZ: 16 MHz operation is not allowed on this
++ *	channel in current regulatory domain.
+  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
+  *	currently defined
+  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
+@@ -4382,6 +4557,9 @@ enum nl80211_frequency_attr {
+ 	NL80211_FREQUENCY_ATTR_CAN_MONITOR,
+ 	NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP,
+ 	NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY,
++	NL80211_FREQUENCY_ATTR_NO_4MHZ,
++	NL80211_FREQUENCY_ATTR_NO_8MHZ,
++	NL80211_FREQUENCY_ATTR_NO_16MHZ,
+ 
+ 	/* keep last */
+ 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
+@@ -5447,6 +5625,10 @@ enum nl80211_key_attributes {
+  *	see &struct nl80211_txrate_he
+  * @NL80211_TXRATE_HE_GI: configure HE GI, 0.8us, 1.6us and 3.2us.
+  * @NL80211_TXRATE_HE_LTF: configure HE LTF, 1XLTF, 2XLTF and 4XLTF.
++ * @NL80211_TXRATE_EHT: EHT rates allowed for TX rate selection,
++ *	see &struct nl80211_txrate_eht
++ * @NL80211_TXRATE_EHT_GI: configure EHT GI, (u8, see &enum nl80211_eht_gi)
++ * @NL80211_TXRATE_EHT_LTF: configure EHT LTF, (u8, see &enum nl80211_eht_ltf)
+  * @__NL80211_TXRATE_AFTER_LAST: internal
+  * @NL80211_TXRATE_MAX: highest TX rate attribute
+  */
+@@ -5459,6 +5641,9 @@ enum nl80211_tx_rate_attributes {
+ 	NL80211_TXRATE_HE,
+ 	NL80211_TXRATE_HE_GI,
+ 	NL80211_TXRATE_HE_LTF,
++	NL80211_TXRATE_EHT,
++	NL80211_TXRATE_EHT_GI,
++	NL80211_TXRATE_EHT_LTF,
+ 
+ 	/* keep last */
+ 	__NL80211_TXRATE_AFTER_LAST,
+@@ -5491,6 +5676,15 @@ enum nl80211_txrate_gi {
+ 	NL80211_TXRATE_FORCE_LGI,
+ };
+ 
++#define NL80211_EHT_NSS_MAX             16
++/**
++ * struct nl80211_txrate_eht - EHT MCS/NSS txrate bitmap
++ * @mcs: MCS bitmap table for each NSS (array index 0 for 1 stream, etc.)
++ */
++struct nl80211_txrate_eht {
++	__u16 mcs[NL80211_EHT_NSS_MAX];
++};
++
+ /**
+  * enum nl80211_band - Frequency band
+  * @NL80211_BAND_2GHZ: 2.4 GHz ISM band
+@@ -6615,6 +6809,9 @@ enum nl80211_feature_flags {
+  *	(signaling and payload protected) A-MSDUs and this shall be advertised
+  *	in the RSNXE.
+  *
++ * @NL80211_EXT_FEATURE_BEACON_RATE_EHT: Driver supports beacon rate
++ *	configuration (AP/mesh) with EHT rates.
++ *
+  * @NUM_NL80211_EXT_FEATURES: number of extended features.
+  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
+  */
+@@ -6690,6 +6887,8 @@ enum nl80211_ext_feature_index {
+ 	NL80211_EXT_FEATURE_OWE_OFFLOAD_AP,
+ 	NL80211_EXT_FEATURE_DFS_CONCURRENT,
+ 	NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT,
++	NL80211_EXT_FEATURE_BEACON_RATE_EHT,
++	NL80211_EXT_FEATURE_STAS_COUNT,
+ 
+ 	/* add new features before the definition below */
+ 	NUM_NL80211_EXT_FEATURES,
+@@ -6892,6 +7091,14 @@ enum nl80211_smps_mode {
+  *	applicable for ETSI dfs domain where pre-CAC is valid for ever.
+  * @NL80211_RADAR_CAC_STARTED: Channel Availability Check has been started,
+  *	should be generated by HW if NL80211_EXT_FEATURE_DFS_OFFLOAD is enabled.
++ * @NL80211_RADAR_BACKGROUND_CHAN_UPDATE: background channel is updated by the
++ *	driver.
++ * @NL80211_RADAR_BACKGROUND_CHAN_EXPAND: background channel is updated by the
++ *	driver and required to expand main operating channel.
++ * @NL80211_RADAR_STA_CAC_SKIPPED: STA set the DFS state to available
++ *	when receiving CSA/assoc resp
++ * @NL80211_RADAR_STA_CAC_EXPIRED: STA set the DFS state to usable
++ *	when STA is disconnected or leaving the channel
+  */
+ enum nl80211_radar_event {
+ 	NL80211_RADAR_DETECTED,
+@@ -6900,6 +7107,10 @@ enum nl80211_radar_event {
+ 	NL80211_RADAR_NOP_FINISHED,
+ 	NL80211_RADAR_PRE_CAC_EXPIRED,
+ 	NL80211_RADAR_CAC_STARTED,
++	NL80211_RADAR_BACKGROUND_CHAN_UPDATE,
++	NL80211_RADAR_BACKGROUND_CHAN_EXPAND,
++	NL80211_RADAR_STA_CAC_SKIPPED,
++	NL80211_RADAR_STA_CAC_EXPIRED,
+ };
+ 
+ /**
+@@ -7244,6 +7455,105 @@ enum nl80211_nan_match_attributes {
+ 	NL80211_NAN_MATCH_ATTR_MAX = NUM_NL80211_NAN_MATCH_ATTR - 1
+ };
+ 
++/**
++ * enum nl80211_nan_band_conf_attributes - NAN band configuration attributes
++ * @__NL80211_NAN_BAND_CONF_INVALID: Invalid.
++ * @NL80211_NAN_BAND_CONF_BAND: Band for which the configuration is
++ *	being set. The value is according to &enum nl80211_band (u8).
++ * @NL80211_NAN_BAND_CONF_FREQ: Discovery frequency. This attribute shall not
++ *	be present on 2.4 GHZ band. On 5 GHz band its presence is optional.
++ *	The allowed values are 5220 (channel 44) or 5745 (channel 149).
++ *	If not present, channel 149 is used if allowed, otherwise channel 44
++ *	will be selected. The value is in MHz (u16).
++ * @NL80211_NAN_BAND_CONF_RSSI_CLOSE: RSSI close threshold used for NAN state
++ *	transition algorithm as described in chapters 3.3.6 and 3.3.7 "NAN
++ *	Device Role and State Transition" of Wi-Fi Aware (TM) Specification
++ *	v4.0. If not specified, default device value is used. The value should
++ *	be greater than -60 dBm (s8).
++ * @NL80211_NAN_BAND_CONF_RSSI_MIDDLE: RSSI middle threshold used for NAN state
++ *	transition algorithm as described in chapters 3.3.6 and 3.3.7 "NAN
++ *	Device Role and State Transition" of Wi-Fi Aware (TM) Specification
++ *	v4.0. If not present, default device value is used. The value should be
++ *	greater than -75 dBm and less than %NL80211_NAN_BAND_CONF_RSSI_CLOSE
++ *	(s8).
++ * @NL80211_NAN_BAND_CONF_WAKE_DW: Committed DW information (values 0-5).
++ *	Value 0 means that the device will not wake up during the
++ *	discovery window. Values 1-5 mean that the device will wake up
++ *	during each 2^(n - 1) discovery window, where n is the value of
++ *	this attribute. Setting this attribute to 0 is not allowed on
++ *	2.4 GHz band (u8). This is an optional parameter (default is 1).
++ * @NL80211_NAN_BAND_CONF_DISABLE_SCAN: Optional flag attribute to disable
++ *	scanning (for cluster merge) on the band. If set, the device will not
++ *	scan on this band anymore. Disabling scanning on 2.4 GHz band is not
++ *	allowed.
++ * @NUM_NL80211_NAN_BAND_CONF_ATTR: Internal.
++ * @NL80211_NAN_BAND_CONF_ATTR_MAX: Highest NAN band configuration attribute.
++ *
++ * These attributes are used to configure NAN band-specific parameters. Note,
++ * that both RSSI attributes should be configured (or both left unset).
++ */
++enum nl80211_nan_band_conf_attributes {
++	__NL80211_NAN_BAND_CONF_INVALID,
++	NL80211_NAN_BAND_CONF_BAND,
++	NL80211_NAN_BAND_CONF_FREQ,
++	NL80211_NAN_BAND_CONF_RSSI_CLOSE,
++	NL80211_NAN_BAND_CONF_RSSI_MIDDLE,
++	NL80211_NAN_BAND_CONF_WAKE_DW,
++	NL80211_NAN_BAND_CONF_DISABLE_SCAN,
++
++	/* keep last */
++	NUM_NL80211_NAN_BAND_CONF_ATTR,
++	NL80211_NAN_BAND_CONF_ATTR_MAX = NUM_NL80211_NAN_BAND_CONF_ATTR - 1,
++};
++
++/**
++ * enum nl80211_nan_conf_attributes - NAN configuration attributes
++ * @__NL80211_NAN_CONF_INVALID: Invalid attribute, used for validation.
++ * @NL80211_NAN_CONF_CLUSTER_ID: ID for the NAN cluster. This is a MAC
++ *	address that can take values from 50-6F-9A-01-00-00 to
++ *	50-6F-9A-01-FF-FF. This attribute is optional. If not present,
++ *	a random Cluster ID will be chosen.
++ * @NL80211_NAN_CONF_EXTRA_ATTRS: Additional NAN attributes to be
++ *	published in the beacons. This is an optional byte array.
++ * @NL80211_NAN_CONF_VENDOR_ELEMS: Vendor-specific elements that will
++ *	be published in the beacons. This is an optional byte array.
++ * @NL80211_NAN_CONF_BAND_CONFIGS: This is a nested array attribute,
++ *	containing multiple entries for each supported band. Each band
++ *	configuration consists of &enum nl80211_nan_band_conf_attributes.
++ * @NL80211_NAN_CONF_SCAN_PERIOD: Scan period in seconds. If not configured,
++ *	device default is used. Zero value will disable scanning.
++ *	This is u16 (optional).
++ * @NL80211_NAN_CONF_SCAN_DWELL_TIME: Scan dwell time in TUs per channel.
++ *	Only non-zero values are valid. If not configured the device default
++ *	value is used. This is u16 (optional)
++ * @NL80211_NAN_CONF_DISCOVERY_BEACON_INTERVAL: Discovery beacon interval
++ *	in TUs. Valid range is 50-200 TUs. If not configured the device default
++ *	value is used. This is u8 (optional)
++ * @NL80211_NAN_CONF_NOTIFY_DW: If set, the driver will notify userspace about
++ *	the upcoming discovery window with
++ *	%NL80211_CMD_NAN_NEXT_DW_NOTIFICATION.
++ *	This is a flag attribute.
++ * @NUM_NL80211_NAN_CONF_ATTR: Internal.
++ * @NL80211_NAN_CONF_ATTR_MAX: Highest NAN configuration attribute.
++ *
++ * These attributes are used to configure NAN-specific parameters.
++ */
++enum nl80211_nan_conf_attributes {
++	__NL80211_NAN_CONF_INVALID,
++	NL80211_NAN_CONF_CLUSTER_ID,
++	NL80211_NAN_CONF_EXTRA_ATTRS,
++	NL80211_NAN_CONF_VENDOR_ELEMS,
++	NL80211_NAN_CONF_BAND_CONFIGS,
++	NL80211_NAN_CONF_SCAN_PERIOD,
++	NL80211_NAN_CONF_SCAN_DWELL_TIME,
++	NL80211_NAN_CONF_DISCOVERY_BEACON_INTERVAL,
++	NL80211_NAN_CONF_NOTIFY_DW,
++
++	/* keep last */
++	NUM_NL80211_NAN_CONF_ATTR,
++	NL80211_NAN_CONF_ATTR_MAX = NUM_NL80211_NAN_CONF_ATTR - 1,
++};
++
+ /**
+  * enum nl80211_external_auth_action - Action to perform with external
+  *     authentication request. Used by NL80211_ATTR_EXTERNAL_AUTH_ACTION.
+@@ -8088,6 +8398,7 @@ enum nl80211_ap_settings_flags {
+  *	and contains attributes defined in &enum nl80211_if_combination_attrs.
+  * @NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK: bitmask (u32) of antennas
+  *	connected to this radio.
++ * @NL80211_WIPHY_RADIO_ATTR_RTS_THRESHOLD: RTS threshold (u32) of this radio.
+  *
+  * @__NL80211_WIPHY_RADIO_ATTR_LAST: Internal
+  * @NL80211_WIPHY_RADIO_ATTR_MAX: Highest attribute
+@@ -8099,6 +8410,7 @@ enum nl80211_wiphy_radio_attrs {
+ 	NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE,
+ 	NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION,
+ 	NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK,
++	NL80211_WIPHY_RADIO_ATTR_RTS_THRESHOLD,
+ 
+ 	/* keep last */
+ 	__NL80211_WIPHY_RADIO_ATTR_LAST,
+@@ -8128,4 +8440,152 @@ enum nl80211_wiphy_radio_freq_range {
+ 	NL80211_WIPHY_RADIO_FREQ_ATTR_MAX = __NL80211_WIPHY_RADIO_FREQ_ATTR_LAST - 1,
+ };
+ 
++/**
++ * enum nl80211_s1g_short_beacon_attrs - S1G short beacon data
++ *
++ * @__NL80211_S1G_SHORT_BEACON_ATTR_INVALID: Invalid
++ *
++ * @NL80211_S1G_SHORT_BEACON_ATTR_HEAD: Short beacon head (binary).
++ * @NL80211_S1G_SHORT_BEACON_ATTR_TAIL: Short beacon tail (binary).
++ *
++ * @__NL80211_S1G_SHORT_BEACON_ATTR_LAST: Internal
++ * @NL80211_S1G_SHORT_BEACON_ATTR_MAX: Highest attribute
++ */
++enum nl80211_s1g_short_beacon_attrs {
++	__NL80211_S1G_SHORT_BEACON_ATTR_INVALID,
++
++	NL80211_S1G_SHORT_BEACON_ATTR_HEAD,
++	NL80211_S1G_SHORT_BEACON_ATTR_TAIL,
++
++	/* keep last */
++	__NL80211_S1G_SHORT_BEACON_ATTR_LAST,
++	NL80211_S1G_SHORT_BEACON_ATTR_MAX =
++		__NL80211_S1G_SHORT_BEACON_ATTR_LAST - 1
++};
++
++/**
++ * enum nl80211_nan_capabilities - NAN (Neighbor Aware Networking)
++ *	capabilities.
++ *
++ * @__NL80211_NAN_CAPABILITIES_INVALID: Invalid.
++ * @NL80211_NAN_CAPA_CONFIGURABLE_SYNC: Flag attribute indicating that
++ *	the device supports configurable synchronization. If set, the device
++ *	should be able to handle %NL80211_ATTR_NAN_CONFIG
++ *	attribute in the %NL80211_CMD_START_NAN (and change) command.
++ * @NL80211_NAN_CAPA_USERSPACE_DE: Flag attribute indicating that
++ *	NAN Discovery Engine (DE) is not offloaded and the driver assumes
++ *	user space DE implementation. When set, %NL80211_CMD_ADD_NAN_FUNCTION,
++ *	%NL80211_CMD_DEL_NAN_FUNCTION and %NL80211_CMD_NAN_MATCH commands
++ *	should not be used. In addition, the device/driver should support
++ *	sending discovery window (DW) notifications using
++ *	%NL80211_CMD_NAN_NEXT_DW_NOTIFICATION and handling transmission and
++ *	reception of NAN SDF frames on NAN device interface during DW windows.
++ *	(%NL80211_CMD_FRAME is used to transmit SDFs)
++ * @NL80211_NAN_CAPA_OP_MODE: u8 attribute indicating the supported operation
++ *	modes as defined in Wi-Fi Aware (TM) specification Table 81 (Operation
++ *	Mode field format).
++ * @NL80211_NAN_CAPA_NUM_ANTENNAS: u8 attribute indicating the number of
++ *	TX and RX antennas supported by the device. Lower nibble indicates
++ *	the number of TX antennas and upper nibble indicates the number of RX
++ *	antennas. Value 0 indicates the information is not available.
++ *	See table 79 of Wi-Fi Aware (TM) specification (Number of
++ *	Antennas field).
++ * @NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME: u16 attribute indicating the
++ *	maximum time in microseconds that the device requires to switch
++ *	channels.
++ * @NL80211_NAN_CAPA_CAPABILITIES: u8 attribute containing the
++ *	capabilities of the device as defined in Wi-Fi Aware (TM)
++ *	specification Table 79 (Capabilities field).
++ * @__NL80211_NAN_CAPABILITIES_LAST: Internal
++ * @NL80211_NAN_CAPABILITIES_MAX: Highest NAN capability attribute.
++ */
++enum nl80211_nan_capabilities {
++	__NL80211_NAN_CAPABILITIES_INVALID,
++
++	NL80211_NAN_CAPA_CONFIGURABLE_SYNC,
++	NL80211_NAN_CAPA_USERSPACE_DE,
++	NL80211_NAN_CAPA_OP_MODE,
++	NL80211_NAN_CAPA_NUM_ANTENNAS,
++	NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME,
++	NL80211_NAN_CAPA_CAPABILITIES,
++	/* keep last */
++	__NL80211_NAN_CAPABILITIES_LAST,
++	NL80211_NAN_CAPABILITIES_MAX = __NL80211_NAN_CAPABILITIES_LAST - 1,
++};
++
++/**
++ * enum nl80211_attlm_event - type of events for Advertised Tid-to-Link
++ * Mapping operations
++ *
++ * @NL80211_ATTLM_STARTED: A A-TTLM request has been set and start to count down.
++ * @NL80211_ATTLM_SWITCH_TIME_EXPIRED: The switch time of A-TTLM has expired.
++ * @NL80211ATTLM_END: The A-TTLM has been done.
++ */
++enum nl80211_attlm_event {
++	NL80211_ATTLM_STARTED,
++	NL80211_ATTLM_SWITCH_TIME_EXPIRED,
++	NL80211_ATTLM_END,
++};
++
++/**
++ * enum nl80211_crit_update_event - type of critical update event
++ *
++ * Type of event to be used with NL80211_ATTR_CRTI_UPDATE_EVENT to inform userspace
++ * about the status of the current critical update flag.
++ *
++ * @NL80211_CRIT_UPDATE_NONE: clear the critical update flag.
++ * @NL80211_CRIT_UPDATE_SINGLE: update the BPCC of a single BSS and
++ *	set the critical update flag of the BSS.
++ * @NL80211_CRIT_UPDATE_ALL: update the BPCC of all the BSSes and
++ *	set the critical update flag of all the BSSes.
++ * @NL80211_CRIT_UPDATE_FLAG: set the critical update flag without updating BPCC.
++ */
++
++enum nl80211_crit_update_event {
++	NL80211_CRIT_UPDATE_NONE,
++	NL80211_CRIT_UPDATE_SINGLE,
++	NL80211_CRIT_UPDATE_ALL,
++	NL80211_CRIT_UPDATE_FLAG
++};
++
++/**
++ * enum nl80211_broadcast_twt_attributes - Parameters for a Broadcast TWT
++ *
++ * @NL80211_BROADCAST_TWT_ATTR_ID: Broadcast TWT ID. Range from 0 to 31.
++ * @NL80211_BROADCAST_TWT_ATTR_MIN_WAKE_DUR: Minimum wake duration.
++ * @NL80211_BROADCAST_TWT_ATTR_MANTISSA: Mantissa for wake interval
++ * @NL80211_BROADCAST_TWT_ATTR_EXPONENT: Exponent for wake interval
++ * @NL80211_BROADCAST_TWT_ATTR_TRIGGER: Decide a BTWT to be trigger based or
++ *	non-trigger based. 1 for trigger based.
++ * @NL80211_BROADCAST_TWT_ATTR_FLOW_TYPE: Decide a BTWT to be announced based or
++ *	non-announced based. 0 for announced based.
++ * @NL80211_BROADCAST_TWT_ATTR_RECOMMENDATION: Suggested data type by
++ * 	TWT scheduling AP.
++ * @NL80211_BROADCAST_TWT_ATTR_PERSISTENCE: Number of TBTT before this
++ * 	BTWT is end. Set 255 for a persist BTWT that never ends.
++ * @NL80211_BROADCAST_TWT_ATTR_LINK_ID: MLO link ID.
++ * @__NL80211_BROADCAST_TWT_ATTR_LAST: Internal
++ * @NL80211_BROADCAST_TWT_ATTR_MAX: Highest attribute
++ */
++
++enum nl80211_broadcast_twt_attributes {
++	__NL80211_BROADCAST_TWT_ATTR_INVALID,
++
++	NL80211_BROADCAST_TWT_ATTR_ID,
++	NL80211_BROADCAST_TWT_ATTR_MIN_WAKE_DUR,
++	NL80211_BROADCAST_TWT_ATTR_MANTISSA,
++	NL80211_BROADCAST_TWT_ATTR_EXPONENT,
++	NL80211_BROADCAST_TWT_ATTR_TRIGGER,
++	NL80211_BROADCAST_TWT_ATTR_FLOW_TYPE,
++	NL80211_BROADCAST_TWT_ATTR_RECOMMENDATION,
++	NL80211_BROADCAST_TWT_ATTR_PERSISTENCE,
++	NL80211_BROADCAST_TWT_ATTR_DL_TID_BMP,
++	NL80211_BROADCAST_TWT_ATTR_UL_TID_BMP,
++	NL80211_BROADCAST_TWT_ATTR_LINK_ID,
++
++	/* keep last */
++	__NL80211_BROADCAST_TWT_ATTR_LAST,
++	NL80211_BROADCAST_TWT_ATTR_MAX = __NL80211_BROADCAST_TWT_ATTR_LAST - 1,
++};
++
+ #endif /* __LINUX_NL80211_H */
+-- 
+2.45.2
+

@@ -1,0 +1,168 @@
+From a85ff4a3af0d7e96cb7495ce4c48247adc77dfee Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek>
+Date: Wed, 15 Oct 2025 14:59:32 +0800
+Subject: [PATCH 079/105] mtk: wifi: mt76: mt7915: mt7996: restructure for TWT
+ teardown flow
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek>
+---
+ mt7915/mac.c    | 10 +++++-----
+ mt7915/main.c   |  7 ++++---
+ mt7915/mt7915.h |  2 +-
+ mt7996/mac.c    | 10 +++++-----
+ mt7996/main.c   |  6 +++---
+ mt7996/mt7996.h |  2 +-
+ 6 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 696f5d30e..361ed9001 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -2378,25 +2378,25 @@ out:
+ 
+ void mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
+ 				  struct mt7915_sta *msta,
+-				  u8 flowid)
++				  struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7915_twt_flow *flow;
+ 
+ 	lockdep_assert_held(&dev->mt76.mutex);
+ 
+-	if (flowid >= ARRAY_SIZE(msta->twt.flow))
++	if (td->id >= ARRAY_SIZE(msta->twt.flow))
+ 		return;
+ 
+-	if (!(msta->twt.flowid_mask & BIT(flowid)))
++	if (!(msta->twt.flowid_mask & BIT(td->id)))
+ 		return;
+ 
+-	flow = &msta->twt.flow[flowid];
++	flow = &msta->twt.flow[td->id];
+ 	if (mt7915_mcu_twt_agrt_update(dev, msta->vif, flow,
+ 				       MCU_TWT_AGRT_DELETE))
+ 		return;
+ 
+ 	list_del_init(&flow->list);
+-	msta->twt.flowid_mask &= ~BIT(flowid);
++	msta->twt.flowid_mask &= ~BIT(td->id);
+ 	dev->twt.table_mask &= ~BIT(flow->table_id);
+ 	dev->twt.n_agrt--;
+ }
+diff --git a/mt7915/main.c b/mt7915/main.c
+index 7a6ebb23a..25dfe5162 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -859,7 +859,8 @@ int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 
+ 	case MT76_STA_EVENT_DISASSOC:
+ 		for (i = 0; i < ARRAY_SIZE(msta->twt.flow); i++)
+-			mt7915_mac_twt_teardown_flow(dev, msta, i);
++			mt7915_mac_twt_teardown_flow(dev, msta,
++						     (struct ieee80211_twt_teardown *) &i);
+ 
+ 		mt7915_mcu_add_sta(dev, vif, sta, CONN_STATE_DISCONNECT, false);
+ 		msta->wcid.sta_disabled = 1;
+@@ -1691,13 +1692,13 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+ static void
+ mt7915_twt_teardown_request(struct ieee80211_hw *hw,
+ 			    struct ieee80211_sta *sta,
+-			    u8 flowid)
++			    struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+ 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	mt7915_mac_twt_teardown_flow(dev, msta, flowid);
++	mt7915_mac_twt_teardown_flow(dev, msta, td);
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 7d98a42d3..fc7df6703 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -598,7 +598,7 @@ void mt7915_mac_sta_rc_work(struct work_struct *work);
+ void mt7915_mac_update_stats(struct mt7915_phy *phy);
+ void mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
+ 				  struct mt7915_sta *msta,
+-				  u8 flowid);
++				  struct ieee80211_twt_teardown *td);
+ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 			      struct ieee80211_sta *sta,
+ 			      struct ieee80211_twt_setup *twt);
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 4455cbd70..ce715fea2 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3347,24 +3347,24 @@ out:
+ void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
+ 				  struct mt7996_vif_link *link,
+ 				  struct mt7996_sta_link *msta_link,
+-				  u8 flowid)
++				  struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7996_twt_flow *flow;
+ 
+ 	lockdep_assert_held(&dev->mt76.mutex);
+ 
+-	if (flowid >= ARRAY_SIZE(msta_link->twt.flow))
++	if (td->id >= ARRAY_SIZE(msta_link->twt.flow))
+ 		return;
+ 
+-	if (!(msta_link->twt.flowid_mask & BIT(flowid)))
++	if (!(msta_link->twt.flowid_mask & BIT(td->id)))
+ 		return;
+ 
+-	flow = &msta_link->twt.flow[flowid];
++	flow = &msta_link->twt.flow[td->id];
+ 	if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_DELETE))
+ 		return;
+ 
+ 	list_del_init(&flow->list);
+-	msta_link->twt.flowid_mask &= ~BIT(flowid);
++	msta_link->twt.flowid_mask &= ~BIT(td->id);
+ 	dev->twt.table_mask &= ~BIT(flow->table_id);
+ 	dev->twt.n_agrt--;
+ }
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 925f9a6d3..b27884e87 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1477,8 +1477,8 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 			}
+ 
+ 			for (i = 0; i < ARRAY_SIZE(msta_link->twt.flow); i++)
+-				mt7996_mac_twt_teardown_flow(dev, link,
+-							     msta_link, i);
++				mt7996_mac_twt_teardown_flow(dev, link, msta_link,
++					     (struct ieee80211_twt_teardown *) &i);
+ 
+ 			if (!sta->mlo)
+ 				mt7996_mcu_add_sta(dev, link_conf, link_sta,
+@@ -2515,7 +2515,7 @@ void mt7996_get_et_stats(struct ieee80211_hw *hw,
+ static void
+ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+ 			    struct ieee80211_sta *sta,
+-			    u8 flowid)
++			    struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	struct mt7996_sta_link *msta_link;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index c23d208c9..0aba2b58f 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1396,7 +1396,7 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy);
+ void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
+ 				  struct mt7996_vif_link *link,
+ 				  struct mt7996_sta_link *msta_link,
+-				  u8 flowid);
++				  struct ieee80211_twt_teardown *td);
+ void mt7996_mac_sta_deinit_link(struct mt7996_dev *dev,
+ 				struct mt7996_sta_link *msta_link);
+ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+-- 
+2.45.2
+

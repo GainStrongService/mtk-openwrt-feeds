@@ -1,0 +1,57 @@
+From 37974181a75406f3720700f84068c6c5b94d0407 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 16 Oct 2025 15:29:03 +0800
+Subject: [PATCH 015/105] mtk: mt76: mt7996: use mt7996_pre_rcu_remove
+
+To correctly set the wcid pointer array to NULL.
+
+---
+ mt7996/main.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 7e652a54d..9349b1f0f 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1317,6 +1317,29 @@ mt7996_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	return mt7996_mac_sta_event(dev, vif, sta, ev);
+ }
+ 
++static void
++mt7996_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
++			  struct ieee80211_sta *sta)
++{
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	unsigned long rem = sta->valid_links ?: BIT(0);
++	unsigned int link_id;
++
++	mutex_lock(&dev->mt76.mutex);
++	spin_lock_bh(&dev->mt76.status_lock);
++	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
++		struct mt7996_sta_link *msta_link =
++			mt76_dereference(msta->link[link_id], &dev->mt76);
++
++		if (!msta_link)
++			continue;
++		rcu_assign_pointer(dev->mt76.wcid[msta_link->wcid.idx], NULL);
++	}
++	spin_unlock_bh(&dev->mt76.status_lock);
++	mutex_unlock(&dev->mt76.mutex);
++}
++
+ static void mt7996_tx(struct ieee80211_hw *hw,
+ 		      struct ieee80211_tx_control *control,
+ 		      struct sk_buff *skb)
+@@ -2318,7 +2341,7 @@ const struct ieee80211_ops mt7996_ops = {
+ 	.vif_cfg_changed = mt7996_vif_cfg_changed,
+ 	.link_info_changed = mt7996_link_info_changed,
+ 	.sta_state = mt7996_sta_state,
+-	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
++	.sta_pre_rcu_remove = mt7996_sta_pre_rcu_remove,
+ 	.link_sta_rc_update = mt7996_link_sta_rc_update,
+ 	.set_key = mt7996_set_key,
+ 	.ampdu_action = mt7996_ampdu_action,
+-- 
+2.45.2
+

@@ -1,0 +1,75 @@
+From 0212562e1ee7e4617a5ab995649d5da5963d0d6f Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 21 Oct 2025 08:20:20 +0800
+Subject: [PATCH 226/254] mtk: wpa_s: add option to disable MLO
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ wpa_supplicant/config.c      | 2 ++
+ wpa_supplicant/config.h      | 1 +
+ wpa_supplicant/config_file.c | 2 ++
+ wpa_supplicant/sme.c         | 3 +++
+ 4 files changed, 8 insertions(+)
+
+diff --git a/wpa_supplicant/config.c b/wpa_supplicant/config.c
+index d39e4a3fc..799b0a91b 100644
+--- a/wpa_supplicant/config.c
++++ b/wpa_supplicant/config.c
+@@ -4845,6 +4845,7 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
+ 
+ #ifdef CONFIG_TESTING_OPTIONS
+ 	config->mld_connect_band_pref = DEFAULT_MLD_CONNECT_BAND_PREF;
++	config->disable_mld = 0;
+ #endif /* CONFIG_TESTING_OPTIONS */
+ 
+ 	return config;
+@@ -5795,6 +5796,7 @@ static const struct global_parse_data global_fields[] = {
+ #endif /* CONFIG_TESTING_OPTIONS */
+ #endif /* CONFIG_PASN */
+ #ifdef CONFIG_TESTING_OPTIONS
++	{ INT_RANGE(disable_mld, 0, 1), 0 },
+ 	{ INT_RANGE(mld_force_single_link, 0, 1), 0 },
+ 	{ INT_RANGE(mld_connect_band_pref, 0, MLD_CONNECT_BAND_PREF_MAX), 0 },
+ 	{ FUNC(mld_connect_bssid_pref), 0 },
+diff --git a/wpa_supplicant/config.h b/wpa_supplicant/config.h
+index aae5ce4fe..4daa9ffc3 100644
+--- a/wpa_supplicant/config.h
++++ b/wpa_supplicant/config.h
+@@ -1852,6 +1852,7 @@ struct wpa_config {
+ 	u8 mld_connect_bssid_pref[ETH_ALEN];
+ 
+ 	int mld_force_single_link;
++	int disable_mld;
+ #endif /* CONFIG_TESTING_OPTIONS */
+ 
+ 	/* Cipher version type */
+diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
+index 376f55904..e616c0449 100644
+--- a/wpa_supplicant/config_file.c
++++ b/wpa_supplicant/config_file.c
+@@ -1742,6 +1742,8 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
+ 	if (config->rsn_overriding)
+ 		fprintf(f, "rsn_overriding=%d\n", config->rsn_overriding);
+ #ifdef CONFIG_TESTING_OPTIONS
++	if (config->disable_mld)
++		fprintf(f, "disable_mld=1\n");
+ 	if (config->mld_force_single_link)
+ 		fprintf(f, "mld_force_single_link=1\n");
+ 	if (config->mld_connect_band_pref != MLD_CONNECT_BAND_PREF_AUTO)
+diff --git a/wpa_supplicant/sme.c b/wpa_supplicant/sme.c
+index a12dcee55..e619e1d4d 100644
+--- a/wpa_supplicant/sme.c
++++ b/wpa_supplicant/sme.c
+@@ -630,6 +630,9 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
+ 	os_memset(&params, 0, sizeof(params));
+ 
+ 	if ((wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_MLO) &&
++#ifdef CONFIG_TESTING_OPTIONS
++	    !wpa_s->conf->disable_mld &&
++#endif /* CONFIG_TESTING_OPTIONS */
+ 	    !wpa_bss_parse_basic_ml_element(wpa_s, bss, wpa_s->ap_mld_addr,
+ 					    NULL, ssid, NULL) &&
+ 	    bss->valid_links) {
+-- 
+2.45.2
+

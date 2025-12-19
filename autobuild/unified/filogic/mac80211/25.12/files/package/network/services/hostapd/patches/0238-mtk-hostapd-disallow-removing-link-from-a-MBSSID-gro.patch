@@ -1,0 +1,38 @@
+From ba4763fdd6c1cc7a78c0f260e81452100a7a359b Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 2 Oct 2025 08:42:01 +0800
+Subject: [PATCH 238/254] mtk: hostapd: disallow removing link from a MBSSID
+ group.
+
+We do not support the operation for following reasons
+1. Link's MBSSID idx is assigned according to the index in iface->bss[].
+   Removing link from a MBSSID group results in MBSSID idx shifting.
+2. FW does not support counting down Reconfiguration ML Element in
+   MBSSID nontransmitted profile.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ hostapd/ctrl_iface.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 0c6215994..e7a057035 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -4156,6 +4156,13 @@ static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
+ 		return -1;
+ 	}
+ 
++	/* TODO Add support to remove link when MBSSID is enabled */
++	if (hapd->iconf->mbssid) {
++		wpa_printf(MSG_ERROR,
++			   "Removing a link from the MBSSID group is unsupported.");
++		return -1;
++	}
++
+ 	if (!count) {
+ 		wpa_printf(MSG_ERROR, "Invalid ap removal count");
+ 		return -1;
+-- 
+2.45.2
+

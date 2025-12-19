@@ -1,0 +1,64 @@
+From 618c547339abf0583d03e5dbd92c3dc5dffdf92b Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Fri, 12 Dec 2025 14:01:32 +0800
+Subject: [PATCH 099/105] mtk: mt76: mt7996: Fix wrong maximum power after just
+ enable sku
+
+Fix wrong maximum power by checkinh max_power of operating channel.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt7996/vendor.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 5ee23e53d..032ae5233 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -1664,6 +1664,7 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL], *table;
+ 	int err, current_txpower, delta;
+ 	u8 val, link_id = 0, idx;
++	s8 new_power_limit = 127;
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_TXPOWER_CTRL_MAX, data, data_len,
+ 			txpower_ctrl_policy, NULL);
+@@ -1710,6 +1711,7 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 
+ 	if (tb[MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX]) {
+ 		struct mt76_power_limits *la = NULL;
++		struct ieee80211_channel *chan = mphy->main_chandef.chan;
+ 		u8 orig_sku_idx = mphy->sku_idx;
+ 
+ 		mphy->sku_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX]);
+@@ -1719,6 +1721,7 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 
+ 		if (orig_sku_idx != mphy->sku_idx)
+ 			mt7996_init_txpower(phy);
++		new_power_limit = chan->max_power;
+ 
+ 		phy->sku_limit_en = true;
+ 		phy->sku_path_en = true;
+@@ -1726,7 +1729,7 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 		if (!la)
+ 			return -ENOMEM;
+ 
+-		mt76_get_rate_power_limits(mphy, mphy->chandef.chan, la, 127);
++		mt76_get_rate_power_limits(mphy, chan, la, 127);
+ 		if (!la->path.ofdm[0])
+ 			phy->sku_path_en = false;
+ 
+@@ -1772,8 +1775,9 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 	}
+ 
+ 	current_txpower = DIV_ROUND_UP(mphy->txpower_cur + delta, 2);
++	new_power_limit = min_t(s8, current_txpower, new_power_limit);
+ 
+-	err = mt7996_mcu_set_txpower_sku(phy, current_txpower);
++	err = mt7996_mcu_set_txpower_sku(phy, new_power_limit);
+ 
+ 	return err;
+ }
+-- 
+2.45.2
+

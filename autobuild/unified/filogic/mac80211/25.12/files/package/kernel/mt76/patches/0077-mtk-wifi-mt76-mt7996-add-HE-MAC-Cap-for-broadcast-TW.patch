@@ -1,0 +1,33 @@
+From 25176d197235b30b33cbf481cfd91a1b2c118e2e Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Fri, 25 Jul 2025 22:53:32 +0000
+Subject: [PATCH 077/105] mtk: wifi: mt76: mt7996: add HE MAC Cap for broadcast
+ TWT
+
+Set the bit to announce that the AP supports for broadcast TWT.
+A broadcast TWT scheduled STA can know if an AP is a broadcast
+TWT scheduling STA based on this bit.
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+---
+ mt7996/init.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 029d5fa8d..bf6389d1c 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -1704,7 +1704,9 @@ mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
+ 	switch (iftype) {
+ 	case NL80211_IFTYPE_AP:
+ 		he_cap_elem->mac_cap_info[0] |= IEEE80211_HE_MAC_CAP0_TWT_RES;
+-		he_cap_elem->mac_cap_info[2] |= IEEE80211_HE_MAC_CAP2_BSR;
++		he_cap_elem->mac_cap_info[2] |=
++			IEEE80211_HE_MAC_CAP2_BSR |
++			IEEE80211_HE_MAC_CAP2_BCAST_TWT;
+ 		he_cap_elem->mac_cap_info[4] |= IEEE80211_HE_MAC_CAP4_BQR;
+ 		he_cap_elem->mac_cap_info[5] |=
+ 			IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX;
+-- 
+2.45.2
+

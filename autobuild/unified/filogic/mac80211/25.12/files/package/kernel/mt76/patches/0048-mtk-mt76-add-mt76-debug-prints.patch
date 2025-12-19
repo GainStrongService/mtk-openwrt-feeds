@@ -1,0 +1,196 @@
+From 040bcad43341f4ec98d5680e79e866af3d7a682e Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 25 Nov 2025 18:47:45 +0800
+Subject: [PATCH 048/105] mtk: mt76: add mt76 debug prints
+
+---
+ Makefile      |  2 +-
+ debug.c       | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ debug.h       | 42 ++++++++++++++++++++++++++++++++
+ mt76.h        |  3 +++
+ mt7996/mmio.c |  5 ++++
+ 5 files changed, 118 insertions(+), 1 deletion(-)
+ create mode 100644 debug.c
+ create mode 100644 debug.h
+
+diff --git a/Makefile b/Makefile
+index ae9c201b4..14c071a84 100644
+--- a/Makefile
++++ b/Makefile
+@@ -11,7 +11,7 @@ obj-$(CONFIG_MT792x_USB) += mt792x-usb.o
+ 
+ mt76-y := \
+ 	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o \
+-	tx.o agg-rx.o mcu.o wed.o scan.o channel.o
++	tx.o agg-rx.o mcu.o wed.o scan.o channel.o debug.o
+ 
+ mt76-$(CONFIG_MT76_NPU) += npu.o
+ mt76-$(CONFIG_PCI) += pci.o
+diff --git a/debug.c b/debug.c
+new file mode 100644
+index 000000000..fb28c3295
+--- /dev/null
++++ b/debug.c
+@@ -0,0 +1,67 @@
++// SPDX-License-Identifier: ISC
++/*
++ * Copyright (C) 2024 MediaTek Inc.
++ */
++
++#include <linux/vmalloc.h>
++#include "mt76.h"
++
++void mt76_info(struct mt76_dev *dev, const char *fmt, ...)
++{
++	struct va_format vaf = {
++		.fmt = fmt,
++	};
++	va_list args;
++
++	va_start(args, fmt);
++	vaf.va = &args;
++	dev_info(dev->dev, "%pV", &vaf);
++
++	va_end(args);
++}
++EXPORT_SYMBOL_GPL(mt76_info);
++
++void mt76_err(struct mt76_dev *dev, const char *fmt, ...)
++{
++	struct va_format vaf = {
++		.fmt = fmt,
++	};
++	va_list args;
++
++	va_start(args, fmt);
++	vaf.va = &args;
++	dev_err(dev->dev, "%pV", &vaf);
++
++	va_end(args);
++}
++EXPORT_SYMBOL_GPL(mt76_err);
++
++void mt76_warn(struct mt76_dev *dev, const char *fmt, ...)
++{
++	struct va_format vaf = {
++		.fmt = fmt,
++	};
++	va_list args;
++
++	va_start(args, fmt);
++	vaf.va = &args;
++	dev_warn_ratelimited(dev->dev, "%pV", &vaf);
++
++	va_end(args);
++}
++EXPORT_SYMBOL_GPL(mt76_warn);
++
++void __mt76_dbg(struct mt76_dev *dev, const char *fmt, ...)
++{
++	struct va_format vaf = {
++		.fmt = fmt,
++	};
++	va_list args;
++
++	va_start(args, fmt);
++	vaf.va = &args;
++	dev_printk(KERN_DEBUG, dev->dev, "%pV", &vaf);
++
++	va_end(args);
++}
++EXPORT_SYMBOL_GPL(__mt76_dbg);
+diff --git a/debug.h b/debug.h
+new file mode 100644
+index 000000000..9181d75b8
+--- /dev/null
++++ b/debug.h
+@@ -0,0 +1,42 @@
++/* SPDX-License-Identifier: ISC */
++/*
++ * Copyright (C) 2024 MediaTek Inc.
++ */
++#ifndef __MT76_DEBUG_H_
++#define __MT76_DEBUG_H_
++
++struct mt76_dev;
++
++enum mt76_debug_mask {
++	MT76_DBG_DEV = BIT(0),
++	MT76_DBG_BSS = BIT(1),
++	MT76_DBG_STA = BIT(2),
++	MT76_DBG_CHAN = BIT(3),
++	MT76_DBG_MLD = BIT(4),
++	MT76_DBG_TXRX = BIT(5),
++	MT76_DBG_SCAN = BIT(6),
++	MT76_DBG_TEST = BIT(7),
++
++	MT76_DBG_ALL = 0xffffffff,
++};
++
++__printf(2, 3) void mt76_info(struct mt76_dev *dev, const char *fmt, ...);
++__printf(2, 3) void mt76_err(struct mt76_dev *dev, const char *fmt, ...);
++__printf(2, 3) void mt76_warn(struct mt76_dev *dev, const char *fmt, ...);
++
++__printf(2, 3) void __mt76_dbg(struct mt76_dev *dev,
++			       const char *fmt, ...);
++void mt76_dbg_dump(struct mt76_dev *dev,
++		   enum mt76_debug_mask mask,
++		   const char *msg, const char *prefix,
++		   const void *buf, size_t len);
++
++#define mt76_dbg(dev, dbg_mask, fmt, ...)			\
++do {								\
++	typeof(dbg_mask) mask = (dbg_mask);			\
++	typeof(dev) _dev = (dev);				\
++	if ((_dev->debug_mask) & mask)				\
++		__mt76_dbg(_dev, fmt, ##__VA_ARGS__);	\
++} while (0)
++
++#endif /* __MT76_DEBUG_H_ */
+diff --git a/mt76.h b/mt76.h
+index 900df6b62..17b643325 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -28,6 +28,7 @@
+ #endif
+ #include "util.h"
+ #include "testmode.h"
++#include "debug.h"
+ 
+ #define MT_MCU_RING_SIZE	32
+ #define MT_RX_BUF_SIZE		2048
+@@ -1059,6 +1060,8 @@ struct mt76_dev {
+ 
+ 	atomic_t bus_hung;
+ 
++	unsigned int debug_mask;
++
+ 	u8 chainshift[__MT_MAX_BAND];
+ };
+ 
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+index 9703d6bf7..c81282f68 100644
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -17,6 +17,10 @@
+ static bool wed_enable;
+ module_param(wed_enable, bool, 0644);
+ 
++unsigned int mt76_debug_mask = 0x9f;
++module_param(mt76_debug_mask, uint, 0644);
++MODULE_PARM_DESC(mt76_debug_mask, "Debugging mask");
++
+ #define INVALID_REG_ADDR	0xffffffff
+ 
+ static const struct __base mt7996_reg_base[] = {
+@@ -738,6 +742,7 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
+ 	dev->mt76.bus = bus_ops;
+ 
+ 	mdev->rev = (device_id << 16) | (mt76_rr(dev, MT_HW_REV) & 0xff);
++	mdev->debug_mask = mt76_debug_mask;
+ 
+ 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+ 
+-- 
+2.45.2
+

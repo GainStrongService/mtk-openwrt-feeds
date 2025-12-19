@@ -1,0 +1,62 @@
+From 8733e19fde8399fc977ea0cc647b4842866ad0b5 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 4 Dec 2025 12:24:53 +0800
+Subject: [PATCH 011/105] wifi: mt76: fix potential deadlock caused by rx_lock
+
+ieee80211_rx_list
+__ieee80211_rx_handle_packet
+ieee80211_prepare_and_rx_handle
+ieee80211_invoke_rx_handlers
+ieee80211_rx_handles
+ieee80211_rx_h_ctrl
+ieee80211_send_delba
+ieee80211_tx_skb
+ieee80211_tx_skb_tid
+__ieee80211_tx_skb_tid_band
+ieee80211_xmit
+ieee80211_tx
+1.ieee80211_tx_prepare_skb  2. __ieee80211_tx
+ieee80211_tx_frags
+drv_tx
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ dma.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/dma.c b/dma.c
+index f240016ed..9245a3b5a 100644
+--- a/dma.c
++++ b/dma.c
+@@ -645,6 +645,8 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 		.skb = skb,
+ 	};
+ 	struct mt76_dev *dev = phy->dev;
++	struct ieee80211_tx_info *info;
++	struct ieee80211_hdr *hdr;
+ 	struct ieee80211_hw *hw;
+ 	int len, n = 0, ret = -ENOMEM;
+ 	struct mt76_txwi_cache *t;
+@@ -733,9 +735,16 @@ free:
+ free_skb:
+ 	status.skb = tx_info.skb;
+ 	hw = mt76_tx_status_get_hw(dev, tx_info.skb);
+-	spin_lock_bh(&dev->rx_lock);
+-	ieee80211_tx_status_ext(hw, &status);
+-	spin_unlock_bh(&dev->rx_lock);
++	hdr = (struct ieee80211_hdr *)tx_info.skb->data;
++	info = IEEE80211_SKB_CB(tx_info.skb);
++	if ((info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) ||
++	    ieee80211_is_data(hdr->frame_control)) {
++		spin_lock_bh(&dev->rx_lock);
++		ieee80211_tx_status_ext(hw, &status);
++		spin_unlock_bh(&dev->rx_lock);
++	} else {
++		ieee80211_free_txskb(hw, tx_info.skb);
++	}
+ 
+ 	return ret;
+ }
+-- 
+2.45.2
+

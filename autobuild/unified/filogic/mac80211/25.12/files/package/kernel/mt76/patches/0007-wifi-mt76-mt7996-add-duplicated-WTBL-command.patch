@@ -1,0 +1,108 @@
+From 90ca0264f34ac98907c8260052239fae4bdd1ba1 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 4 Nov 2025 10:55:08 +0800
+Subject: [PATCH 007/105] wifi: mt76: mt7996: add duplicated WTBL command
+
+This is a firmware mechanism to improve packet loss issues for mt7996 and
+mt7992 chipsets.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/init.c   |  3 +++
+ mt7996/mcu.c    | 25 +++++++++++++++++++++++--
+ mt7996/mcu.h    |  5 +++++
+ mt7996/mt7996.h |  1 +
+ 4 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index dbdb9dc71..e09148f7c 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -758,6 +758,9 @@ static void mt7996_init_work(struct work_struct *work)
+ 	mt7996_mcu_set_eeprom(dev);
+ 	mt7996_mac_init(dev);
+ 	mt7996_txbf_init(dev);
++
++	if (!is_mt7990(&dev->mt76))
++		mt7996_mcu_set_dup_wtbl(dev);
+ }
+ 
+ void mt7996_wfsys_reset(struct mt7996_dev *dev)
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 73c3741b5..97b8d6dfd 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -4031,7 +4031,6 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
+ 
+ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
+ {
+-#define NIC_CAP	3
+ #define UNI_EVENT_CHIP_CONFIG_EFUSE_VERSION	0x21
+ 	struct {
+ 		u8 _rsv[4];
+@@ -4039,7 +4038,7 @@ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
+ 		__le16 tag;
+ 		__le16 len;
+ 	} __packed req = {
+-		.tag = cpu_to_le16(NIC_CAP),
++		.tag = cpu_to_le16(UNI_CHIP_CONFIG_NIC_CAPA),
+ 		.len = cpu_to_le16(sizeof(req) - 4),
+ 	};
+ 	struct sk_buff *skb;
+@@ -5046,3 +5045,25 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
+ 				 &cp_mode, sizeof(cp_mode), true);
+ }
++
++int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev)
++{
++#define DUP_WTBL_NUM	80
++	struct {
++		u8 _rsv[4];
++
++		__le16 tag;
++		__le16 len;
++		__le16 base;
++		__le16 num;
++		u8 _rsv2[4];
++	} __packed req = {
++		.tag = cpu_to_le16(UNI_CHIP_CONFIG_DUP_WTBL),
++		.len = cpu_to_le16(sizeof(req) - 4),
++		.base = cpu_to_le16(MT7996_WTBL_STA - DUP_WTBL_NUM + 1),
++		.num = cpu_to_le16(DUP_WTBL_NUM),
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(CHIP_CONFIG), &req,
++				 sizeof(req), true);
++}
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 1283beb0d..de14394be 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -798,6 +798,11 @@ enum {
+ 	UNI_CHANNEL_RX_PATH,
+ };
+ 
++enum {
++	UNI_CHIP_CONFIG_NIC_CAPA = 3,
++	UNI_CHIP_CONFIG_DUP_WTBL = 4,
++};
++
+ #define MT7996_BSS_UPDATE_MAX_SIZE	(sizeof(struct bss_req_hdr) +		\
+ 					 sizeof(struct mt76_connac_bss_basic_tlv) +	\
+ 					 sizeof(struct bss_rlm_tlv) +		\
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 8f1043159..f850be874 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -748,6 +748,7 @@ void mt7996_mcu_exit(struct mt7996_dev *dev);
+ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
+ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
+ int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled);
++int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev);
+ 
+ static inline bool mt7996_has_hwrro(struct mt7996_dev *dev)
+ {
+-- 
+2.45.2
+

@@ -1,0 +1,113 @@
+From aace9e786d142c092818ad378954bfb6bd14c461 Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Thu, 11 Sep 2025 15:49:01 -0700
+Subject: [PATCH 081/105] mtk: wifi: mt76: mt7996: handle multiple btwt_id=0
+
+Multiple btwt with id=0 is allowed, so we have to add a BTWT capable STA to all
+of them. The STA is spontaneously added by AP, so actual TWT setup response
+needed here.
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek>
+
+Fix the issue where a new BTWT station is added to the uninitialized
+BTWT schedule. Without this commit, the TX traffic to the new BTWT
+station may be stuck.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mac.c | 45 +++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 37 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 75a24bb4c..c390d9183 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3293,6 +3293,33 @@ static int mt7996_mac_btwt_del_member(struct mt7996_twt_flow *flow, u16 idx)
+ 	return (done) ? 0 : -EINVAL;
+ }
+ 
++static int mt7996_mac_btwt_setup_id_0(struct mt7996_dev *dev,
++				      struct mt7996_vif_link *link,
++				      struct mt7996_sta_link *msta_link)
++{
++	struct mt7996_twt_flow *flow;
++	u8 i;
++
++	/* Multiple btwt with id=0 is allow, so we have to iterate all flows. */
++	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
++
++		if ((dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
++		    (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff) == 0) {
++			flow = &dev->twt.btwt_flow[i];
++
++			if (mt7996_mac_btwt_add_member(flow, msta_link->wcid.idx))
++				return -EINVAL;
++
++			if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_MODIFY)) {
++				mt7996_mac_btwt_del_member(flow, msta_link->wcid.idx);
++				return -EINVAL;
++			}
++		}
++	}
++
++	return 0;
++}
++
+ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 				 struct ieee80211_sta *sta,
+ 				 struct ieee80211_twt_setup *twt)
+@@ -3316,8 +3343,16 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
++	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
++	link = mt7996_vif_link(dev, vif, 0);
+ 	id = le16_get_bits(twt_agrt->bcast.btwt_info, IEEE80211_BTWT_INFO_ID);
+ 
++	if (id == 0) {
++		if (mt7996_mac_btwt_setup_id_0(dev, link, msta_link))
++			goto unlock;
++		goto accept;
++	}
++
+ 	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
+ 		if ((dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
+ 		    (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff) == id) {
+@@ -3329,9 +3364,6 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 	if (!flow)
+ 		goto unlock;
+ 
+-	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
+-	link = mt7996_vif_link(dev, vif, 0);
+-
+ 	if (mt7996_mac_btwt_add_member(flow, msta_link->wcid.idx))
+ 		goto unlock;
+ 
+@@ -3340,9 +3372,6 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 		goto unlock;
+ 	}
+ 
+-	/* Send ACCEPT setup command */
+-	setup_cmd = TWT_SETUP_CMD_ACCEPT;
+-
+ 	/* Calculate the future TSF and fill in the outgoing TWT action frame.
+ 	 * Since the TWT field in the frame has only 16bits, we need to
+ 	 * extract TSF[10:25] according to spec
+@@ -3357,12 +3386,12 @@ static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
+ 	twt_agrt->bcast.btwt_info |=
+ 		le16_encode_bits(flow->persist, IEEE80211_BTWT_INFO_PERSISTENCE);
+ 
++accept:
++	setup_cmd = TWT_SETUP_CMD_ACCEPT;
+ 	ret = 0;
+-
+ unlock:
+ 	mutex_unlock(&dev->mt76.mutex);
+ out:
+-	twt_agrt->req_type &= ~cpu_to_le16(IEEE80211_TWT_REQTYPE_REQUEST);
+ 	twt_agrt->req_type &= ~cpu_to_le16(IEEE80211_TWT_REQTYPE_SETUP_CMD);
+ 	twt_agrt->req_type |=
+ 		le16_encode_bits(setup_cmd, IEEE80211_TWT_REQTYPE_SETUP_CMD);
+-- 
+2.45.2
+

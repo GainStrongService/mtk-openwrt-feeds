@@ -1,0 +1,108 @@
+From 245f18078afcb46f4eb2f732120fd7ddbc4bedc6 Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Tue, 29 Jul 2025 01:18:52 +0000
+Subject: [PATCH 076/105] mtk: wifi: mt76: mt7996: add Beacon BTWT IE offload
+ mcu event
+
+Hostapd fills the TWT IE in the beacon frame. For broadcast TWT, the TWT
+field must be continuously updated to reflect the next service period. This
+commit adds support for an MCU offload command that automates this update
+process. The upper layer provides the offset of the TWT IE, and the MCU will
+update the TWT field for each broadcast TWT service period accordingly.
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+---
+ mt76_connac_mcu.h |  1 +
+ mt7996/mcu.c      | 28 ++++++++++++++++++++++++++++
+ mt7996/mcu.h      | 10 +++++++++-
+ 3 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index 063c4cd73..a4f2f8162 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1417,6 +1417,7 @@ enum {
+ 	UNI_BSS_INFO_OFFLOAD = 25,
+ 	UNI_BSS_INFO_MLD = 26,
+ 	UNI_BSS_INFO_PM_DISABLE = 27,
++	UNI_BSS_INFO_BCN_BTWT = 28,
+ 	UNI_BSS_INFO_EHT = 30,
+ 	UNI_BSS_INFO_BCN_CRIT_UPDATE = 32,
+ 	UNI_BSS_INFO_BCN_STA_PROF_CSA = 37,
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 7f3f16515..95654d7b3 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -3955,6 +3955,33 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev,
+ 		mt7996_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_TX, 0);
+ }
+ 
++static void
++mt7996_mcu_beacon_btwt(struct mt7996_dev *dev,
++		       struct sk_buff *rskb, struct sk_buff *skb,
++		       struct ieee80211_mutable_offsets *offs)
++{
++	u16 offset = 0, tail_offset = offs->tim_offset + offs->tim_length;
++	u8 *beacon_tail = skb->data + tail_offset;
++	const struct element *elem;
++	struct bss_bcn_btwt_tlv *btwt;
++	struct tlv *tlv;
++
++	if (dev->twt.n_agrt_bc == 0)
++		return;
++
++	for_each_element_id(elem, WLAN_EID_S1G_TWT, beacon_tail, skb->len - tail_offset) {
++		offset = (u16)((u8 *)elem - skb->data);
++		break;
++	}
++
++	if (offset == 0)
++		return;
++
++	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_BTWT, sizeof(*btwt));
++	btwt = (struct bss_bcn_btwt_tlv *) tlv;
++	btwt->btwt_ie_pos = cpu_to_le16(offset);
++}
++
+ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			  struct ieee80211_bss_conf *link_conf, bool enabled)
+ {
+@@ -4012,6 +4039,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	mt7996_mcu_beacon_cntdwn(rskb, skb, &offs, link_conf->csa_active);
+ 	mt7996_mcu_beacon_sta_prof_csa(rskb, link_conf, &offs);
+ 	mt7996_mcu_beacon_crit_update(rskb, skb, link_conf, link, &offs);
++	mt7996_mcu_beacon_btwt(dev, rskb, skb, &offs);
+ out:
+ 	dev_kfree_skb(skb);
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, rskb,
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 80055d079..bfe9a45ce 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -603,6 +603,13 @@ struct bss_bcn_sta_prof_cntdwn_tlv {
+ 	u8 pkt_content[3];
+ } __packed;
+ 
++struct bss_bcn_btwt_tlv {
++	__le16 tag;
++	__le16 len;
++	__le16 btwt_ie_pos;
++	u8 rsv[2];
++} __packed;
++
+ struct bss_txcmd_tlv {
+ 	__le16 tag;
+ 	__le16 len;
+@@ -1079,7 +1086,8 @@ enum {
+ 					 sizeof(struct bss_bcn_cntdwn_tlv) +	\
+ 					 sizeof(struct bss_bcn_mbss_tlv) +	\
+ 					 sizeof(struct bss_bcn_crit_update_tlv) +	\
+-					 sizeof(struct bss_bcn_sta_prof_cntdwn_tlv))
++					 sizeof(struct bss_bcn_sta_prof_cntdwn_tlv) +	\
++					 sizeof(struct bss_bcn_btwt_tlv))
+ #define MT7996_MAX_BSS_OFFLOAD_SIZE	2048
+ #define MT7996_MAX_BEACON_SIZE		(MT7996_MAX_BSS_OFFLOAD_SIZE - \
+ 					 MT7996_BEACON_UPDATE_SIZE)
+-- 
+2.45.2
+

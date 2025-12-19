@@ -1,0 +1,78 @@
+From 15957c83ea561811059789087cda4774e4b5eefd Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Wed, 3 Sep 2025 13:32:50 +0800
+Subject: [PATCH 217/254] mtk: hostapd: Add support parsing assoc resp
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ src/ap/ieee802_11.c            |  4 ++--
+ src/common/ieee802_11_common.c | 13 ++++++++++---
+ src/common/ieee802_11_common.h |  6 +++---
+ 3 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index ace2360e7..bd0d44248 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -5110,8 +5110,8 @@ int ieee80211_ml_process_link(struct hostapd_data *hapd,
+ 			goto out;
+ 		}
+ 
+-		if (ieee802_11_parse_link_assoc_req(&elems, mlbuf,
+-						    hapd->mld_link_id, true) ==
++		if (ieee802_11_parse_link_assoc(&elems, mlbuf,
++						hapd->mld_link_id, true, false) ==
+ 		    ParseFailed) {
+ 			wpa_printf(MSG_DEBUG,
+ 				   "MLD: link: Failed to parse association request Multi-Link element");
+diff --git a/src/common/ieee802_11_common.c b/src/common/ieee802_11_common.c
+index 814074891..b4fef6883 100644
+--- a/src/common/ieee802_11_common.c
++++ b/src/common/ieee802_11_common.c
+@@ -1016,9 +1016,10 @@ void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
+ }
+ 
+ 
+-ParseRes ieee802_11_parse_link_assoc_req(struct ieee802_11_elems *elems,
+-					 struct wpabuf *mlbuf,
+-					 u8 link_id, bool show_errors)
++ParseRes ieee802_11_parse_link_assoc(struct ieee802_11_elems *elems,
++				     struct wpabuf *mlbuf,
++				     u8 link_id, bool show_errors,
++				     bool assoc_resp)
+ {
+ 	const struct ieee80211_eht_ml *ml;
+ 	const u8 *pos;
+@@ -1116,6 +1117,12 @@ ParseRes ieee802_11_parse_link_assoc_req(struct ieee802_11_elems *elems,
+ 		pos += 2;
+ 		sub_elem_len -= 2;
+ 
++		/* skip status code */
++		if (assoc_resp) {
++			pos += 2;
++			sub_elem_len -= 2;
++		}
++
+ 		/* Handle non-inheritance */
+ 		non_inherit = get_ie_ext(pos, sub_elem_len,
+ 					 WLAN_EID_EXT_NON_INHERITANCE);
+diff --git a/src/common/ieee802_11_common.h b/src/common/ieee802_11_common.h
+index 49f28b341..8f4338961 100644
+--- a/src/common/ieee802_11_common.h
++++ b/src/common/ieee802_11_common.h
+@@ -219,9 +219,9 @@ void ieee802_11_elems_clear_ids(struct ieee802_11_elems *elems,
+ 				const u8 *ids, size_t num);
+ void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
+ 				    const u8 *ids, size_t num);
+-ParseRes ieee802_11_parse_link_assoc_req(struct ieee802_11_elems *elems,
+-					 struct wpabuf *mlbuf,
+-					 u8 link_id, bool show_errors);
++ParseRes ieee802_11_parse_link_assoc(struct ieee802_11_elems *elems,
++				     struct wpabuf *mlbuf,
++				     u8 link_id, bool show_errors, bool assoc_resp);
+ int ieee802_11_ie_count(const u8 *ies, size_t ies_len);
+ struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
+ 					    u32 oui_type);
+-- 
+2.45.2
+

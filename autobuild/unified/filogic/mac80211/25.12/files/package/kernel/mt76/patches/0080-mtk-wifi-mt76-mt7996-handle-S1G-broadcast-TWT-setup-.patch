@@ -1,0 +1,533 @@
+From 7068f935eaad932e64ceb6f79ea3deda9414e481 Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Sat, 26 Jul 2025 00:46:54 +0000
+Subject: [PATCH 080/105] mtk: wifi: mt76: mt7996: handle S1G broadcast TWT
+ setup/teardown frames
+
+Support processing of S1G TWT action frames for broadcast TWT service periods.
+When a btwt-capable STA wants to join or leave a broadcast TWT SP, it sends an
+S1G TWT action frame indicating the target broadcast TWT. This commit separates
+the handling logic for individual and broadcast TWT based on the broadcast bit
+in the TWT control field, ensuring correct processing for each case.
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek>
+
+Fix the issue of duplicate IDs being added to the TWT schedule.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+
+Check whether the btwt flow is used before accessing it.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7915/mac.c    |  22 +++--
+ mt7915/main.c   |  10 ++-
+ mt7915/mt7915.h |  12 +--
+ mt7996/mac.c    | 231 ++++++++++++++++++++++++++++++++++++++++++------
+ mt7996/main.c   |  10 ++-
+ mt7996/mt7996.h |  14 +--
+ 6 files changed, 248 insertions(+), 51 deletions(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 361ed9001..aa59a7b9f 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -2285,9 +2285,9 @@ mt7915_mac_twt_param_equal(struct mt7915_sta *msta,
+ 	return false;
+ }
+ 
+-void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+-			      struct ieee80211_sta *sta,
+-			      struct ieee80211_twt_setup *twt)
++int mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
++			     struct ieee80211_sta *sta,
++			     struct ieee80211_twt_setup *twt)
+ {
+ 	enum ieee80211_twt_setup_cmd setup_cmd = TWT_SETUP_CMD_REJECT;
+ 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+@@ -2298,6 +2298,7 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	struct mt7915_twt_flow *flow;
+ 	int flowid, table_id;
+ 	u8 exp;
++	int ret = -EINVAL;
+ 
+ 	if (mt7915_mac_check_twt_req(twt))
+ 		goto out;
+@@ -2365,6 +2366,7 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	dev->twt.table_mask |= BIT(table_id);
+ 	msta->twt.flowid_mask |= BIT(flowid);
+ 	dev->twt.n_agrt++;
++	ret = 0;
+ 
+ unlock:
+ 	mutex_unlock(&dev->mt76.mutex);
+@@ -2374,29 +2376,31 @@ out:
+ 		le16_encode_bits(setup_cmd, IEEE80211_TWT_REQTYPE_SETUP_CMD);
+ 	twt->control = (twt->control & IEEE80211_TWT_CONTROL_WAKE_DUR_UNIT) |
+ 		       (twt->control & IEEE80211_TWT_CONTROL_RX_DISABLED);
++	return ret;
+ }
+ 
+-void mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
+-				  struct mt7915_sta *msta,
+-				  struct ieee80211_twt_teardown *td)
++int mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
++				 struct mt7915_sta *msta,
++				 struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7915_twt_flow *flow;
+ 
+ 	lockdep_assert_held(&dev->mt76.mutex);
+ 
+ 	if (td->id >= ARRAY_SIZE(msta->twt.flow))
+-		return;
++		return -EINVAL;
+ 
+ 	if (!(msta->twt.flowid_mask & BIT(td->id)))
+-		return;
++		return -EINVAL;
+ 
+ 	flow = &msta->twt.flow[td->id];
+ 	if (mt7915_mcu_twt_agrt_update(dev, msta->vif, flow,
+ 				       MCU_TWT_AGRT_DELETE))
+-		return;
++		return -EINVAL;
+ 
+ 	list_del_init(&flow->list);
+ 	msta->twt.flowid_mask &= ~BIT(td->id);
+ 	dev->twt.table_mask &= ~BIT(flow->table_id);
+ 	dev->twt.n_agrt--;
++	return 0;
+ }
+diff --git a/mt7915/main.c b/mt7915/main.c
+index 25dfe5162..4c9a69761 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -1689,17 +1689,23 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+ 		dev_err(dev->mt76.dev, "ei: %d size: %d", ei, stats_size);
+ }
+ 
+-static void
++static int
+ mt7915_twt_teardown_request(struct ieee80211_hw *hw,
+ 			    struct ieee80211_sta *sta,
+ 			    struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+ 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
++	int ret;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	mt7915_mac_twt_teardown_flow(dev, msta, td);
++	ret = mt7915_mac_twt_teardown_flow(dev, msta, td);
+ 	mutex_unlock(&dev->mt76.mutex);
++
++	if (ret)
++		dev_err(dev->mt76.dev, "TWT teardown request failed ret=%d\n", ret);
++
++	return ret;
+ }
+ 
+ static int
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index fc7df6703..650658cb0 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -596,12 +596,12 @@ void mt7915_mac_reset_work(struct work_struct *work);
+ void mt7915_mac_dump_work(struct work_struct *work);
+ void mt7915_mac_sta_rc_work(struct work_struct *work);
+ void mt7915_mac_update_stats(struct mt7915_phy *phy);
+-void mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
+-				  struct mt7915_sta *msta,
+-				  struct ieee80211_twt_teardown *td);
+-void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+-			      struct ieee80211_sta *sta,
+-			      struct ieee80211_twt_setup *twt);
++int mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
++				 struct mt7915_sta *msta,
++				 struct ieee80211_twt_teardown *td);
++int mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
++			     struct ieee80211_sta *sta,
++			     struct ieee80211_twt_setup *twt);
+ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
+ 			  struct ieee80211_sta *sta,
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index ce715fea2..75a24bb4c 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3196,24 +3196,28 @@ static int mt7996_mac_check_twt_req(struct ieee80211_twt_setup *twt)
+ 	u16 mantissa;
+ 	u8 exp;
+ 
+-	/* only individual agreement supported */
+-	if (twt->control & IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST)
+-		return -EOPNOTSUPP;
+-
+ 	/* only 256us unit supported */
+ 	if (twt->control & IEEE80211_TWT_CONTROL_WAKE_DUR_UNIT)
+ 		return -EOPNOTSUPP;
+ 
+ 	twt_agrt = (struct ieee80211_twt_params *)twt->params;
+-
+-	/* explicit agreement not supported */
+-	if (!(twt_agrt->req_type & cpu_to_le16(IEEE80211_TWT_REQTYPE_IMPLICIT)))
+-		return -EOPNOTSUPP;
+-
+ 	exp = FIELD_GET(IEEE80211_TWT_REQTYPE_WAKE_INT_EXP,
+ 			le16_to_cpu(twt_agrt->req_type));
+-	mantissa = le16_to_cpu(twt_agrt->indiv.mantissa);
+-	duration = twt_agrt->indiv.min_twt_dur << 8;
++	if (twt->control & IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST) {
++		/* special case for btwt_id=0 that we have to spontaneously add STA to it*/
++		if (le16_get_bits(twt_agrt->bcast.btwt_info, IEEE80211_BTWT_INFO_ID) == 0)
++			return 0;
++
++		mantissa = le16_to_cpu(twt_agrt->bcast.mantissa);
++		duration = twt_agrt->bcast.min_twt_dur << 8;
++	} else {
++		/* explicit agreement not supported */
++		if (!(twt_agrt->req_type & cpu_to_le16(IEEE80211_TWT_REQTYPE_IMPLICIT)))
++			return -EOPNOTSUPP;
++
++		mantissa = le16_to_cpu(twt_agrt->indiv.mantissa);
++		duration = twt_agrt->indiv.min_twt_dur << 8;
++	}
+ 
+ 	interval = (u64)mantissa << exp;
+ 	if (interval < duration)
+@@ -3250,25 +3254,146 @@ mt7996_mac_twt_param_equal(struct mt7996_sta_link *msta_link,
+ 	return false;
+ }
+ 
+-void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+-			      struct ieee80211_sta *sta,
+-			      struct ieee80211_twt_setup *twt)
++static int mt7996_mac_btwt_add_member(struct mt7996_twt_flow *flow, u16 idx)
++{
++	u8 i;
++
++	if (flow->member_cnt == MT7996_MAX_BTWT_MEMBER_CNT)
++		return -EINVAL;
++
++	for (i = 0; i < flow->member_cnt; i++) {
++		if (flow->sta_list[i] == idx)
++			return -EEXIST;
++	}
++
++	flow->sta_list[flow->member_cnt] = idx;
++	flow->member_cnt++;
++	return 0;
++}
++
++static int mt7996_mac_btwt_del_member(struct mt7996_twt_flow *flow, u16 idx)
++{
++	bool done = false;
++	u8 i;
++
++	if (flow->member_cnt == 0)
++		return -EINVAL;
++
++	for (i = 0; i < MT7996_MAX_BTWT_MEMBER_CNT; i++) {
++		if (flow->sta_list[i] == idx) {
++			flow->sta_list[i] = 0;
++			flow->member_cnt--;
++			done = true;
++		} else if (done) {
++			/* move the remaining sta_list to the front */
++			flow->sta_list[i-1] = flow->sta_list[i];
++		}
++	}
++
++	return (done) ? 0 : -EINVAL;
++}
++
++static int mt7996_mac_btwt_setup(struct ieee80211_hw *hw,
++				 struct ieee80211_sta *sta,
++				 struct ieee80211_twt_setup *twt)
+ {
+ 	enum ieee80211_twt_setup_cmd setup_cmd = TWT_SETUP_CMD_REJECT;
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	struct ieee80211_vif *vif =
++		container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
++	struct mt7996_sta_link *msta_link;
++	struct mt7996_vif_link *link;
+ 	struct ieee80211_twt_params *twt_agrt = (void *)twt->params;
+-	struct mt7996_sta_link *msta_link = &msta->deflink;
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_twt_flow *flow = NULL;
++	u8 i, id;
++	u64 curr_tsf, interval, future_twt;
++	u32 rem;
++	int ret = -EINVAL;
++
++	if (mt7996_mac_check_twt_req(twt))
++		goto out;
++
++	mutex_lock(&dev->mt76.mutex);
++
++	id = le16_get_bits(twt_agrt->bcast.btwt_info, IEEE80211_BTWT_INFO_ID);
++
++	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
++		if ((dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
++		    (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff) == id) {
++			flow = &dev->twt.btwt_flow[i];
++			break;
++		}
++	}
++
++	if (!flow)
++		goto unlock;
++
++	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
++	link = mt7996_vif_link(dev, vif, 0);
++
++	if (mt7996_mac_btwt_add_member(flow, msta_link->wcid.idx))
++		goto unlock;
++
++	if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_MODIFY)) {
++		mt7996_mac_btwt_del_member(flow, msta_link->wcid.idx);
++		goto unlock;
++	}
++
++	/* Send ACCEPT setup command */
++	setup_cmd = TWT_SETUP_CMD_ACCEPT;
++
++	/* Calculate the future TSF and fill in the outgoing TWT action frame.
++	 * Since the TWT field in the frame has only 16bits, we need to
++	 * extract TSF[10:25] according to spec
++	 */
++	interval = (u64)le16_to_cpu(flow->mantissa) << flow->exp;
++	curr_tsf = __mt7996_get_tsf(hw, link);
++	div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
++	future_twt = curr_tsf + (interval - rem);
++	twt_agrt->bcast.twt = cpu_to_le16((u16)((future_twt >> 10) & 0xffff));
++
++	twt_agrt->bcast.btwt_info &= ~cpu_to_le16(IEEE80211_BTWT_INFO_PERSISTENCE);
++	twt_agrt->bcast.btwt_info |=
++		le16_encode_bits(flow->persist, IEEE80211_BTWT_INFO_PERSISTENCE);
++
++	ret = 0;
++
++unlock:
++	mutex_unlock(&dev->mt76.mutex);
++out:
++	twt_agrt->req_type &= ~cpu_to_le16(IEEE80211_TWT_REQTYPE_REQUEST);
++	twt_agrt->req_type &= ~cpu_to_le16(IEEE80211_TWT_REQTYPE_SETUP_CMD);
++	twt_agrt->req_type |=
++		le16_encode_bits(setup_cmd, IEEE80211_TWT_REQTYPE_SETUP_CMD);
++	twt->control |= IEEE80211_TWT_CONTROL_RX_DISABLED;
++	return ret;
++}
++
++static int mt7996_mac_itwt_setup(struct ieee80211_hw *hw,
++				 struct ieee80211_sta *sta,
++				 struct ieee80211_twt_setup *twt)
++{
++	enum ieee80211_twt_setup_cmd setup_cmd = TWT_SETUP_CMD_REJECT;
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	struct ieee80211_vif *vif =
++		container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
++	struct ieee80211_twt_params *twt_agrt = (void *)twt->params;
++	struct mt7996_sta_link *msta_link;
++	struct mt7996_vif_link *link;
+ 	u16 req_type = le16_to_cpu(twt_agrt->req_type);
+ 	enum ieee80211_twt_setup_cmd sta_setup_cmd;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_twt_flow *flow;
+ 	u8 flowid, table_id, exp;
++	int ret = -EINVAL;
+ 
+ 	if (mt7996_mac_check_twt_req(twt))
+ 		goto out;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
++	link = mt7996_vif_link(dev, vif, 0);
+ 
+ 	if (dev->twt.n_agrt == MT7996_MAX_TWT_AGRT)
+ 		goto unlock;
+@@ -3317,7 +3442,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 
+ 		flow->sched = true;
+ 		flow->start_tsf = mt7996_mac_twt_sched_list_add(dev, flow);
+-		curr_tsf = __mt7996_get_tsf(hw, &msta->vif->deflink);
++		curr_tsf = __mt7996_get_tsf(hw, link);
+ 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
+ 		flow_tsf = curr_tsf + interval - rem;
+ 		twt_agrt->indiv.twt = cpu_to_le64(flow_tsf);
+@@ -3326,7 +3451,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	}
+ 	flow->tsf = le64_to_cpu(twt_agrt->indiv.twt);
+ 
+-	if (mt7996_mcu_twt_agrt_update(dev, &msta->vif->deflink, flow,
++	if (mt7996_mcu_twt_agrt_update(dev, link, flow,
+ 				       MCU_TWT_AGRT_ADD))
+ 		goto unlock;
+ 
+@@ -3334,6 +3459,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	dev->twt.table_mask |= BIT(table_id);
+ 	msta_link->twt.flowid_mask |= BIT(flowid);
+ 	dev->twt.n_agrt++;
++	ret = 0;
+ 
+ unlock:
+ 	mutex_unlock(&dev->mt76.mutex);
+@@ -3342,31 +3468,86 @@ out:
+ 	twt_agrt->req_type |=
+ 		le16_encode_bits(setup_cmd, IEEE80211_TWT_REQTYPE_SETUP_CMD);
+ 	twt->control = twt->control & IEEE80211_TWT_CONTROL_RX_DISABLED;
++	return ret;
++}
++
++int mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
++			     struct ieee80211_sta *sta,
++			     struct ieee80211_twt_setup *twt)
++{
++	return (twt->control & IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST) ?
++		mt7996_mac_btwt_setup(hw, sta, twt) :
++		mt7996_mac_itwt_setup(hw, sta, twt);
++}
++
++static int mt7996_mac_btwt_teardown(struct mt7996_dev *dev,
++				    struct mt7996_vif_link *link,
++				    struct mt7996_sta_link *msta_link,
++				    struct ieee80211_twt_teardown *td)
++{
++	struct mt7996_twt_flow *flow = NULL;
++	u8 i;
++
++	for (i = 0; i < MT7996_MAX_BTWT_AGRT; i++) {
++		if ((dev->twt.table_mask & BIT(i + MT7996_BTWT_AGRT_OFFSET)) &&
++		    (dev->twt.btwt_flow[i].peer_id_grp_id & 0xff) == td->id) {
++			flow = &dev->twt.btwt_flow[i];
++			break;
++		}
++	}
++
++	if (!flow)
++		return -EINVAL;
++
++	if (mt7996_mac_btwt_del_member(flow, msta_link->wcid.idx))
++		return -EINVAL;
++
++	if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_MODIFY))
++		return -EINVAL;
++
++	return 0;
+ }
+ 
+-void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
+-				  struct mt7996_vif_link *link,
+-				  struct mt7996_sta_link *msta_link,
+-				  struct ieee80211_twt_teardown *td)
++static int mt7996_mac_itwt_teardown(struct mt7996_dev *dev,
++				    struct mt7996_vif_link *link,
++				    struct mt7996_sta_link *msta_link,
++				    struct ieee80211_twt_teardown *td)
+ {
+ 	struct mt7996_twt_flow *flow;
+ 
+ 	lockdep_assert_held(&dev->mt76.mutex);
+ 
+ 	if (td->id >= ARRAY_SIZE(msta_link->twt.flow))
+-		return;
++		return -EINVAL;
+ 
+ 	if (!(msta_link->twt.flowid_mask & BIT(td->id)))
+-		return;
++		return -EINVAL;
+ 
+ 	flow = &msta_link->twt.flow[td->id];
+-	if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_DELETE))
+-		return;
++	if (mt7996_mcu_twt_agrt_update(dev, link, flow,
++				       MCU_TWT_AGRT_DELETE))
++		return -EINVAL;
+ 
+ 	list_del_init(&flow->list);
+ 	msta_link->twt.flowid_mask &= ~BIT(td->id);
+ 	dev->twt.table_mask &= ~BIT(flow->table_id);
+ 	dev->twt.n_agrt--;
++	return 0;
++}
++
++int mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
++				 struct mt7996_vif_link *link,
++				 struct mt7996_sta_link *msta_link,
++				 struct ieee80211_twt_teardown *td)
++{
++	switch (td->neg_type) {
++	case IEEE80211_TWT_NEGO_TYPE_ITWT:
++		return mt7996_mac_itwt_teardown(dev, link, msta_link, td);
++	case IEEE80211_TWT_NEGO_TYPE_BTWT_MBR_MGMT:
++		return mt7996_mac_btwt_teardown(dev, link, msta_link, td);
++	default:
++		return -1;
++	}
+ }
+ 
+ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+diff --git a/mt7996/main.c b/mt7996/main.c
+index b27884e87..32ff05d06 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2512,7 +2512,7 @@ void mt7996_get_et_stats(struct ieee80211_hw *hw,
+ 			ei, (int)MT7996_SSTATS_LEN);
+ }
+ 
+-static void
++static int
+ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+ 			    struct ieee80211_sta *sta,
+ 			    struct ieee80211_twt_teardown *td)
+@@ -2522,12 +2522,18 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+ 	struct mt7996_vif_link *link;
+ 	struct ieee80211_vif *vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	int ret = -EINVAL;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
+ 	link = mt7996_vif_link(dev, vif, 0);
+-	mt7996_mac_twt_teardown_flow(dev, link, msta_link, flowid);
++	ret = mt7996_mac_twt_teardown_flow(dev, link, msta_link, td);
+ 	mutex_unlock(&dev->mt76.mutex);
++
++	if (ret)
++		dev_err(dev->mt76.dev, "TWT teardown request failed ret=%d\n", ret);
++
++	return ret;
+ }
+ 
+ static void
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 0aba2b58f..d75d83eff 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1393,15 +1393,15 @@ void mt7996_mac_reset_work(struct work_struct *work);
+ void mt7996_mac_dump_work(struct work_struct *work);
+ void mt7996_mac_sta_rc_work(struct work_struct *work);
+ void mt7996_mac_update_stats(struct mt7996_phy *phy);
+-void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
+-				  struct mt7996_vif_link *link,
+-				  struct mt7996_sta_link *msta_link,
+-				  struct ieee80211_twt_teardown *td);
++int mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
++				 struct mt7996_vif_link *link,
++				 struct mt7996_sta_link *msta_link,
++				 struct ieee80211_twt_teardown *td);
+ void mt7996_mac_sta_deinit_link(struct mt7996_dev *dev,
+ 				struct mt7996_sta_link *msta_link);
+-void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+-			      struct ieee80211_sta *sta,
+-			      struct ieee80211_twt_setup *twt);
++int mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
++			     struct ieee80211_sta *sta,
++			     struct ieee80211_twt_setup *twt);
+ int mt7996_mac_add_btwt(struct ieee80211_hw *hw,
+ 			struct ieee80211_vif *vif,
+ 			struct cfg80211_broadcast_twt_settings *btwt);
+-- 
+2.45.2
+

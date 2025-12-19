@@ -1,0 +1,87 @@
+From 62b6b182839655f9df83e7e8cc48dc7a95087a08 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 22 Oct 2025 18:09:34 +0800
+Subject: [PATCH 088/105] mtk: mt76: mt7996: fix sta crash during scanning
+
+Add a sanity check for phy->main_chandef to avoid a crash.
+phy->main_chandef.chan remains null until add_chanctx is called; however, for STA,
+add_chanctx will not be called before auth/assoc process.
+Therefore, switching back to main_chandef after scanning completes will result in a crash.
+
+[ 7650.363852] Internal error: Oops: 0000000096000005 [#1] SMP
+[ 7650.369419] Modules linked in: mt7996e(O) mt76_connac_lib(O) mt76(O) mac80211(O) cfg80211(O) compat(O) ksmbd pppoe ppp_async nft_fib_inet l2tp_ppp pptp pppox ppp_mppe ppp_generic nft_reject_ipv6 nft_reject_ipv4 nft_reject_inet nft_reject nft_redir nft_quota nft_numgen nft_nat nft_masq nft_log nft_limit nft_hash nft_fib_ipv6 nft_fib_ipv4 nft_fib nft_ct nft_chain_nat nf_flow_table_netlink nft_flow_offload nf_flow_table_inet nf_tables iptable_nat ipt_REJECT xt_time xt_tcpudp xt_tcpmss xt_statistic xt_state xt_recent xt_quota xt_policy xt_pkttype xt_owner xt_nat xt_multiport xt_mark xt_mac xt_limit xt_length xt_hl xt_helper xt_esp xt_ecn xt_dscp xt_conntrack xt_connmark xt_connlimit xt_connbytes xt_comment xt_cgroup xt_addrtype xt_TCPMSS xt_REDIRECT xt_MASQUERADE xt_LOG xt_HL xt_FLOWOFFLOAD xt_DSCP xt_CLASSIFY ums_usbat ums_sddr55 ums_sddr09 ums_karma ums_jumpshot ums_isd200 ums_freecom ums_datafab ums_cypress ums_alauda spidev slhc sfp rtc_pcf8563 nfnetlink nf_reject_ipv4 nf_nat nf_log_syslog nf_conncount mdio_i2c
+[ 7650.369566]  libcrc32c iptable_mangle iptable_filter ipt_ah ipt_ECN ip_tables br_netfilter at24 mt76qos(O) crypto_safexcel ntfs3 mtk_2p5ge sg i2c_gpio i2c_algo_bit gpio_pca953x i2c_mux_pca954x i2c_mux_pca9541 i2c_mux_gpio i2c_mux ip6table_mangle ip6table_filter ip6_tables ip6t_REJECT x_tables nf_reject_ipv6 nls_ucs2_utils cifs_arc4 asn1_decoder nfsd msdos ip_gre gre l2tp_netlink l2tp_core udp_tunnel ip6_udp_tunnel ipcomp6 xfrm6_tunnel ah6 xfrm4_tunnel ipcomp ah4 tunnel6 tunnel4 ip_tunnel rpcsec_gss_krb5 auth_rpcgss oid_registry xfrm_ipcomp af_key lockd sunrpc grace autofs4 nls_utf8 nls_iso8859_1 nls_cp437 marvell10g marvell crypto_user algif_skcipher algif_rng algif_hash algif_aead af_alg sha512_arm64 sha1_ce cts arc4 uas usb_storage leds_gpio xhci_plat_hcd xhci_pci xhci_mtk_hcd xhci_hcd gpio_button_hotplug(O) vfat fat exfat usbcore usb_common [last unloaded: compat(O)]
+[ 7650.536102] CPU: 2 PID: 32166 Comm: kworker/u8:4 Tainted: G           O       6.6.110 #0
+[ 7650.544181] Hardware name: MediaTek MT7988A Reference Board (DT)
+[ 7650.550176] Workqueue: phy0 mt76_scan_work [mt76]
+[ 7650.554889] pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 7650.561839] pc : __mt76_set_channel+0xb4/0x358 [mt76]
+[ 7650.566886] lr : __mt76_set_channel+0xac/0x358 [mt76]
+[ 7650.571932] sp : ffffffc0858f3c50
+[ 7650.575234] x29: ffffffc0858f3c50 x28: 0000000000000000 x27: 0000000000000000
+[ 7650.582359] x26: ffffff8000011028 x25: ffffff800c246540 x24: ffffff800c242980
+[ 7650.589483] x23: ffffff800c242940 x22: ffffff800c2429e8 x21: ffffff800c2429e8
+[ 7650.596606] x20: ffffff800c2429b8 x19: ffffff800c242940 x18: 00000000ffffffff
+[ 7650.603728] x17: 0000000000000028 x16: 0000000000000000 x15: 0000000000000140
+[ 7650.610852] x14: ffffffc081482080 x13: 00000000000001c4 x12: 0000000000000002
+[ 7650.617975] x11: 00000000000000c0 x10: 00000000000008f0 x9 : ffffffc0858f3920
+[ 7650.625098] x8 : 0000000000000000 x7 : 00000000000155f1 x6 : 000000173f95c3f4
+[ 7650.632221] x5 : 00ffffffffffffff x4 : ffffff801a70ce60 x3 : 0000000000000000
+[ 7650.639346] x2 : 00000000000111c7 x1 : ffffff8005630b50 x0 : 0000000000000000
+[ 7650.646469] Call trace:
+[ 7650.648905]  __mt76_set_channel+0xb4/0x358 [mt76]
+[ 7650.653605]  mt76_set_channel+0x44/0x64 [mt76]
+[ 7650.658044]  mt76_scan_work+0x27c/0x2b0 [mt76]
+[ 7650.662482]  process_one_work+0x17c/0x3bc
+[ 7650.666485]  worker_thread+0x2e8/0x4d0
+[ 7650.670222]  kthread+0xd8/0xdc
+[ 7650.673268]  ret_from_fork+0x10/0x20
+[ 7650.676837] Code: aa1303e0 97fffa08 f94002c0 f9404261 (b9400400)
+[ 7650.682916] ---[ end trace 0000000000000000 ]---
+[ 7650.688215] Kernel panic - not syncing: Oops: Fatal exception
+[ 7650.693949] SMP: stopping secondary CPUs
+[ 7650.697863] Kernel Offset: disabled
+[ 7650.701340] CPU features: 0x0,00000000,20000000,1000400b
+[ 7650.706640] Memory Limit: none
+[ 7650.710323] Starting Memory dump SMCC
+[ 7650.713981] Memory dump SMCC failed
+[ 7650.717461] Rebooting in 3 seconds..
+PANIC at PC : 0x0000000043005800
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ channel.c  | 3 +--
+ mac80211.c | 3 +++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/channel.c b/channel.c
+index 71db96560..7b4950bfd 100644
+--- a/channel.c
++++ b/channel.c
+@@ -342,8 +342,7 @@ void mt76_roc_complete(struct mt76_phy *phy)
+ 
+ 	if (mlink)
+ 		mlink->mvif->roc_phy = NULL;
+-	if (phy->main_chandef.chan &&
+-	    !test_bit(MT76_MCU_RESET, &dev->phy.state))
++	if (!test_bit(MT76_MCU_RESET, &dev->phy.state))
+ 		mt76_set_channel(phy, &phy->main_chandef, false);
+ 	mt76_put_vif_phy_link(phy, phy->roc_vif, phy->roc_link);
+ 	phy->roc_vif = NULL;
+diff --git a/mac80211.c b/mac80211.c
+index 2519663e9..d77a414ad 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1063,6 +1063,9 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+ 	struct mt76_dev *dev = phy->dev;
+ 	int ret;
+ 
++	if (!chandef->chan)
++		return -EINVAL;
++
+ 	cancel_delayed_work_sync(&phy->mac_work);
+ 
+ 	mutex_lock(&dev->mutex);
+-- 
+2.45.2
+

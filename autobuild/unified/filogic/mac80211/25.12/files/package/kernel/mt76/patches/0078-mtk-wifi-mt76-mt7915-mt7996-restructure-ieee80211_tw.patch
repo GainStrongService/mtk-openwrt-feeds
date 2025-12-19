@@ -1,0 +1,166 @@
+From 46161baedde1cfd8a6615a849634695082b10ae9 Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Fri, 25 Jul 2025 22:37:17 +0000
+Subject: [PATCH 078/105] mtk: wifi: mt76: mt7915: mt7996: restructure
+ ieee80211_twt_params for broadcast TWT
+
+The ieee80211_twt_params is the receving struct for TWT IE. The orignal
+ieee80211_twt_params only consider the case of individual TWT but it
+does not fit for broadcast TWT.
+Since indivudual TWT and broadcast TWT share the same IE and most of
+fields, it's more reasonable to use a common struct instead of adding
+new structure and new receiving flow.
+
+Signed-off-by: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+---
+ mt7915/mac.c | 22 +++++++++++-----------
+ mt7996/mac.c | 22 +++++++++++-----------
+ 2 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index c409ecb6f..696f5d30e 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -2247,8 +2247,8 @@ static int mt7915_mac_check_twt_req(struct ieee80211_twt_setup *twt)
+ 
+ 	exp = FIELD_GET(IEEE80211_TWT_REQTYPE_WAKE_INT_EXP,
+ 			le16_to_cpu(twt_agrt->req_type));
+-	mantissa = le16_to_cpu(twt_agrt->mantissa);
+-	duration = twt_agrt->min_twt_dur << 8;
++	mantissa = le16_to_cpu(twt_agrt->indiv.mantissa);
++	duration = twt_agrt->indiv.min_twt_dur << 8;
+ 
+ 	interval = (u64)mantissa << exp;
+ 	if (interval < duration)
+@@ -2273,8 +2273,8 @@ mt7915_mac_twt_param_equal(struct mt7915_sta *msta,
+ 			continue;
+ 
+ 		f = &msta->twt.flow[i];
+-		if (f->duration == twt_agrt->min_twt_dur &&
+-		    f->mantissa == twt_agrt->mantissa &&
++		if (f->duration == twt_agrt->indiv.min_twt_dur &&
++		    f->mantissa == twt_agrt->indiv.mantissa &&
+ 		    f->exp == exp &&
+ 		    f->protection == !!(type & IEEE80211_TWT_REQTYPE_PROTECTION) &&
+ 		    f->flowtype == !!(type & IEEE80211_TWT_REQTYPE_FLOWTYPE) &&
+@@ -2310,9 +2310,9 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	if (hweight8(msta->twt.flowid_mask) == ARRAY_SIZE(msta->twt.flow))
+ 		goto unlock;
+ 
+-	if (twt_agrt->min_twt_dur < MT7915_MIN_TWT_DUR) {
++	if (twt_agrt->indiv.min_twt_dur < MT7915_MIN_TWT_DUR) {
+ 		setup_cmd = TWT_SETUP_CMD_DICTATE;
+-		twt_agrt->min_twt_dur = MT7915_MIN_TWT_DUR;
++		twt_agrt->indiv.min_twt_dur = MT7915_MIN_TWT_DUR;
+ 		goto unlock;
+ 	}
+ 
+@@ -2334,8 +2334,8 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	flow->wcid = msta->wcid.idx;
+ 	flow->table_id = table_id;
+ 	flow->id = flowid;
+-	flow->duration = twt_agrt->min_twt_dur;
+-	flow->mantissa = twt_agrt->mantissa;
++	flow->duration = twt_agrt->indiv.min_twt_dur;
++	flow->mantissa = twt_agrt->indiv.mantissa;
+ 	flow->exp = exp;
+ 	flow->protection = !!(req_type & IEEE80211_TWT_REQTYPE_PROTECTION);
+ 	flow->flowtype = !!(req_type & IEEE80211_TWT_REQTYPE_FLOWTYPE);
+@@ -2343,7 +2343,7 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 
+ 	if (sta_setup_cmd == TWT_SETUP_CMD_REQUEST ||
+ 	    sta_setup_cmd == TWT_SETUP_CMD_SUGGEST) {
+-		u64 interval = (u64)le16_to_cpu(twt_agrt->mantissa) << exp;
++		u64 interval = (u64)le16_to_cpu(twt_agrt->indiv.mantissa) << exp;
+ 		u64 flow_tsf, curr_tsf;
+ 		u32 rem;
+ 
+@@ -2352,11 +2352,11 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 		curr_tsf = __mt7915_get_tsf(hw, msta->vif);
+ 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
+ 		flow_tsf = curr_tsf + interval - rem;
+-		twt_agrt->twt = cpu_to_le64(flow_tsf);
++		twt_agrt->indiv.twt = cpu_to_le64(flow_tsf);
+ 	} else {
+ 		list_add_tail(&flow->list, &dev->twt_list);
+ 	}
+-	flow->tsf = le64_to_cpu(twt_agrt->twt);
++	flow->tsf = le64_to_cpu(twt_agrt->indiv.twt);
+ 
+ 	if (mt7915_mcu_twt_agrt_update(dev, msta->vif, flow, MCU_TWT_AGRT_ADD))
+ 		goto unlock;
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index bcd42e6be..4455cbd70 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3212,8 +3212,8 @@ static int mt7996_mac_check_twt_req(struct ieee80211_twt_setup *twt)
+ 
+ 	exp = FIELD_GET(IEEE80211_TWT_REQTYPE_WAKE_INT_EXP,
+ 			le16_to_cpu(twt_agrt->req_type));
+-	mantissa = le16_to_cpu(twt_agrt->mantissa);
+-	duration = twt_agrt->min_twt_dur << 8;
++	mantissa = le16_to_cpu(twt_agrt->indiv.mantissa);
++	duration = twt_agrt->indiv.min_twt_dur << 8;
+ 
+ 	interval = (u64)mantissa << exp;
+ 	if (interval < duration)
+@@ -3238,8 +3238,8 @@ mt7996_mac_twt_param_equal(struct mt7996_sta_link *msta_link,
+ 			continue;
+ 
+ 		f = &msta_link->twt.flow[i];
+-		if (f->duration == twt_agrt->min_twt_dur &&
+-		    f->mantissa == twt_agrt->mantissa &&
++		if (f->duration == twt_agrt->indiv.min_twt_dur &&
++		    f->mantissa == twt_agrt->indiv.mantissa &&
+ 		    f->exp == exp &&
+ 		    f->protection == !!(type & IEEE80211_TWT_REQTYPE_PROTECTION) &&
+ 		    f->flowtype == !!(type & IEEE80211_TWT_REQTYPE_FLOWTYPE) &&
+@@ -3277,9 +3277,9 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	    ARRAY_SIZE(msta_link->twt.flow))
+ 		goto unlock;
+ 
+-	if (twt_agrt->min_twt_dur < MT7996_MIN_TWT_DUR) {
++	if (twt_agrt->indiv.min_twt_dur < MT7996_MIN_TWT_DUR) {
+ 		setup_cmd = TWT_SETUP_CMD_DICTATE;
+-		twt_agrt->min_twt_dur = MT7996_MIN_TWT_DUR;
++		twt_agrt->indiv.min_twt_dur = MT7996_MIN_TWT_DUR;
+ 		goto unlock;
+ 	}
+ 
+@@ -3302,8 +3302,8 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	flow->peer_id_grp_id = msta_link->wcid.idx;
+ 	flow->table_id = table_id;
+ 	flow->id = flowid;
+-	flow->duration = twt_agrt->min_twt_dur;
+-	flow->mantissa = twt_agrt->mantissa;
++	flow->duration = twt_agrt->indiv.min_twt_dur;
++	flow->mantissa = twt_agrt->indiv.mantissa;
+ 	flow->exp = exp;
+ 	flow->protection = !!(req_type & IEEE80211_TWT_REQTYPE_PROTECTION);
+ 	flow->flowtype = !!(req_type & IEEE80211_TWT_REQTYPE_FLOWTYPE);
+@@ -3311,7 +3311,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 
+ 	if (sta_setup_cmd == TWT_SETUP_CMD_REQUEST ||
+ 	    sta_setup_cmd == TWT_SETUP_CMD_SUGGEST) {
+-		u64 interval = (u64)le16_to_cpu(twt_agrt->mantissa) << exp;
++		u64 interval = (u64)le16_to_cpu(twt_agrt->indiv.mantissa) << exp;
+ 		u64 flow_tsf, curr_tsf;
+ 		u32 rem;
+ 
+@@ -3320,11 +3320,11 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 		curr_tsf = __mt7996_get_tsf(hw, &msta->vif->deflink);
+ 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
+ 		flow_tsf = curr_tsf + interval - rem;
+-		twt_agrt->twt = cpu_to_le64(flow_tsf);
++		twt_agrt->indiv.twt = cpu_to_le64(flow_tsf);
+ 	} else {
+ 		list_add_tail(&flow->list, &dev->twt_list);
+ 	}
+-	flow->tsf = le64_to_cpu(twt_agrt->twt);
++	flow->tsf = le64_to_cpu(twt_agrt->indiv.twt);
+ 
+ 	if (mt7996_mcu_twt_agrt_update(dev, &msta->vif->deflink, flow,
+ 				       MCU_TWT_AGRT_ADD))
+-- 
+2.45.2
+

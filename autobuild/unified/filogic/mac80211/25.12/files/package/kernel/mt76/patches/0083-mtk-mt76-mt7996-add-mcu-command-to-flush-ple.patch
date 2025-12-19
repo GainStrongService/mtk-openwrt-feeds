@@ -1,0 +1,382 @@
+From ddffedf87b1dd5155ae337e5c6b03fbcdaf41a98 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 26 Aug 2025 15:34:50 +0800
+Subject: [PATCH 083/105] mtk: mt76: mt7996: add mcu command to flush ple
+
+1. Flush ple if station occupy more than 128 token and last seen more
+than 5 minutes.
+2. Flush ple by debugfs
+    echo <wcid> <threshold> > ple_flush_sta
+    - threshold: FW flush ple if station's ple queue length
+    is larger than threshold. (unit MPDU)
+FW dependency: https://gerrit.mediatek.inc/c/neptune/firmware/bora/wifi/custom/+/11094133
+
+Driver dependency: https://gerrit.mediatek.inc/c/gateway/WiFi7/mac80211/mt76/+/11230141
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+
+1. Add debugfs log to show how many times this mechamism
+is triggered.
+2. Change space to tab
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mac80211.c             |  1 +
+ mt76.h                 |  7 +++-
+ mt7996/mac.c           | 77 ++++++++++++++++++++++++++++++++++++------
+ mt7996/mcu.c           | 37 ++++++++++++++++++++
+ mt7996/mcu.h           |  1 +
+ mt7996/mt7996.h        |  6 ++++
+ mt7996/mtk_debugfs.c   | 10 +++++-
+ mt7996/mtk_debugfs_i.c | 53 +++++++++++++++++++++++++++++
+ 8 files changed, 179 insertions(+), 13 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 06ef6d307..59352081f 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1708,6 +1708,7 @@ void mt76_wcid_init(struct mt76_wcid *wcid, u8 band_idx)
+ {
+ 	wcid->hw_key_idx = -1;
+ 	wcid->phy_idx = band_idx;
++	spin_lock_init(&wcid->token_lock);
+ 
+ 	INIT_LIST_HEAD(&wcid->tx_list);
+ 	skb_queue_head_init(&wcid->tx_pending);
+diff --git a/mt76.h b/mt76.h
+index e2fe1b038..139aa9803 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -502,6 +502,11 @@ struct mt76_wcid {
+ 	struct list_head poll_list;
+ 
+ 	struct mt76_wcid __rcu *def_wcid;
++
++	unsigned long last_seen;
++	u16 used_token;
++	spinlock_t token_lock;
++	u16 token_flush_count;
+ };
+ 
+ struct mt76_txq {
+@@ -1181,7 +1186,7 @@ struct mt76_phy {
+ #endif
+ 
+ 	struct delayed_work mac_work;
+-	u8 mac_work_count;
++	u16 mac_work_count;
+ 
+ 	struct {
+ 		struct sk_buff *head;
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 4d6d32010..7a5824284 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1038,6 +1038,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ #ifdef CONFIG_MTK_DEBUG
+ 	t->jiffies = jiffies;
+ #endif
++	spin_lock_bh(&wcid->token_lock);
++	wcid->used_token++;
++	spin_unlock_bh(&wcid->token_lock);
++
+ 
+ 	/* Since the rules of HW MLD address translation are not fully
+ 	 * compatible with 802.11 EAPOL frame, we do the translation by
+@@ -1237,6 +1241,23 @@ mt7996_tx_check_aggr(struct ieee80211_link_sta *link_sta,
+ 	}
+ }
+ 
++static void mt7996_update_sta_token_usage(struct mt7996_dev *dev,
++					  struct mt76_txwi_cache *t)
++{
++	u16 wcid_idx = t->wcid;
++	struct mt76_wcid *wcid;
++
++	if (wcid_idx >= MT7996_WTBL_STA)
++		return;
++
++	wcid = rcu_dereference(dev->mt76.wcid[wcid_idx]);
++	if (wcid) {
++		spin_lock_bh(&wcid->token_lock);
++		wcid->used_token--;
++		spin_unlock_bh(&wcid->token_lock);
++	}
++}
++
+ static void
+ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
+ 		 struct ieee80211_link_sta *link_sta,
+@@ -1265,6 +1286,7 @@ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
+ 		wcid_idx = le32_get_bits(txwi[9], MT_TXD9_WLAN_IDX);
+ 	}
+ 
++	mt7996_update_sta_token_usage(dev, t);
+ 	__mt76_tx_complete_skb(mdev, wcid_idx, t->skb, free_list);
+ 
+ out:
+@@ -1385,18 +1407,12 @@ next:
+ 				cur_info++;
+ 			continue;
+ 		} else if (info & MT_TXFREE_INFO_HEADER) {
+-			u32 tx_retries = 0, tx_failed = 0;
+-
+-			if (!wcid)
+-				continue;
+-
+-			tx_retries =
+-				FIELD_GET(MT_TXFREE_INFO_COUNT, info) - 1;
+-			tx_failed = tx_retries +
+-				!!FIELD_GET(MT_TXFREE_INFO_STAT, info);
++			status = FIELD_GET(MT_TXFREE_INFO_STAT, info);
++			reason = is_mt7990(&dev->mt76) ?
++				  FIELD_GET(MT_TXFREE_INFO_REASON, info) : 0;
+ 
+-			wcid->stats.tx_retries += tx_retries;
+-			wcid->stats.tx_failed += tx_failed;
++			if (!status && wcid)
++				wcid->last_seen = jiffies;
+ 			continue;
+ 		}
+ 
+@@ -3084,6 +3100,40 @@ static int mt7996_mac_sta_poll(struct mt76_dev *dev)
+ 	return mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_PKT_CNT, i, sta_list);
+ }
+ 
++static int mt7996_flush_pending_token(struct mt7996_dev *dev)
++{
++#define MT7996_PLE_FLUSH_THRESHOLD 128
++#define MT7996_PLE_FLUSH_TIMEOUT 5 * 60 * HZ
++	u8 sta_bitmap[MT7996_WTBL_GROUP_SIZE_MT7996];
++	u16 sta_cnt = 0, i;
++
++	memset(&sta_bitmap, 0, sizeof(sta_bitmap));
++
++	rcu_read_lock();
++	for (i = 0; i < MT7996_WTBL_STA; i++) {
++		struct mt76_wcid *wcid = rcu_dereference(dev->mt76.wcid[i]);
++
++		if (!wcid)
++			continue;
++
++		spin_lock_bh(&wcid->token_lock);
++		if (wcid->used_token > MT7996_PLE_FLUSH_THRESHOLD &&
++		    time_after(jiffies, wcid->last_seen + MT7996_PLE_FLUSH_TIMEOUT)) {
++			sta_bitmap[i >> 3] |= BIT(i % 8);
++			sta_cnt++;
++			wcid->token_flush_count++;
++		}
++		spin_unlock_bh(&wcid->token_lock);
++	}
++	rcu_read_unlock();
++
++	if (sta_cnt)
++		mt7996_mcu_flush_ple(dev, MT7996_PLE_FLUSH_THRESHOLD,
++				     sta_bitmap, sta_cnt);
++
++	return 0;
++}
++
+ void mt7996_mac_work(struct work_struct *work)
+ {
+ 	struct mt7996_phy *phy;
+@@ -3123,6 +3173,11 @@ void mt7996_mac_work(struct work_struct *work)
+ 					if (phy->dev->idxlog_enable && mt7996_mcu_fw_time_sync(mdev))
+ 						dev_err(mdev->dev, "Failed to synchronize time with FW.\n");
+ 				}
++
++				if (mphy->mac_work_count == 3000) {
++					mphy->mac_work_count = 0;
++					mt7996_flush_pending_token(phy->dev);
++				}
+ 			} else if (mt7996_band_valid(phy->dev, i) &&
+ 			           test_bit(MT76_STATE_RUNNING, &mdev->phys[i]->state))
+ 				break;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index d51561890..e4772e38a 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -8280,6 +8280,43 @@ int mt7996_mcu_set_pst(struct mt7996_dev *dev, u32 band, u32 cmd, u32 val)
+ 				 sizeof(req), false);
+ }
+ 
++int mt7996_mcu_flush_ple(struct mt7996_dev *dev, u16 threshold,
++			 u8 *sta_bitmap, u16 sta_cnt)
++{
++	struct {
++		u8 _rsv1[4];
++
++		__le16 tag;
++		__le16 len;
++
++		__le16 threshold;
++		__le16 sta_cnt;
++		u8 band;
++		u8 _rsv2[3];
++		u8 sta_bitmap[MT7996_WTBL_GROUP_SIZE_MT7996];
++		u8 _rsv3[3];
++	} __packed req = {
++		.tag = cpu_to_le16(UNI_WSYS_CONFIG_PLE_FLUSH_PEER),
++		.len = sizeof(req) - 4,
++
++		.threshold = cpu_to_le16(threshold),
++		.sta_cnt = cpu_to_le16(sta_cnt),
++		.band = 0xff,
++	};
++	int len = sizeof(req);
++
++	if (!is_mt7996(&dev->mt76)) {
++		req.len -= MT7996_WTBL_GROUP_SIZE_DIFF;
++		len -= MT7996_WTBL_GROUP_SIZE_DIFF;
++	}
++
++	req.len = cpu_to_le16(req.len);
++	memcpy(&req.sta_bitmap, sta_bitmap, sizeof(req.sta_bitmap));
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(WSYS_CONFIG), &req,
++				 len, false);
++}
++
+ #ifdef CONFIG_MTK_VENDOR
+ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+ {
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 43bbee1a1..6b43fdcbd 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -1118,6 +1118,7 @@ enum {
+ 	UNI_WSYS_CONFIG_FW_DBG_CTRL,
+ 	UNI_CMD_CERT_CFG = 6,
+ 	UNI_WSYS_CONFIG_FW_TIME_SYNC, /* UNI_CMD_FW_TIME_SYNC in FW */
++	UNI_WSYS_CONFIG_PLE_FLUSH_PEER = 13,
+ };
+ 
+ enum {
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index a5e1b2fbe..237caed5d 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -19,6 +19,10 @@
+ #define MT7996_WTBL_RESERVED		(mt7996_wtbl_size(dev) - 1)
+ #define MT7996_WTBL_STA			(MT7996_WTBL_RESERVED - \
+ 					 mt7996_max_interface_num(dev))
++#define MT7996_WTBL_GROUP_SIZE_MT7996	((1088 >> 3) + 1)
++#define MT7996_WTBL_GROUP_SIZE_MT7990	((544 >> 3) + 1)
++#define MT7996_WTBL_GROUP_SIZE_DIFF	(MT7996_WTBL_GROUP_SIZE_MT7996 - \
++					 MT7996_WTBL_GROUP_SIZE_MT7990)
+ 
+ #define MT7996_WATCHDOG_TIME		(HZ / 10)
+ #define MT7996_RESET_TIMEOUT		(30 * HZ)
+@@ -1526,6 +1530,8 @@ int mt7996_mcu_edcca_threshold_ctrl(struct mt7996_phy *phy, u8 *value, bool set)
+ int mt7996_mcu_set_tpo(struct mt7996_dev *dev, u8 type, u8 val);
+ int mt7996_mcu_set_lp_option(struct mt7996_dev *dev, u8 *arg);
+ int mt7996_mcu_set_pst(struct mt7996_dev *dev, u32 band, u32 cmd, u32 val);
++int mt7996_mcu_flush_ple(struct mt7996_dev *dev, u16 threshold,
++			 u8 *sta_bitmap, u16 sta_cnt);
+ 
+ enum edcca_bw_id {
+ 	EDCCA_BW_20 = 0,
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 02965f119..467352160 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -2557,6 +2557,7 @@ static int mt7996_wtbl_read(struct seq_file *s, void *data)
+ static int mt7996_sta_info(struct seq_file *s, void *data)
+ {
+ 	struct mt7996_dev *dev = dev_get_drvdata(s->private);
++	struct mt76_wcid *wcid;
+ 	u8 lwtbl[LWTBL_LEN_IN_DW * 4] = {0};
+ 	u16 i;
+ 
+@@ -2577,9 +2578,16 @@ static int mt7996_sta_info(struct seq_file *s, void *data)
+ 
+ 			addr = (u32 *)&(lwtbl[WTBL_GROUP_TRX_CAP_DW_5 * 4]);
+ 			dw_value = *addr;
+-			seq_printf(s, "\tPSM:%u\n", !!(dw_value & WF_LWTBL_PSM_MASK));
++			seq_printf(s, "\tPSM:%u", !!(dw_value & WF_LWTBL_PSM_MASK));
++
++			rcu_read_lock();
++			wcid = rcu_dereference(dev->mt76.wcid[i]);
++			if (wcid && wcid->token_flush_count)
++				seq_printf(s, "\ttoken_flush_count:%u", wcid->token_flush_count);
++			rcu_read_unlock();
+ 
+ 			memset(lwtbl, 0, sizeof(lwtbl));
++			seq_printf(s, "\n");
+ 		}
+ 	}
+ 
+diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
+index 831cf04c4..dc29dc701 100644
+--- a/mt7996/mtk_debugfs_i.c
++++ b/mt7996/mtk_debugfs_i.c
+@@ -1336,6 +1336,57 @@ mt7996_cp_mode_set(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_cp_mode, NULL,
+ 			 mt7996_cp_mode_set, "%llu\n");
+ 
++static ssize_t mt7996_ple_flush_sta_set(struct file *file,
++					const char __user *user_buf,
++					size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	struct mt76_wcid *wcid;
++	char buf[100];
++	u16 idx, threshold;
++	u8 sta_bitmap[MT7996_WTBL_GROUP_SIZE_MT7996];
++
++	memset(&sta_bitmap, 0, sizeof(sta_bitmap));
++
++	if (count >= sizeof(buf))
++		return -EINVAL;
++
++	if (copy_from_user(buf, user_buf, count))
++		return -EFAULT;
++
++	if (count && buf[count - 1] == '\n')
++		buf[count - 1] = '\0';
++	else
++		buf[count] = '\0';
++
++	if (sscanf(buf, "%hu %hu", &idx, &threshold) != 2)
++		goto out;
++
++	if (idx >= mt7996_wtbl_size(dev) || threshold > dev->mt76.token_size)
++		goto out;
++
++	rcu_read_lock();
++	wcid = rcu_dereference(dev->mt76.wcid[idx]);
++	if (wcid)
++		wcid->token_flush_count++;
++	rcu_read_unlock();
++
++	sta_bitmap[idx >> 3] |= BIT(idx % 8);
++	mt7996_mcu_flush_ple(dev, threshold, sta_bitmap, 1);
++
++	return count;
++out:
++	dev_warn(dev->mt76.dev, "format: [wcid] [threshold]\n");
++	return -EINVAL;
++}
++
++static const struct file_operations fops_ple_flush_sta = {
++	.write = mt7996_ple_flush_sta_set,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
+ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+@@ -1382,6 +1433,8 @@ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *
+ 				    &fops_muru_low_pwr);
+ 		debugfs_create_devm_seqfile(dev->mt76.dev, "low_power_info",
+ 					    dir, mt7996_low_power_info_read);
++		debugfs_create_file("ple_flush_sta", 0200, dir, dev,
++				    &fops_ple_flush_sta);
+ 	}
+ 	return 0;
+ }
+-- 
+2.45.2
+

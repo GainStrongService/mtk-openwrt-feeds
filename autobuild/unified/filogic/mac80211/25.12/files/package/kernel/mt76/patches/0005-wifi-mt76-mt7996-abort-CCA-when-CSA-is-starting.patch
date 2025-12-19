@@ -1,0 +1,61 @@
+From 98a85d65a729e6a428b40f0269f0e681958ed289 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 29 Aug 2025 17:01:42 +0800
+Subject: [PATCH 005/105] wifi: mt76: mt7996: abort CCA when CSA is starting
+
+When CSA countdown is going to start, carry UNI_BSS_INFO_BCN_BCC tag to
+abort any CCA countdown.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mcu.c | 10 ++++++++++
+ mt7996/mcu.h | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 0e514b818..73c3741b5 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2796,6 +2796,16 @@ mt7996_mcu_beacon_cntdwn(struct sk_buff *rskb, struct sk_buff *skb,
+ 
+ 	info = (struct bss_bcn_cntdwn_tlv *)tlv;
+ 	info->cnt = skb->data[offs->cntdwn_counter_offs[0]];
++
++	/* abort the CCA countdown when starting CSA countdown */
++	if (csa) {
++		struct bss_bcn_cntdwn_tlv *cca_info;
++
++		tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_BCC,
++					     sizeof(*cca_info));
++		cca_info = (struct bss_bcn_cntdwn_tlv *)tlv;
++		cca_info->cca.abort = true;
++	}
+ }
+ 
+ static void
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 5b3597ca7..1283beb0d 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -412,7 +412,16 @@ struct bss_bcn_cntdwn_tlv {
+ 	__le16 tag;
+ 	__le16 len;
+ 	u8 cnt;
+-	u8 rsv[3];
++	union {
++		struct {
++			bool static_pp;
++			bool abort;
++		} csa;
++		struct {
++			bool abort;
++		} cca;
++	};
++	u8 rsv;
+ } __packed;
+ 
+ struct bss_bcn_mbss_tlv {
+-- 
+2.45.2
+

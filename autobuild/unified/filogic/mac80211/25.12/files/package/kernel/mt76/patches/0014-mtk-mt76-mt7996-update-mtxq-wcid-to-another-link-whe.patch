@@ -1,0 +1,31 @@
+From 44b72ad82725a9e59a69b7d90c742cb23d165977 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 5 Nov 2025 09:31:16 +0800
+Subject: [PATCH 014/105] mtk: mt76: mt7996: update mtxq wcid to another link
+ when the original wcid is removed
+
+Using valid_links to decide whether to assign mtxq->wcid is not
+intuitive. Check mtxq->wcid directly. Without this patch, the mtxq->wcid
+may not be assigned under prpl configuration flow.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index e404d4a5c..7e652a54d 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -346,7 +346,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 
+ 	if (vif->txq) {
+ 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+-		mtxq->wcid = idx;
++		mtxq->wcid = mtxq->wcid ?: idx;
+ 	}
+ 
+ 	if (vif->type != NL80211_IFTYPE_AP &&
+-- 
+2.45.2
+

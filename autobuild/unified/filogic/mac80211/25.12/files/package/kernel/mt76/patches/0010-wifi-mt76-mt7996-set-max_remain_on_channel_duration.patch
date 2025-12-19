@@ -1,0 +1,29 @@
+From ce39b74e07f11378226463220dea56f9b86b895d Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 4 Dec 2025 16:32:40 +0800
+Subject: [PATCH 010/105] wifi: mt76: mt7996: set
+ max_remain_on_channel_duration
+
+This fixes error when triggering an offchannel scan.
+
+Fixes: a8f424c1287c ("wifi: mt76: add multi-radio remain_on_channel functions")
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index a35f0730c..099915ab6 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -549,6 +549,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 
+ 	wiphy->max_scan_ssids = 4;
+ 	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
++	wiphy->max_remain_on_channel_duration = 5000;
+ 
+ 	mt7996_init_wiphy_band(hw, &dev->phy);
+ }
+-- 
+2.45.2
+

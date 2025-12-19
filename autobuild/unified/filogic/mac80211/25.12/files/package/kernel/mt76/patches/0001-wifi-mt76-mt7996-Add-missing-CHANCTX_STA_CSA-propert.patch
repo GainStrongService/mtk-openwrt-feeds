@@ -1,0 +1,30 @@
+From d196f4d0cd831693f25fa404563a3ea0dedb4a9c Mon Sep 17 00:00:00 2001
+From: Lorenzo Bianconi <lorenzo@kernel.org>
+Date: Sun, 28 Sep 2025 18:27:01 +0200
+Subject: [PATCH 001/105] wifi: mt76: mt7996: Add missing CHANCTX_STA_CSA
+ property
+
+Enable missing CHANCTX_STA_CSA property required for MLO.
+
+Fixes: f5160304d57c ("wifi: mt76: mt7996: Enable MLO support for client interfaces")
+Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
+Reviewed-by: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 3996c59b6..dbdb9dc71 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -522,6 +522,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
+ 	ieee80211_hw_set(hw, NO_VIRTUAL_MONITOR);
+ 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
++	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
+ 
+ 	hw->max_tx_fragments = 4;
+ 
+-- 
+2.45.2
+

@@ -1,0 +1,55 @@
+From 8c52c12ef6161c67a212a714e1c5b58f95f2b157 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 9 Sep 2025 15:45:04 +0800
+Subject: [PATCH 231/254] mtk: hostapd: refactor hostapd_bss_alloc_link_id()
+
+When allocating a link ID, find the currently smallest available link
+ID to ensure that link IDs can be reused.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/hostapd.c | 14 +++++++++++---
+ src/ap/hostapd.h |  1 -
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 39ca9277b..b2c2a8852 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -3403,10 +3403,18 @@ struct hostapd_iface * hostapd_alloc_iface(void)
+ #ifdef CONFIG_IEEE80211BE
+ static void hostapd_bss_alloc_link_id(struct hostapd_data *hapd)
+ {
+-	if (hapd->conf->mld_link_id >= 0)
++	if (hapd->conf->mld_link_id >= 0) {
+ 		hapd->mld_link_id = hapd->conf->mld_link_id;
+-	else
+-		hapd->mld_link_id = hapd->mld->next_link_id++;
++	} else {
++		int i;
++
++		for (i = 0; i < MAX_NUM_MLD_LINKS; i++) {
++			if ((hapd->mld->valid_links & BIT(i)) == 0) {
++				hapd->mld_link_id = i;
++				break;
++			}
++		}
++	}
+ 	wpa_printf(MSG_DEBUG, "AP MLD: %s: Link ID %d assigned.",
+ 		   hapd->mld->name, hapd->mld_link_id);
+ }
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index f05e323a1..288eb8912 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -596,7 +596,6 @@ struct hostapd_sta_info {
+ struct hostapd_mld {
+ 	char name[IFNAMSIZ + 1];
+ 	u8 mld_addr[ETH_ALEN];
+-	u8 next_link_id;
+ 	u8 num_links;
+ 	/* Number of hostapd_data (hapd) referencing this. num_links cannot be
+ 	 * used since num_links can go to 0 even when a BSS is disabled and
+-- 
+2.45.2
+
