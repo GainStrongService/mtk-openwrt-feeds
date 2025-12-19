@@ -1,0 +1,26 @@
+--- a/package/kernel/linux/modules/netdevices.mk
++++ b/package/kernel/linux/modules/netdevices.mk
+@@ -605,6 +605,23 @@ endef
+ 
+ $(eval $(call KernelPackage,phy-airoha-an8801sb))
+ 
++define KernelPackage/phy-air_an8811hb
++  SUBMENU:=Network Devices
++  TITLE:=Airoha AN8811HB PHY driver
++  DEPENDS:=@TARGET_mediatek
++  KCONFIG:= \
++	CONFIG_AIR_AN8811HB_PHY \
++	CONFIG_AIR_AN8811HB_PHY_DEBUGFS=y
++  FILES:= \
++	$(LINUX_DIR)/drivers/net/phy/air_an8811hb.ko
++  AUTOLOAD:=$(call AutoLoad,20,air_an8811hb,1)
++endef
++
++define KernelPackage/phy-air_an8811hb/description
++  kernel modules for Airoha AN8811HB PHY driver
++endef
++
++$(eval $(call KernelPackage,phy-air_an8811hb))
+ 
+ define KernelPackage/phy-airoha-en8811h
+   SUBMENU:=$(NETWORK_DEVICES_MENU)
