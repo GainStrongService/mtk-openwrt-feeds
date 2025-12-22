@@ -5,10 +5,10 @@ Subject: [PATCH] net: pcs: mtk_usxgmii: add link_poll mechanism
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/pcs/pcs-mtk-usxgmii.c    | 165 ++++++++++++++++++---------
+ drivers/net/pcs/pcs-mtk-usxgmii.c    | 166 ++++++++++++++++++---------
  include/linux/pcs/pcs-mtk-usxgmii.h  |  29 +++++
  include/linux/phy/phy-mtk-xfi-tphy.h |  23 ++++
- 3 files changed, 166 insertions(+), 51 deletions(-)
+ 3 files changed, 167 insertions(+), 51 deletions(-)
  create mode 100644 include/linux/phy/phy-mtk-xfi-tphy.h
 
 diff --git a/drivers/net/pcs/pcs-mtk-usxgmii.c b/drivers/net/pcs/pcs-mtk-usxgmii.c
@@ -199,7 +199,7 @@ index 5a80b89..9ae5627 100644
  }
  
  static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
-@@ -323,12 +348,42 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mo
+@@ -323,12 +348,43 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mo
  				    int speed, int duplex)
  {
  	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
@@ -228,6 +228,7 @@ index 5a80b89..9ae5627 100644
 +						   link_poll.work);
 +
 +	if ((mpcs->interface != PHY_INTERFACE_MODE_5GBASER &&
++	     mpcs->interface != PHY_INTERFACE_MODE_10GBASER &&
 +	     mpcs->interface != PHY_INTERFACE_MODE_10GKR &&
 +	     mpcs->interface != PHY_INTERFACE_MODE_USXGMII) ||
 +	    (mpcs->poll == false))
