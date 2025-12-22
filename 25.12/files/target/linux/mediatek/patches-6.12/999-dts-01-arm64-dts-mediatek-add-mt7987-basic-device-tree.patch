@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987-pinctrl.dtsi
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,259 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2023 MediaTek Inc.
@@ -182,6 +182,18 @@
 +		mux {
 +			function = "spi";
 +			groups = "spi2", "spi2_wp_hold";
++		};
++
++		conf-pu {
++			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
++		};
++
++		conf-pd {
++			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
 +		};
 +	};
 +
