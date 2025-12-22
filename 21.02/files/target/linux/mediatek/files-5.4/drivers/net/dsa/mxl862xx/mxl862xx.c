@@ -1361,7 +1361,7 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	/* The reset duration could be improved by implementing
 	 * register polling at offset 0, 1, 2 for specific values
 	 * 0x20, 0x21, 0x22, indicating that booting is completed. */
-	usleep_range(4000000, 6000000);
+	usleep_range(5000000, 6000000);
 
 	priv->port_info[priv->cpu_port].tag_protocol = __dt_parse_tag_proto(ds, priv->cpu_port);
 
