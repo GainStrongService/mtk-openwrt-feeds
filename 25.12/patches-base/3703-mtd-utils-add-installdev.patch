@@ -1,0 +1,17 @@
+--- a/package/utils/mtd-utils/Makefile
++++ b/package/utils/mtd-utils/Makefile
+@@ -72,6 +72,14 @@ define Package/ubi-utils/conffiles
+ /etc/config/ubihealthd
+ endef
+ 
++define Build/InstallDev
++	$(INSTALL_DIR) $(1)/usr/include
++	$(CP) $(PKG_BUILD_DIR)/include/libmtd.h $(1)/usr/include
++	$(INSTALL_DIR) $(1)/usr/lib
++	$(CP) $(PKG_BUILD_DIR)/libmtd.a $(1)/usr/lib
++	$(CP) $(PKG_BUILD_DIR)/libubi.a $(1)/usr/lib
++endef
++
+ define Package/ubi-utils/install
+ 	$(INSTALL_DIR) $(1)/usr/sbin
+ 	$(INSTALL_BIN) \

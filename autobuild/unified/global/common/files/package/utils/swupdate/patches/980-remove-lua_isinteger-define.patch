@@ -1,0 +1,21 @@
+--- a/include/lua_util.h
++++ b/include/lua_util.h
+@@ -39,18 +39,6 @@ int lua_get_swupdate_version(lua_State *
+ 
+ #define lua_exit(L) lua_close((lua_State *)L)
+ 
+-#if !defined(LUA_VERSION_NUM) || LUA_VERSION_NUM  < 503
+-static inline int lua_isinteger (lua_State *L, int index) {
+-  if (lua_type(L, index) == LUA_TNUMBER) {
+-    lua_Number n = lua_tonumber(L, index);
+-    lua_Integer i = lua_tointeger(L, index);
+-    if (i == n)
+-      return 1;
+-  }
+-  return 0;
+-}
+-#endif
+-
+ #else
+ 
+ struct img_type;
