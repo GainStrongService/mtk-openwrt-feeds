@@ -45,8 +45,8 @@ index ad3aa15..6d28fba 100644
  			pr_info("send MTK_FE_START_TRAFFIC event !\n");
  			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
 @@ -5446,6 +5454,7 @@ static void mtk_pending_work(struct work_struct *work)
- 			call_netdevice_notifiers(MTK_FE_RESET_DONE,
- 						 eth->netdev[i]);
+ 				rtnl_lock();
+ 			}
  		}
 +#endif
  		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,

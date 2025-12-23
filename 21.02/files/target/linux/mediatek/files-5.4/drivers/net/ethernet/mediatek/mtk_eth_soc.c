@@ -5510,12 +5510,14 @@ static void mtk_pending_work(struct work_struct *work)
 			pr_info("send MTK_FE_RESET_DONE event !\n");
 			call_netdevice_notifiers(MTK_FE_RESET_DONE,
 						 eth->netdev[i]);
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-			pr_info("waiting done ack from wifi\n");
-			rtnl_unlock();
-			wait_for_completion(&wait_ack_done);
-			rtnl_lock();
-#endif
+
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+			    mtk_wifi_num > 0) {
+				pr_info("waiting done ack from wifi\n");
+				rtnl_unlock();
+				wait_for_completion(&wait_ack_done);
+				rtnl_lock();
+			}
 		}
 		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
 					 eth->netdev[i]);

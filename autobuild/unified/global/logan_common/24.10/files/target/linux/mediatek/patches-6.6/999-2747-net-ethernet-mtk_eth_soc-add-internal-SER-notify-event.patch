@@ -8,9 +8,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/Makefile      |  2 +-
  drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 14 +++-
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 75 ++++++++++++++++++++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 76 ++++++++++++++++++++-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  2 +
- 4 files changed, 89 insertions(+), 4 deletions(-)
+ 4 files changed, 90 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
 index 013945a..39338a6 100644
@@ -189,7 +189,7 @@ index 4c8afa6..4c09b93 100644
  	/* Run again reset preliminary configuration in order to avoid any
  	 * possible race during FE reset since it can run releasing RTNL lock.
  	 */
-@@ -5482,6 +5525,33 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -5482,6 +5525,34 @@ static void mtk_pending_work(struct work_struct *work)
  			mt7988_esw_force_link(eth, true);
  	}
  
@@ -207,7 +207,8 @@ index 4c8afa6..4c09b93 100644
 +			call_netdevice_notifiers(MTK_FE_RESET_DONE,
 +						 eth->netdev[i]);
 +
-+			if (mtk_is_netsys_v3_or_greater(eth)) {
++			if (mtk_is_netsys_v3_or_greater(eth) &&
++			    mtk_wifi_num > 0) {
 +				pr_info("waiting done ack from wifi\n");
 +				rtnl_unlock();
 +				wait_for_completion(&wait_ack_done);
