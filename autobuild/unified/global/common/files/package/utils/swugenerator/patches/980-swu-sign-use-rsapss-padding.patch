@@ -1,0 +1,12 @@
+--- a/swugenerator/swu_sign.py
++++ b/swugenerator/swu_sign.py
+@@ -93,7 +93,8 @@ class SWUSignRSA(SWUSign):
+ 
+     def prepare_cmd(self, sw_desc_in, sw_desc_sig):
+         self.signcmd = (
+-            ["openssl", "dgst", "-sha256", "-sign", self.key]
++            ["openssl", "dgst", "-sha256", "-sign", self.key,
++             "-sigopt", "rsa_padding_mode:pss", "-sigopt", "rsa_pss_saltlen:32"]
+             + self.get_passwd_file_args()
+             + ["-out", sw_desc_sig, sw_desc_in]
+         )
