@@ -217,24 +217,24 @@ static inline void reg_writew(struct mtk_i2p5ge_phy_priv *priv, u32 offset,
 }
 
 static inline void reg_modify(struct mtk_i2p5ge_phy_priv *priv, u32 offset,
-			      u32 mask, u32 val)
+			      u32 mask, u32 set)
 {
 	u32 reg = reg_readl(priv, offset);
 
-	reg = (reg & ~mask) | (val & mask);
+	reg = (reg & ~mask) | set;
 	reg_writel(priv, offset, reg);
 }
 
 static inline void reg_set_bits(struct mtk_i2p5ge_phy_priv *priv, u32 offset,
-				u32 bits)
+				u32 val)
 {
-	reg_modify(priv, offset, bits, bits);
+	reg_modify(priv, offset, 0, val);
 }
 
 static inline void reg_clear_bits(struct mtk_i2p5ge_phy_priv *priv, u32 offset,
-				  u32 bits)
+				  u32 val)
 {
-	reg_modify(priv, offset, bits, 0);
+	reg_modify(priv, offset, val, 0);
 }
 
 static ssize_t mtk_2p5ge_attr_show(struct device *dev,
