@@ -1,14 +1,14 @@
-From c3e848c30d0eb228fd1ee7b2dc003a4012e29085 Mon Sep 17 00:00:00 2001
-From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Thu, 14 Sep 2023 14:46:58 +0800
-Subject: [PATCH 4/9] net: bridge: support hardware flow table offload
+From: Felix Fietkau <nbd@nbd.name>
+Date: Thu, 15 Mar 2018 20:50:37 +0100
+Subject: [PATCH] net: bridge: support hardware flow table offload
 
+Look up the real device and pass it on
+
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
 ---
- net/bridge/br_device.c | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
 
 diff --git a/net/bridge/br_device.c b/net/bridge/br_device.c
-index b82906fc9..a7232e4ad 100644
+index 26b79fe..6192d48 100644
 --- a/net/bridge/br_device.c
 +++ b/net/bridge/br_device.c
 @@ -14,6 +14,10 @@
@@ -22,7 +22,7 @@ index b82906fc9..a7232e4ad 100644
  
  #include <linux/uaccess.h>
  #include "br_private.h"
-@@ -443,6 +447,28 @@ static const struct ethtool_ops br_ethtool_ops = {
+@@ -434,6 +438,28 @@ static const struct ethtool_ops br_ethtool_ops = {
  	.get_link_ksettings	 = br_get_link_ksettings,
  };
  
@@ -33,7 +33,7 @@ index b82906fc9..a7232e4ad 100644
 +	struct net_bridge *br = netdev_priv(dev);
 +	struct net_bridge_fdb_entry *dst;
 +
-+	if (!(path->flags & DEV_PATH_ETHERNET))
++	if (!(path->flags & BIT(DEV_PATH_ETHERNET)))
 +		return -EINVAL;
 +
 +	dst = br_fdb_find_rcu(br, path->eth_dest, path->vlan_id);
@@ -51,16 +51,13 @@ index b82906fc9..a7232e4ad 100644
  static const struct net_device_ops br_netdev_ops = {
  	.ndo_open		 = br_dev_open,
  	.ndo_stop		 = br_dev_stop,
-@@ -472,6 +498,9 @@ static const struct net_device_ops br_netdev_ops = {
- 	.ndo_bridge_setlink	 = br_setlink,
+@@ -469,6 +495,9 @@ static const struct net_device_ops br_netdev_ops = {
  	.ndo_bridge_dellink	 = br_dellink,
  	.ndo_features_check	 = passthru_features_check,
+ 	.ndo_fill_forward_path	 = br_fill_forward_path,
 +#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 +	.ndo_flow_offload_check	 = br_flow_offload_check,
 +#endif
- 	.ndo_fill_forward_path	 = br_fill_forward_path,
  };
  
--- 
-2.18.0
-
+ static const struct device_type br_type = {
