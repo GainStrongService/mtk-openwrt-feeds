@@ -1,0 +1,178 @@
+[PATCH 4/7] plat: mediatek: add support for spi-nand driver for
+
+Add support for spi-nand driver for reinitialization
+
+Change-Id: I081771f3600b611b5bca74c772f0544f3377d4e2
+---
+ .../drivers/spi_nand/mtk_spi_nand.c           | 78 ++++++++++---------
+ 1 file changed, 40 insertions(+), 38 deletions(-)
+diff --git a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
+index 99a5e24e2..4dc03ff02 100644
+
+Change-Id: I081771f3600b611b5bca74c772f0544f3377d4e2
+--- a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
++++ b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
+@@ -716,7 +716,8 @@ const struct spi_nand_info *get_spi_nand(uint8_t *id, uint8_t *vendor_id)
+ 	return NULL;
+ }
+
+-int spi_nand_set_data_via_id(struct spinand_device *device, uint8_t *id, uint8_t *vendor_id)
++static int spi_nand_set_data_via_id(struct spinand_device *device, uint8_t *id,
++				    uint8_t *vendor_id)
+ {
+ 	const struct spi_nand_info *nand_info;
+
+@@ -746,21 +747,21 @@ int spi_nand_set_data_via_id(struct spinand_device *device, uint8_t *id, uint8_t
+ 	ERROR("Unrecognized SPI-NAND ID: 0x%x 0x%x 0x%x 0x%x\n",
+ 		    id[0], id[1], id[2], id[3]);
+
+-	return -EINVAL;
++	return -ENODEV;
+ }
+
+-int spi_nand_set_data_via_pp(struct spinand_device *device,
+-			     struct parameter_page *pp)
++static void spi_nand_set_data_via_pp(struct nand_device *nand_dev,
++				     struct parameter_page *pp)
+ {
+-	device->nand_dev->page_size = htole32(pp->page_size);
+-	device->nand_dev->oob_size = htole32(pp->spare_per_page);
+-	device->nand_dev->nb_planes = pp->plane_addr_bits + 1;
+-	device->nand_dev->block_size = htole32(pp->pages_per_block) *
+-				       htole32(pp->page_size);
+-	device->nand_dev->size = htole32(pp->blocks_per_lun) *
+-				 htole32(pp->number_of_lun) *
+-				 htole32(pp->pages_per_block) *
+-				 htole32(pp->page_size);
++	nand_dev->page_size = htole32(pp->page_size);
++	nand_dev->oob_size = htole32(pp->spare_per_page);
++	nand_dev->nb_planes = pp->plane_addr_bits + 1;
++	nand_dev->block_size = htole32(pp->pages_per_block) *
++			       htole32(pp->page_size);
++	nand_dev->size = htole32(pp->blocks_per_lun) *
++			 htole32(pp->number_of_lun) *
++			 htole32(pp->pages_per_block) *
++			 htole32(pp->page_size);
+
+ 	switch(pp->manufactuere_id) {
+ 		/*
+@@ -768,44 +769,40 @@ int spi_nand_set_data_via_pp(struct spinand_device *device,
+ 		 * will be half of real size
+ 		 */
+ 		case TOSHIBA_ID:
+-			device->nand_dev->oob_size <<= 1;
++			nand_dev->oob_size <<= 1;
+ 			break;
+ 		/* Almost all of MXIC NANDs except MX35LF1GE4AB use half of OOB
+ 		 * when internal ECC is on.
+ 		 */
+ 		case MACRONIX_ID:
+ 			if (strncmp(pp->device_model, "MX35LF1GE4AB", 12) != 0)
+-				device->nand_dev->oob_size /= 2;
++				nand_dev->oob_size /= 2;
+ 			break;
+ 		case MICRON_ID:
+ 			/* 2-plane device */
+ 			if (strncmp(pp->device_model, "MT29F2G01ABAGD", 14) == 0)
+-				device->nand_dev->nb_planes = 2;
++				nand_dev->nb_planes = 2;
+ 			break;
+ 	}
+
+ 	NOTICE("SPI_NAND parses attributes from parameter page.\n");
+-
+-	return 0;
+ }
+
+-int spi_nand_set_data_via_casn(struct spinand_device *device,
+-			     struct casn_page *casn)
++static void spi_nand_set_data_via_casn(struct nand_device *nand_dev,
++				       struct casn_page *casn)
+ {
+-	device->nand_dev->page_size = be32toh(casn->bytes_per_page);
+-	device->nand_dev->oob_size = be32toh(casn->spare_bytes_per_page);
+-	device->nand_dev->nb_planes = be32toh(casn->planes_per_lun);
+-	device->nand_dev->block_size = be32toh(casn->pages_per_block) *
+-				       be32toh(casn->bytes_per_page);
++	nand_dev->page_size = be32toh(casn->bytes_per_page);
++	nand_dev->oob_size = be32toh(casn->spare_bytes_per_page);
++	nand_dev->nb_planes = be32toh(casn->planes_per_lun);
++	nand_dev->block_size = be32toh(casn->pages_per_block) *
++			       be32toh(casn->bytes_per_page);
+
+-	device->nand_dev->size = be32toh(casn->blocks_per_lun) *
+-				 be32toh(casn->luns_per_target) *
+-				 be32toh(casn->pages_per_block) *
+-				 be32toh(casn->bytes_per_page);
++	nand_dev->size = be32toh(casn->blocks_per_lun) *
++			 be32toh(casn->luns_per_target) *
++			 be32toh(casn->pages_per_block) *
++			 be32toh(casn->bytes_per_page);
+
+ 	NOTICE("SPI_NAND parses attributes from CASN page.\n");
+-
+-	return 0;
+ }
+
+ void sanitize_string(char *s, size_t len)
+@@ -844,15 +841,13 @@ int spi_nand_init(unsigned long long *size, unsigned int *erase_size)
+ 	char manufacturer[14];
+ 	char model[17];
+
++	zeromem(&spinand_dev, sizeof(spinand_dev));
++
+ 	spinand_dev.nand_dev = get_nand_device();
+ 	if (spinand_dev.nand_dev == NULL) {
+ 		return -EINVAL;
+ 	}
+
+-	spinand_dev.nand_dev->mtd_block_is_bad = spi_nand_mtd_block_is_bad;
+-	spinand_dev.nand_dev->mtd_read_page = spi_nand_mtd_read_page;
+-	spinand_dev.nand_dev->nb_planes = 1;
+-
+ 	spinand_dev.spi_read_cache_op.cmd.opcode = SPI_NAND_OP_READ_FROM_CACHE;
+ 	spinand_dev.spi_read_cache_op.cmd.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+ 	spinand_dev.spi_read_cache_op.addr.nbytes = 2U;
+@@ -871,7 +866,7 @@ int spi_nand_init(unsigned long long *size, unsigned int *erase_size)
+ 	if (ret) {
+ 		goto fallback_pp;
+ 	}
+-	spi_nand_set_data_via_casn(&spinand_dev, casn + sel);
++	spi_nand_set_data_via_casn(spinand_dev.nand_dev, casn + sel);
+ 	use_casn = true;
+ 	goto success;
+
+@@ -884,7 +879,7 @@ fallback_pp:
+ 		goto fallback_id;
+ 	}
+ 	vendor_id = pp[sel].manufactuere_id;
+-	spi_nand_set_data_via_pp(&spinand_dev, pp + sel);
++	spi_nand_set_data_via_pp(spinand_dev.nand_dev, pp + sel);
+ 	goto success;
+
+ fallback_id:
+@@ -893,13 +888,20 @@ fallback_id:
+ 	if (ret) {
+ 		return ret;
+ 	}
+-	spi_nand_set_data_via_id(&spinand_dev, id, &vendor_id);
++
++	ret = spi_nand_set_data_via_id(&spinand_dev, id, &vendor_id);
++	if (ret)
++		return ret;
+
+ success:
+ 	assert((spinand_dev.nand_dev->page_size != 0U) &&
+ 	       (spinand_dev.nand_dev->block_size != 0U) &&
+ 	       (spinand_dev.nand_dev->size != 0U));
+
++	spinand_dev.nand_dev->mtd_block_is_bad = spi_nand_mtd_block_is_bad;
++	spinand_dev.nand_dev->mtd_read_page = spi_nand_mtd_read_page;
++	spinand_dev.nand_dev->nb_planes = 1;
++
+ 	zeromem(&spinand_dev.spi_read_cache_op, sizeof(struct spi_mem_op));
+ 	spinand_dev.spi_read_cache_op.cmd.opcode = SPI_NAND_OP_READ_FROM_CACHE_4X;
+ 	spinand_dev.spi_read_cache_op.cmd.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+--
+2.45.2
+

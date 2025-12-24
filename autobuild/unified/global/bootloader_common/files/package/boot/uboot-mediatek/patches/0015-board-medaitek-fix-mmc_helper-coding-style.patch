@@ -1,0 +1,40 @@
+From 361b7ef3ed031a37cbb8fd0297e846d446e4fb93 Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Mon, 8 Dec 2025 10:38:48 +0800
+Subject: [PATCH 15/23] board: medaitek: fix mmc_helper coding style
+
+Fix mmc_helper coding style
+
+Change-Id: I6c88bc55b83b109653feeb92b404d8abd7f1b30b
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
+---
+ board/mediatek/common/mmc_helper.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/board/mediatek/common/mmc_helper.c b/board/mediatek/common/mmc_helper.c
+index 70d7d0e16e6..ab7143d8450 100644
+--- a/board/mediatek/common/mmc_helper.c
++++ b/board/mediatek/common/mmc_helper.c
+@@ -698,12 +698,12 @@ void mmc_setup_boot_options(u32 dev)
+ 	}
+ 
+ 	/* Only try to set RST_n to permanent enabled when it is 0x0 */
+-	if(mmc->ext_csd[EXT_CSD_RST_N_FUNCTION])
+-		return;
+-	ret = mmc_set_rst_n_function(mmc, 1);
+-	if (ret) {
+-		cprintln(ERROR,
+-			 "*** Failed to set RST_N_FUNCTION, err = %d ***", ret);
++	if (!mmc->ext_csd[EXT_CSD_RST_N_FUNCTION]) {
++		ret = mmc_set_rst_n_function(mmc, 1);
++		if (ret) {
++			cprintln(ERROR,
++				 "*** Failed to set RST_N_FUNCTION, err = %d ***", ret);
++		}
+ 	}
+ }
+ 
+-- 
+2.45.2
+

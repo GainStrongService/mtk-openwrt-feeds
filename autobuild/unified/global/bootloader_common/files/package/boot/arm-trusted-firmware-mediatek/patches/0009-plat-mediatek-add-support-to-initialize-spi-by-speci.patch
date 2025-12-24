@@ -1,0 +1,110 @@
+[PATCH 3/7] plat: mediatek: add support to initialize spi by
+
+Previously, the spi_mem driver always find the first compatible spi node for
+initialization. With this path, one can initialize specific spi node by
+specifying the node path.
+
+Change-Id: Iecec8497262b068ece33fd26590fd6c0cc045d8c
+---
+ .../apsoc_common/drivers/spi/mtk_spi.c        | 50 +++++++++++++------
+ .../apsoc_common/drivers/spi/mtk_spi.h        |  3 ++
+ 2 files changed, 39 insertions(+), 14 deletions(-)
+diff --git a/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.c b/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.c
+index 5e1b9db31..9b8733238 100644
+
+Change-Id: Iecec8497262b068ece33fd26590fd6c0cc045d8c
+--- a/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.c
++++ b/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.c
+@@ -953,27 +953,23 @@ void mtk_qspi_setup_buffer(void *buf)
+ 	mem_malloced = true;
+ }
+
+-int mtk_qspi_init(uint32_t src_clk_hz)
++static int mtk_qspi_init_node(int qspi_node, uint32_t src_clk_hz)
+ {
+-	int qspi_node;
+ 	int qspi_subnode = 0;
+ 	const fdt32_t *cuint;
+
+-	qspi_node = fdt_node_offset_by_compatible(fdt, -1, DT_QSPI_COMPAT_MTK);
+-	if (qspi_node < 0) {
+-		ERROR("%s find qspi_node fail\n", __func__);
+-		return -FDT_ERR_NOTFOUND;
+-	}
+-
+ 	memset(&g_mdata, 0, sizeof(struct mtk_spi));
+-	while (qspi_node != -FDT_ERR_NOTFOUND) {
+-		cuint = fdt_getprop(fdt, qspi_node, "reg", NULL);
+-		if (cuint) {
+-			g_mdata.base = fdt32_to_cpu(*cuint);
+-			break;
+-		}
++	memset(&spidev, 0, sizeof(spidev));
++	memset(&mtk_default_chip_info, 0, sizeof(mtk_default_chip_info));
++
++	cuint = fdt_getprop(fdt, qspi_node, "reg", NULL);
++	if (!cuint) {
++		ERROR("\"reg\" node not found in spi node\n");
++		return -ENODEV;
+ 	}
+
++	g_mdata.base = fdt32_to_cpu(*cuint);
++
+ 	spidev.chip_config = &mtk_default_chip_info;
+ 	fdt_for_each_subnode(qspi_subnode, fdt, qspi_node) {
+ 		cuint = fdt_getprop(fdt, qspi_subnode, "sample-sel", NULL);
+@@ -1008,3 +1004,29 @@ int mtk_qspi_init(uint32_t src_clk_hz)
+
+ 	return spi_mem_init_slave(fdt, qspi_node, &mtk_qspi_bus_ops);
+ }
++
++int mtk_qspi_init(uint32_t src_clk_hz)
++{
++	int qspi_node;
++
++	qspi_node = fdt_node_offset_by_compatible(fdt, -1, DT_QSPI_COMPAT_MTK);
++	if (qspi_node < 0) {
++		ERROR("Failed to get default qspi node\n");
++		return -ENODEV;
++	}
++
++	return mtk_qspi_init_node(qspi_node, src_clk_hz);
++}
++
++int mtk_qspi_init_by_path(const char *path, uint32_t src_clk_hz)
++{
++	int qspi_node;
++
++	qspi_node = fdt_path_offset(fdt, path);
++	if (qspi_node < 0) {
++		ERROR("Failed to get qspi node '%s'\n", path);
++		return -ENODEV;
++	}
++
++	return mtk_qspi_init_node(qspi_node, src_clk_hz);
++}
+diff --git a/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.h b/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.h
+index 6f25b828e..3a7e97581 100644
+
+Change-Id: Iecec8497262b068ece33fd26590fd6c0cc045d8c
+--- a/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.h
++++ b/plat/mediatek/apsoc_common/drivers/spi/mtk_spi.h
+@@ -57,6 +57,8 @@ struct spi_device {
+ #define ERR_SPI_TIMEOUT		(-2)
+ #define ERR_SPI_PARAM		(-3)
+
++struct spi_mem_op;
++
+ int mtk_spi_init(struct spi_device *spi);
+
+ int mtk_spi_fifo_transfer(struct spi_device *spi,
+@@ -73,5 +75,6 @@ int mtk_spi_mem_exec_op(struct spi_device *spi,
+
+ void mtk_qspi_setup_buffer(void *buf);
+ int mtk_qspi_init(uint32_t src_clk_hz);
++int mtk_qspi_init_by_path(const char *path, uint32_t src_clk_hz);
+
+ #endif
+--
+2.45.2
+

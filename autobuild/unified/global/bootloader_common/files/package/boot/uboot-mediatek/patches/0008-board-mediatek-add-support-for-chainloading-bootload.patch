@@ -1,5 +1,15 @@
+From 6b66598074477b5f4d4cde795fdf7acfa9e32c9a Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Thu, 21 Aug 2025 10:37:36 +0800
+Subject: [PATCH 08/23] board: mediatek: add support for chainloading
+ bootloader
+
+Add APIs for verifying and booting legacy image
+Add support for chainloading next bootloader to bootmenu
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
 ---
  board/mediatek/Kconfig                      |  46 ++++++++
  board/mediatek/common/Makefile              |   2 +
@@ -22,17 +32,15 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  board/mediatek/common/verify_helper.h       |   2 +
  19 files changed, 583 insertions(+), 6 deletions(-)
  create mode 100644 board/mediatek/common/cmd_mtkchainload.c
+
 diff --git a/board/mediatek/Kconfig b/board/mediatek/Kconfig
 index 6f39e319b9f..f0b28dc07ff 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/Kconfig
 +++ b/board/mediatek/Kconfig
 @@ -246,6 +246,52 @@ config MTK_ROOTDISK_OVERRIDE
  	  default rootdisk for OpenWrt image. You can override it here.
  	  left this configuration if you do not want to override it.
-
+ 
 +config MTK_CHAINLOAD_BL
 +	bool "Enable support for chainloading next stage bootloader"
 +	default n
@@ -80,35 +88,29 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +endif # MTK_CHAINLOAD_BL
 +
  endif # MEDIATEK_BOOTMENU
-
+ 
  menuconfig MTK_SECURE_BOOT
 diff --git a/board/mediatek/common/Makefile b/board/mediatek/common/Makefile
 index 3d31e956742..c085f3f8ca6 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/Makefile
 +++ b/board/mediatek/common/Makefile
 @@ -19,6 +19,8 @@ obj-$(CONFIG_MEDIATEK_BOOTMENU) += cmd_mtkupgrade.o cmd_mtkload.o \
  				   cmd_mtkboardboot.o cmd_mtkautoboot.o \
  				   cmd_mtkbootconf.o
-
+ 
 +obj-$(CONFIG_MTK_CHAINLOAD_BL) += cmd_mtkchainload.o
 +
  obj-$(CONFIG_MTK_BOOTMENU_MTD_COMMON) += bootmenu_mtd_common.o
  obj-$(CONFIG_MTK_BOOTMENU_MMC_COMMON) += bootmenu_mmc_common.o
-
+ 
 diff --git a/board/mediatek/common/boot_helper.c b/board/mediatek/common/boot_helper.c
 index 508b68e2fae..da7efee2f43 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/boot_helper.c
 +++ b/board/mediatek/common/boot_helper.c
 @@ -146,6 +146,27 @@ int boot_from_mem(ulong data_load_addr)
  	size_t len, i;
  	int ret;
-
+ 
 +#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 +	if (genimg_get_format((void *)data_load_addr) == IMAGE_FORMAT_LEGACY) {
 +		char legacy_cmd[64];
@@ -131,34 +133,28 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +#endif
 +
  	bootconf_stock = fit_image_conf_def((void *)data_load_addr);
-
+ 
  	bootconf = env_get("bootconf");
 diff --git a/board/mediatek/common/boot_helper.h b/board/mediatek/common/boot_helper.h
 index 074af68ec93..4fa463073b3 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/boot_helper.h
 +++ b/board/mediatek/common/boot_helper.h
 @@ -15,6 +15,7 @@
  #define BOOT_PARAM_STR_MAX_LEN			256
-
+ 
  extern int board_boot_default(bool do_boot);
 +extern int board_chainload_default(bool do_boot);
-
+ 
  int boot_from_mem(ulong data_load_addr);
-
+ 
 diff --git a/board/mediatek/common/bootmenu_common.c b/board/mediatek/common/bootmenu_common.c
 index 8aaaabf70b0..a59ed8afef8 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_common.c
 +++ b/board/mediatek/common/bootmenu_common.c
 @@ -95,6 +95,20 @@ int generic_validate_bl33(void *priv, const struct data_part_entry *dpe,
  	return ret;
  }
-
+ 
 +int generic_validate_next_bl(void *priv, const struct data_part_entry *dpe,
 +			     const void *data, size_t size)
 +{
@@ -178,15 +174,12 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_common.h b/board/mediatek/common/bootmenu_common.h
 index 2a7eef62ad0..f64e41b23ca 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_common.h
 +++ b/board/mediatek/common/bootmenu_common.h
 @@ -35,6 +35,11 @@ int read_mmc_part(const char *partname, void *data, size_t *size,
-
+ 
  int generic_mtd_boot_image(bool do_boot);
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mtd_boot_next_bl(bool do_boot);
 +int generic_ubi_boot_next_bl(bool do_boot);
@@ -194,11 +187,11 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +
  int generic_mtd_write_bl2(void *priv, const struct data_part_entry *dpe,
  			  const void *data, size_t size);
-
+ 
 @@ -69,6 +74,13 @@ int generic_mtd_update_bl33(void *priv, const struct data_part_entry *dpe,
  int generic_mtd_write_fw(void *priv, const struct data_part_entry *dpe,
  			 const void *data, size_t size);
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mtd_write_next_bl(void *priv, const struct data_part_entry *dpe,
 +			      const void *data, size_t size);
@@ -208,22 +201,22 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +
  int generic_mtd_write_simg(void *priv, const struct data_part_entry *dpe,
  			   const void *data, size_t size);
-
+ 
 @@ -79,6 +91,10 @@ int generic_mtd_validate_fw(void *priv, const struct data_part_entry *dpe,
-
+ 
  int generic_mmc_boot_image(bool do_boot);
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mmc_boot_next_bl(bool do_boot);
 +#endif
 +
  int generic_emmc_write_bl2(void *priv, const struct data_part_entry *dpe,
  			   const void *data, size_t size);
-
+ 
 @@ -117,6 +133,11 @@ int generic_mmc_write_emerg_fw(void *priv, const struct data_part_entry *dpe,
  			       const void *data, size_t size);
  #endif
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mmc_write_next_bl(void *priv, const struct data_part_entry *dpe,
 +			      const void *data, size_t size);
@@ -231,22 +224,19 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +
  int generic_mmc_write_simg(void *priv, const struct data_part_entry *dpe,
  			   const void *data, size_t size);
-
+ 
 @@ -149,6 +170,9 @@ int generic_validate_bl31(void *priv, const struct data_part_entry *dpe,
  int generic_validate_bl33(void *priv, const struct data_part_entry *dpe,
  			  const void *data, size_t size);
-
+ 
 +int generic_validate_next_bl(void *priv, const struct data_part_entry *dpe,
 +			     const void *data, size_t size);
 +
  int generic_validate_simg(void *priv, const struct data_part_entry *dpe,
  			  const void *data, size_t size);
-
+ 
 diff --git a/board/mediatek/common/bootmenu_mmc.c b/board/mediatek/common/bootmenu_mmc.c
 index ebc480efea5..c9c69b51671 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mmc.c
 +++ b/board/mediatek/common/bootmenu_mmc.c
 @@ -50,6 +50,15 @@ static const struct data_part_entry mmc_parts[] = {
@@ -268,7 +258,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -93,11 +102,29 @@ int board_boot_default(bool do_boot)
  	return generic_mmc_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int board_chainload_default(bool do_boot)
 +{
@@ -316,15 +306,12 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		.cmd = "mtkload"
 diff --git a/board/mediatek/common/bootmenu_mmc_common.c b/board/mediatek/common/bootmenu_mmc_common.c
 index 0504b0bb72f..46fa011bab0 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mmc_common.c
 +++ b/board/mediatek/common/bootmenu_mmc_common.c
 @@ -52,6 +52,14 @@ int generic_mmc_boot_image(bool do_boot)
  	return mmc_boot_image(MMC_DEV_INDEX, do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mmc_boot_next_bl(bool do_boot)
 +{
@@ -339,7 +326,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -242,6 +250,15 @@ int generic_mmc_write_emerg_fw(void *priv, const struct data_part_entry *dpe,
  }
  #endif
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mmc_write_next_bl(void *priv, const struct data_part_entry *dpe,
 +			      const void *data, size_t size)
@@ -354,9 +341,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_mtd.c b/board/mediatek/common/bootmenu_mtd.c
 index 946af21fffd..1aad9a0fa26 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd.c
 +++ b/board/mediatek/common/bootmenu_mtd.c
 @@ -44,6 +44,19 @@ static const struct data_part_entry mtd_parts[] = {
@@ -382,7 +366,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -73,11 +86,33 @@ int board_boot_default(bool do_boot)
  	return generic_mtd_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int board_chainload_default(bool do_boot)
 +{
@@ -434,15 +418,12 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		.cmd = "mtkload"
 diff --git a/board/mediatek/common/bootmenu_mtd_common.c b/board/mediatek/common/bootmenu_mtd_common.c
 index 8296d61e208..ce81a401216 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd_common.c
 +++ b/board/mediatek/common/bootmenu_mtd_common.c
 @@ -89,6 +89,20 @@ int generic_mtd_boot_image(bool do_boot)
  	return mtd_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mtd_boot_next_bl(bool do_boot)
 +{
@@ -463,7 +444,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -407,6 +421,22 @@ int generic_mtd_write_fw(void *priv, const struct data_part_entry *dpe,
  	return ret;
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int generic_mtd_write_next_bl(void *priv, const struct data_part_entry *dpe,
 +			      const void *data, size_t size)
@@ -485,9 +466,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_mtd_legacy.c b/board/mediatek/common/bootmenu_mtd_legacy.c
 index fd59e070aec..fc3ee1ee93a 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd_legacy.c
 +++ b/board/mediatek/common/bootmenu_mtd_legacy.c
 @@ -61,6 +61,15 @@ static const struct data_part_entry mtd_parts[] = {
@@ -509,7 +487,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -88,11 +97,29 @@ int board_boot_default(bool do_boot)
  	return generic_mtd_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int board_chainload_default(bool do_boot)
 +{
@@ -557,9 +535,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		.cmd = "mtkload"
 diff --git a/board/mediatek/common/bootmenu_snor_emmc.c b/board/mediatek/common/bootmenu_snor_emmc.c
 index fe97ebac37d..801da7f70f6 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_snor_emmc.c
 +++ b/board/mediatek/common/bootmenu_snor_emmc.c
 @@ -44,6 +44,19 @@ static const struct data_part_entry snor_emmc_parts[] = {
@@ -585,7 +560,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -84,11 +97,33 @@ int board_boot_default(bool do_boot)
  	return generic_mmc_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int board_chainload_default(bool do_boot)
 +{
@@ -637,9 +612,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		.cmd = "mtkload"
 diff --git a/board/mediatek/common/bootmenu_ubi.c b/board/mediatek/common/bootmenu_ubi.c
 index 6ff05e8e23c..e4f385c7c11 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_ubi.c
 +++ b/board/mediatek/common/bootmenu_ubi.c
 @@ -49,6 +49,15 @@ static const struct data_part_entry mtd_parts[] = {
@@ -661,7 +633,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -78,11 +87,29 @@ int board_boot_default(bool do_boot)
  	return generic_mtd_boot_image(do_boot);
  }
-
+ 
 +#ifdef CONFIG_MTK_CHAINLOAD_BL
 +int board_chainload_default(bool do_boot)
 +{
@@ -710,9 +682,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/cmd_mtkchainload.c b/board/mediatek/common/cmd_mtkchainload.c
 new file mode 100644
 index 00000000000..a60810c40d1
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- /dev/null
 +++ b/board/mediatek/common/cmd_mtkchainload.c
 @@ -0,0 +1,47 @@
@@ -765,9 +734,6 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +);
 diff --git a/board/mediatek/common/mmc_helper.c b/board/mediatek/common/mmc_helper.c
 index fab01ae7925..11cd1f6be69 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mmc_helper.c
 +++ b/board/mediatek/common/mmc_helper.c
 @@ -820,6 +820,7 @@ static int mmc_set_fdtargs_basic(struct mmc *mmc)
@@ -777,11 +743,11 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +	bool is_legacy = false;
  	u32 size, itb_size;
  	int ret;
-
+ 
 @@ -840,6 +841,7 @@ static int _boot_from_mmc(struct mmc *mmc, u64 offset, bool do_boot)
  		if (ret)
  			return ret;
-
+ 
 +		is_legacy = true;
  		break;
  #endif
@@ -789,7 +755,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -869,9 +871,11 @@ static int _boot_from_mmc(struct mmc *mmc, u64 offset, bool do_boot)
  		return -ENOENT;
  	}
-
+ 
 -	ret = mmc_set_fdtargs_basic(mmc);
 -	if (ret)
 -		return ret;
@@ -798,20 +764,17 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +		if (ret)
 +			return ret;
 +	}
-
+ 
  	if (!do_boot)
  		return 0;
 diff --git a/board/mediatek/common/mtd_helper.c b/board/mediatek/common/mtd_helper.c
 index ae612ae0b10..949ce0a3aa4 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mtd_helper.c
 +++ b/board/mediatek/common/mtd_helper.c
 @@ -485,6 +485,28 @@ int mtd_update_generic(struct mtd_info *mtd, const void *data, size_t size,
  	return mtd_write_skip_bad(mtd, 0, size, mtd->size, NULL, data, verify);
  }
-
+ 
 +int mtd_update_partition(const char *name, const void *data, size_t size,
 +			 bool verify)
 +{
@@ -844,11 +807,11 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +	bool is_legacy = false;
  	ulong data_load_addr;
  	int ret;
-
+ 
 @@ -555,6 +578,7 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
  		if (ret)
  			return ret;
-
+ 
 +		is_legacy = true;
  		break;
  #endif
@@ -856,7 +819,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -587,9 +611,11 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
  		return -EINVAL;
  	}
-
+ 
 -	ret = mtd_set_fdtargs_basic();
 -	if (ret)
 -		return ret;
@@ -865,13 +828,13 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +		if (ret)
 +			return ret;
 +	}
-
+ 
  	if (!do_boot)
  		return 0;
 @@ -597,6 +623,27 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
  	return boot_from_mem(data_load_addr);
  }
-
+ 
 +int boot_from_mtd_partition(const char *name, bool do_boot)
 +{
 +	struct mtd_info *mtd;
@@ -899,7 +862,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -787,6 +834,34 @@ static int read_ubi_volume(const char *volume, void *buff, size_t size)
  	return ubi_volume_read((char *)volume, buff, 0, size);
  }
-
+ 
 +int ubi_update_volume(const char *name, const void *data, size_t size)
 +{
 +	struct mtd_info *mtd;
@@ -934,7 +897,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 @@ -1279,6 +1354,40 @@ static int boot_from_ubi(struct mtd_info *mtd, bool do_boot)
  	return boot_from_mem(data_load_addr);
  }
-
+ 
 +int boot_from_ubi_volume(const char *name, bool do_boot)
 +{
 +	ulong data_load_addr = get_load_addr();
@@ -974,13 +937,10 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  	return ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ';
 diff --git a/board/mediatek/common/mtd_helper.h b/board/mediatek/common/mtd_helper.h
 index 77e49effabc..0296f1eb28b 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mtd_helper.h
 +++ b/board/mediatek/common/mtd_helper.h
 @@ -27,7 +27,11 @@ int mtd_read_skip_bad(struct mtd_info *mtd, u64 offset, size_t size,
-
+ 
  int mtd_update_generic(struct mtd_info *mtd, const void *data, size_t size,
  		       bool verify);
 +int mtd_update_partition(const char *name, const void *data, size_t size,
@@ -988,41 +948,38 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 +
  int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot);
 +int boot_from_mtd_partition(const char *name, bool do_boot);
-
+ 
  void gen_mtd_probe_devices(void);
-
+ 
 @@ -36,12 +40,20 @@ int update_ubi_volume_raw(struct ubi_volume *vol, const char *volume,
  			  int vol_id, const void *data, size_t size,
  			  uint64_t reserved_size, bool dynamic);
-
+ 
 +int ubi_update_volume(const char *name, const void *data, size_t size);
 +
 +int boot_from_ubi_volume(const char *name, bool do_boot);
 +
  void ubi_import_bsp_conf(void);
  int ubi_update_bsp_conf(const void *bspconf, uint32_t index);
-
+ 
  int mtd_upgrade_image(const void *data, size_t size);
  int mtd_boot_image(bool do_boot);
-
+ 
 +int mtd_boot_standalone_image(const char *name, bool bypass_ubi, bool do_boot);
 +int mtd_upgrade_standalone_image(const char *name, bool bypass_ubi,
 +				 const void *data, size_t size);
 +
  void mtd_boot_set_defaults(void *fdt);
-
+ 
  #endif /* _MTD_HELPER_H_ */
 diff --git a/board/mediatek/common/verify_helper.c b/board/mediatek/common/verify_helper.c
 index 82f973e4e7f..7b510522fbd 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/verify_helper.c
 +++ b/board/mediatek/common/verify_helper.c
 @@ -480,6 +480,43 @@ bool verify_image_ram(const void *data, size_t size, u32 block_size,
  				 ii->rootfs_size, rootfs_hashes);
  }
-
+ 
 +/**
 + * verify_standalone_image_ram() - Parse and verify standalone image
 + *
@@ -1065,20 +1022,17 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
   *
 diff --git a/board/mediatek/common/verify_helper.h b/board/mediatek/common/verify_helper.h
 index 3c93e4335c6..75d9e72b375 100644
-
-
-Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/verify_helper.h
 +++ b/board/mediatek/common/verify_helper.h
 @@ -40,6 +40,8 @@ bool verify_image_ram(const void *data, size_t size, u32 block_size,
  		      struct fit_hashes *kernel_hashes,
  		      struct fit_hashes *rootfs_hashes);
-
+ 
 +bool verify_standalone_image_ram(const void *data, size_t size);
 +
  bool read_verify_kernel(struct image_read_priv *rpriv, void *ptr, u64 addr,
  			size_t max_size, size_t *actual_size,
  			struct fit_hashes *hashes);
---
+-- 
 2.45.2
 

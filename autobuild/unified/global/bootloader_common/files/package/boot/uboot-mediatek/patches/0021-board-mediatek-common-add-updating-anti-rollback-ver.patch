@@ -1,0 +1,58 @@
+From 37261592c21852b7ff51c351e1c5bc65808f92a2 Mon Sep 17 00:00:00 2001
+From: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+Date: Mon, 3 Nov 2025 19:58:35 +0800
+Subject: [PATCH 21/23] board: mediatek: common: add updating anti-rollback
+ version option
+
+[Description]
+Add updating anti-rollback version option to decide whether FW version
+should be updated during u-boot. Enable by default to ensure
+compatibility. If disable the option, one should make sure the FW
+version is updated by proper handler in later stage.
+
+[Release-Log]
+N/A
+
+Change-Id: Ic3b8028afe306614bbf98b9d7d2d3b94aafbfc1e
+Signed-off-by: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+CR-Id: WCNCR00402800
+---
+ board/mediatek/Kconfig              | 8 ++++++++
+ board/mediatek/common/boot_helper.c | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/board/mediatek/Kconfig b/board/mediatek/Kconfig
+index a0ca5cb6292..3ed7a394525 100644
+--- a/board/mediatek/Kconfig
++++ b/board/mediatek/Kconfig
+@@ -349,6 +349,14 @@ config MTK_ANTI_ROLLBACK
+ 	  Enable this option will allow boards to verify Firmware Anti-rollback
+ 	  Version.
+ 
++config MTK_AR_UPDATE_AR_VER
++	bool "Enable U-boot to update FW anti-rollback version"
++	default y
++	depends on MTK_ANTI_ROLLBACK
++	help
++	  Enable this option will allow boards to update Firmware Anti-rollback
++	  Version.
++
+ config MTK_EFUSE
+ 	bool
+ 	default n
+diff --git a/board/mediatek/common/boot_helper.c b/board/mediatek/common/boot_helper.c
+index d3b36c3b48a..76af81f4409 100644
+--- a/board/mediatek/common/boot_helper.c
++++ b/board/mediatek/common/boot_helper.c
+@@ -693,7 +693,7 @@ void board_prep_linux(struct bootm_headers *images)
+ 
+ 	fdt_shrink_to_minimum(fdt, 0);
+ 
+-#ifdef CONFIG_MTK_ANTI_ROLLBACK
++#ifdef CONFIG_MTK_AR_UPDATE_AR_VER
+ 	ret = mtk_ar_update_fw_ar_ver(images->fw_ar_ver);
+ 	if (ret) {
+ 		panic("Error: failed to update FW anti-rollback version\n");
+-- 
+2.45.2
+

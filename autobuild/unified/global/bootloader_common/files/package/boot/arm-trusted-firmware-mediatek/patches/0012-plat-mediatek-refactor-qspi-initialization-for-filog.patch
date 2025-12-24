@@ -1,0 +1,286 @@
+[PATCH 6/7] plat: mediatek: refactor qspi initialization for filogic
+
+Add mtk_plat_qspi_init() for each platform to initialize their qspi
+controller. Also remove mtk_plat_get_qspi_src_clk()
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+---
+ .../apsoc_common/bl2/bl2_dev_spi_nand_init.c        | 13 +++++++------
+ .../apsoc_common/bl2/bl2_dev_spi_nor_init.c         |  7 ++-----
+ plat/mediatek/apsoc_common/bl2/bl2_plat_setup.h     |  2 +-
+ plat/mediatek/mt7981/bl2/bl2_dev_spi_nand.c         |  5 +++--
+ plat/mediatek/mt7981/bl2/bl2_dev_spi_nor.c          |  5 +++--
+ plat/mediatek/mt7986/bl2/bl2_dev_qspi.c             |  5 +++--
+ plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c         |  5 +++--
+ plat/mediatek/mt7987/bl2/bl2_dev_spi_nor.c          |  5 +++--
+ plat/mediatek/mt7988/bl2/bl2_dev_spi_nand.c         |  5 +++--
+ plat/mediatek/mt7988/bl2/bl2_dev_spi_nor.c          |  5 +++--
+ 10 files changed, 31 insertions(+), 26 deletions(-)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nand_init.c
++++ b/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nand_init.c
+@@ -15,22 +15,23 @@ int mtk_plat_nand_setup(size_t *page_siz
+ 	struct nand_device *nand_dev;
+ 	unsigned long long chip_size;
+ 	unsigned int erase_size;
+-	uint32_t src_clk;
+ 	int ret;
+
+-	src_clk = mtk_plat_get_qspi_src_clk();
+-
+ 	mtk_qspi_setup_buffer((void *)QSPI_BUF_OFFSET);
+
+-	ret = mtk_qspi_init(src_clk);
++	ret = mtk_plat_qspi_init();
+ 	if (ret) {
+-		ERROR("mtk_qspi_init() failed with %d\n", ret);
++		ERROR("Failed to initialize SPI controller, error %d\n", ret);
+ 		return ret;
+ 	}
+
+ 	ret = spi_nand_init(&chip_size, &erase_size);
+ 	if (ret) {
+-		ERROR("spi_nand_init() failed with %d\n", ret);
++		if (ret == -ENODEV)
++			ERROR("No SPI-NAND flash present\n");
++		else if (ret != -ENOENT)
++			ERROR("Failed to initialize SPI-NAND, error %d\n", ret);
++
+ 		return ret;
+ 	}
+
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nor_init.c
++++ b/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nor_init.c
+@@ -13,16 +13,13 @@
+ int mtk_plat_nor_setup(void)
+ {
+ 	unsigned long long size;
+-	uint32_t src_clk;
+ 	int ret;
+
+-	src_clk = mtk_plat_get_qspi_src_clk();
+-
+ 	mtk_qspi_setup_buffer((void *)QSPI_BUF_OFFSET);
+
+-	ret = mtk_qspi_init(src_clk);
++	ret = mtk_plat_qspi_init();
+ 	if (ret) {
+-		ERROR("mtk_qspi_init() failed with %d\n", ret);
++		ERROR("Failed to initialize SPI controller, error %d\n", ret);
+ 		return ret;
+ 	}
+
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/apsoc_common/bl2/bl2_plat_setup.h
++++ b/plat/mediatek/apsoc_common/bl2/bl2_plat_setup.h
+@@ -63,6 +63,6 @@ void mtk_plat_fip_location(size_t *fip_o
+ struct mtk_snand_platdata;
+ const struct mtk_snand_platdata *mtk_plat_get_snfi_platdata(void);
+
+-uint32_t mtk_plat_get_qspi_src_clk(void);
++int mtk_plat_qspi_init(void);
+
+ #endif /* BL2_PLAT_SETUP_H */
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7981/bl2/bl2_dev_spi_nand.c
++++ b/plat/mediatek/mt7981/bl2/bl2_dev_spi_nand.c
+@@ -7,13 +7,14 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x380000
+ #define FIP_SIZE			0x200000
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SPIM0);
+@@ -21,7 +22,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7981/bl2/bl2_dev_spi_nor.c
++++ b/plat/mediatek/mt7981/bl2/bl2_dev_spi_nor.c
+@@ -7,13 +7,14 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x100000
+ #define FIP_SIZE			0x80000
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SPIM2);
+@@ -21,7 +22,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7986/bl2/bl2_dev_qspi.c
++++ b/plat/mediatek/mt7986/bl2/bl2_dev_qspi.c
+@@ -5,10 +5,11 @@
+  */
+
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define MTK_QSPI_SRC_CLK		CLK_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init();
+@@ -16,5 +17,5 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c
++++ b/plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c
+@@ -6,6 +6,7 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x580000
+ #define FIP_SIZE			0x200000
+@@ -20,7 +21,7 @@
+ #error "Invalid SPI controller selection"
+ #endif
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SELECTED_SPIM);
+@@ -28,7 +29,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7987/bl2/bl2_dev_spi_nor.c
++++ b/plat/mediatek/mt7987/bl2/bl2_dev_spi_nor.c
+@@ -6,13 +6,14 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x250000
+ #define FIP_SIZE			0x80000
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SPIM2);
+@@ -20,7 +21,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7988/bl2/bl2_dev_spi_nand.c
++++ b/plat/mediatek/mt7988/bl2/bl2_dev_spi_nand.c
+@@ -7,13 +7,14 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x580000
+ #define FIP_SIZE			0x200000
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SPIM0);
+@@ -21,7 +22,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+
+Change-Id: I287012b798d82fb13fe3db4fb066ecf433b5aff3
+--- a/plat/mediatek/mt7988/bl2/bl2_dev_spi_nor.c
++++ b/plat/mediatek/mt7988/bl2/bl2_dev_spi_nor.c
+@@ -7,13 +7,14 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <boot_spi.h>
++#include <mtk_spi.h>
+
+ #define FIP_BASE			0x250000
+ #define FIP_SIZE			0x80000
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-uint32_t mtk_plat_get_qspi_src_clk(void)
++int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+ 	mtk_spi_gpio_init(SPIM2);
+@@ -21,7 +22,7 @@ uint32_t mtk_plat_get_qspi_src_clk(void)
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return MTK_QSPI_SRC_CLK;
++	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
+ }
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)

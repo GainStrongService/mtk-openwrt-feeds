@@ -1,0 +1,242 @@
+[PATCH 5/7] plat: mediatek: prettify the output of spi-nand driver
+
+Print only one error message.
+Also print flash vendor and model if exists.
+Print full ID if probed by ID.
+
+Change-Id: I532b62dc5674d46ee1ddd58e878c285f4fdb658d
+---
+ .../drivers/spi_nand/mtk_spi_nand.c           | 118 +++++++++++-------
+ .../drivers/spi_nand/mtk_spi_nand.h           |   2 +-
+ 2 files changed, 75 insertions(+), 45 deletions(-)
+diff --git a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
+index 4dc03ff02..16f3dbf06 100644
+
+Change-Id: I532b62dc5674d46ee1ddd58e878c285f4fdb658d
+--- a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
++++ b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.c
+@@ -706,9 +706,6 @@ const struct spi_nand_info *get_spi_nand(uint8_t *id, uint8_t *vendor_id)
+
+ 		if (j == nand_id.id_len) {
+ 			*vendor_id = id[id_dummy + 0];
+-			NOTICE("Recognized SPI-NAND ID: 0x%x 0x%x 0x%x\n",
+-				id[id_dummy + 0], id[id_dummy+ 1],
+-				id[id_dummy + 2]);
+ 			return &spi_nand_flash[i];
+ 		}
+ 	}
+@@ -720,6 +717,9 @@ static int spi_nand_set_data_via_id(struct spinand_device *device, uint8_t *id,
+ 				    uint8_t *vendor_id)
+ {
+ 	const struct spi_nand_info *nand_info;
++	uint32_t i, d = 0, len = 0;
++	char idstr[32];
++	int ret;
+
+ 	nand_info = get_spi_nand(id, vendor_id);
+ 	if (nand_info) {
+@@ -741,18 +741,66 @@ static int spi_nand_set_data_via_id(struct spinand_device *device, uint8_t *id,
+ 			device->spi_read_cache_op.data.buswidth =
+ 				SPI_MEM_BUSWIDTH_1_LINE;
+ 		}
++
++		if (nand_info->nand_id.id_dummy)
++			d = 1;
++
++		for (i = 0; i < nand_info->nand_id.id_len; i++) {
++			ret = snprintf(idstr + len,
++				       sizeof(idstr) - len, "%02X ", id[d + i]);
++			len += ret;
++		}
++
++		if (idstr[len - 1] == ' ')
++			idstr[len - 1] = 0;
++
++		NOTICE("SPI-NAND probed by ID: %s\n", idstr);
++		NOTICE("SPI-NAND: %s (%lluMB)\n", spi_nand_flash[i].model,
++		       device->nand_dev->size >> 20);
++
+ 		return 0;
+ 	}
+
+-	ERROR("Unrecognized SPI-NAND ID: 0x%x 0x%x 0x%x 0x%x\n",
+-		    id[0], id[1], id[2], id[3]);
++	for (i = 1; i < 4; i++) {
++		if (id[i] != id[0]) {
++			WARN("Unrecognized SPI-NAND ID: 0x%x 0x%x 0x%x 0x%x\n",
++	 		    id[0], id[1], id[2], id[3]);
++			return -ENOENT;
++		}
++	}
+
+ 	return -ENODEV;
+ }
+
++static void sanitize_string(char *s, size_t len)
++{
++	int i;
++	size_t size;
++	char *end;
++
++	size = strlen(s);
++	if (!size)
++		return;
++
++	/* Remove non printable chars */
++	for (i = 0; i < len - 1; i++) {
++		if (s[i] < ' ' || s[i] > 127)
++			s[i] = '?';
++	}
++
++	/* Remove trailing spaces */
++	end = s + size - 1;
++	while(end >= s && isspace(*end))
++		end --;
++	*(end + 1) = '\0';
++}
++
+ static void spi_nand_set_data_via_pp(struct nand_device *nand_dev,
+ 				     struct parameter_page *pp)
+ {
++	char manufacturer[14];
++	char model[21];
++
+ 	nand_dev->page_size = htole32(pp->page_size);
+ 	nand_dev->oob_size = htole32(pp->spare_per_page);
+ 	nand_dev->nb_planes = pp->plane_addr_bits + 1;
+@@ -785,12 +833,21 @@ static void spi_nand_set_data_via_pp(struct nand_device *nand_dev,
+ 			break;
+ 	}
+
+-	NOTICE("SPI_NAND parses attributes from parameter page.\n");
++	strlcpy(manufacturer, pp->device_manufacturer, sizeof(pp->device_manufacturer));
++	sanitize_string(manufacturer, sizeof(manufacturer));
++	strlcpy(model, pp->device_model, sizeof(pp->device_model));
++	sanitize_string(model, sizeof(model));
++
++	NOTICE("SPI-NAND probed by parameter page\n");
++	NOTICE("SPI-NAND: %s %s (%lluMB)\n", manufacturer, model, nand_dev->size >> 20);
+ }
+
+ static void spi_nand_set_data_via_casn(struct nand_device *nand_dev,
+ 				       struct casn_page *casn)
+ {
++	char manufacturer[14];
++	char model[17];
++
+ 	nand_dev->page_size = be32toh(casn->bytes_per_page);
+ 	nand_dev->oob_size = be32toh(casn->spare_bytes_per_page);
+ 	nand_dev->nb_planes = be32toh(casn->planes_per_lun);
+@@ -802,30 +859,13 @@ static void spi_nand_set_data_via_casn(struct nand_device *nand_dev,
+ 			 be32toh(casn->pages_per_block) *
+ 			 be32toh(casn->bytes_per_page);
+
+-	NOTICE("SPI_NAND parses attributes from CASN page.\n");
+-}
+-
+-void sanitize_string(char *s, size_t len)
+-{
+-	int i;
+-	size_t size;
+-	char *end;
+-
+-	size = strlen(s);
+-	if (!size)
+-		return;
++	strlcpy(manufacturer, casn->manufacturer, sizeof(casn->manufacturer));
++	sanitize_string(manufacturer, sizeof(manufacturer));
++	strlcpy(model, casn->model, sizeof(casn->model));
++	sanitize_string(model, sizeof(model));
+
+-	/* Remove non printable chars */
+-	for (i = 0; i < len - 1; i++) {
+-		if (s[i] < ' ' || s[i] > 127)
+-			s[i] = '?';
+-	}
+-
+-	/* Remove trailing spaces */
+-	end = s + size - 1;
+-	while(end >= s && isspace(*end))
+-		end --;
+-	*(end + 1) = '\0';
++	NOTICE("SPI-NAND probed by CASN page\n");
++	NOTICE("SPI-NAND: %s %s (%lluMB)\n", manufacturer, model, nand_dev->size >> 20);
+ }
+
+ int spi_nand_init(unsigned long long *size, unsigned int *erase_size)
+@@ -838,8 +878,6 @@ int spi_nand_init(unsigned long long *size, unsigned int *erase_size)
+ 	uint8_t sel = 0; /* Parameter page select copy, from 0 to 2 */
+ 	int ret;
+ 	bool use_casn = false;
+-	char manufacturer[14];
+-	char model[17];
+
+ 	zeromem(&spinand_dev, sizeof(spinand_dev));
+
+@@ -871,7 +909,6 @@ int spi_nand_init(unsigned long long *size, unsigned int *erase_size)
+ 	goto success;
+
+ fallback_pp:
+-	WARN("CASN page may not exist. Try to read parameter page.\n");
+ 	sel = 0;
+ 	pp = (struct parameter_page *)buf;
+ 	ret = spi_nand_read_pp(pp, &sel);
+@@ -883,7 +920,6 @@ fallback_pp:
+ 	goto success;
+
+ fallback_id:
+-	WARN("Parameter page may not exist. Try to read ID.\n");
+ 	ret = spi_nand_read_id(id);
+ 	if (ret) {
+ 		return ret;
+@@ -918,27 +954,21 @@ success:
+ 	}
+
+ 	if (use_casn) {
+-		strlcpy(manufacturer, casn[sel].manufacturer, sizeof(manufacturer));
+-		sanitize_string(manufacturer, sizeof(manufacturer));
+-		strlcpy(model, casn[sel].model, sizeof(model));
+-		sanitize_string(model, sizeof(model));
+-
+ 		ret = spi_nand_quad_enable_via_casn(casn + sel);
+ 		if (ret != 0) {
+ 			return ret;
+ 		}
+-		NOTICE("Detected SPI-NAND: %s %s\n", manufacturer, model);
+ 	} else {
+ 		ret = spi_nand_quad_enable(vendor_id);
+ 		if (ret != 0) {
+ 			return ret;
+ 		}
+-		NOTICE("SPI_NAND Detected ID 0x%x\n", vendor_id);
+ 	}
+-	NOTICE("Page size %i, Block size %i, size %lli\n",
+-		spinand_dev.nand_dev->page_size,
+-		spinand_dev.nand_dev->block_size,
+-		spinand_dev.nand_dev->size);
++
++	NOTICE("SPI-NAND: Page size: %uKB+%u, Block size: %uKB\n",
++		spinand_dev.nand_dev->page_size >> 10,
++		spinand_dev.nand_dev->oob_size,
++		spinand_dev.nand_dev->block_size >> 10);
+
+ 	*size = spinand_dev.nand_dev->size;
+ 	*erase_size = spinand_dev.nand_dev->block_size;
+diff --git a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.h b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.h
+index f908124fb..59c95d2ce 100644
+
+Change-Id: I532b62dc5674d46ee1ddd58e878c285f4fdb658d
+--- a/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.h
++++ b/plat/mediatek/apsoc_common/drivers/spi_nand/mtk_spi_nand.h
+@@ -188,7 +188,7 @@ struct parameter_page {
+ 	uint16_t feature_sup;
+ 	uint16_t option_cmd_sup;
+ 	uint8_t reserved_1[22];
+-	uint8_t device_manufacturer[12];
++	char device_manufacturer[12];
+ 	char device_model[20];
+ 	uint8_t manufactuere_id;
+ 	uint16_t date_code;
+--
+2.45.2
+

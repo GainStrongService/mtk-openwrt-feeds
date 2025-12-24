@@ -1,5 +1,21 @@
+From 559a246da75b3c8be7489859f572618963022010 Mon Sep 17 00:00:00 2001
+From: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+Date: Thu, 14 Aug 2025 14:13:44 +0800
+Subject: [PATCH 09/23] board: mediatek: cleanup encryption environment before
+ booting kernel
+
+[Description]
+cleanup encryption environment before booting kernel. Since each FIT
+node is decrypted separately, TEE cannot know when all encryption are
+done. u-boot needs to invoke the cleanup function explicitly to tell TEE
+to cleanup the encryption environment, especially encryption keys.
+
+[Release-Log]
+N/A
 
 Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+Signed-off-by: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+CR-Id: WCNCR00402800
 ---
  board/mediatek/common/Makefile      |  1 +
  board/mediatek/common/boot_helper.c |  7 +++++++
@@ -9,18 +25,20 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
  create mode 100644 board/mediatek/common/fw_dec.c
  create mode 100644 board/mediatek/common/fw_dec.h
 
-Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+diff --git a/board/mediatek/common/Makefile b/board/mediatek/common/Makefile
+index c085f3f8ca6..3b0d4f81447 100644
 --- a/board/mediatek/common/Makefile
 +++ b/board/mediatek/common/Makefile
-@@ -53,5 +53,6 @@ obj-$(CONFIG_ENABLE_NAND_NMBM) += nmbm.o
-
+@@ -53,6 +53,7 @@ obj-$(CONFIG_ENABLE_NAND_NMBM) += nmbm.o
+ 
  obj-$(CONFIG_MTK_MISC_CUSTOMIZED) += customizations/
-
+ 
 +obj-$(CONFIG_MTK_FW_ENCRYPT) += fw_dec.o
  obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_BL31) += mtk_aes_decrypt.o
  obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
-
-Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+ 
+diff --git a/board/mediatek/common/boot_helper.c b/board/mediatek/common/boot_helper.c
+index da7efee2f43..152caf50138 100644
 --- a/board/mediatek/common/boot_helper.c
 +++ b/board/mediatek/common/boot_helper.c
 @@ -21,6 +21,7 @@
@@ -28,13 +46,13 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
  #include "dual_boot.h"
  #include "dm_parser.h"
 +#include "fw_dec.h"
-
+ 
  #define ARGLIST_INCR				20
-
-@@ -632,6 +633,12 @@ void board_prep_linux(struct bootm_heade
+ 
+@@ -632,6 +633,12 @@ void board_prep_linux(struct bootm_headers *images)
  	u32 newlen;
  	int ret;
-
+ 
 +#ifdef CONFIG_MTK_FW_ENCRYPT
 +	ret = fw_dec_cleanup();
 +	if (ret)
@@ -44,8 +62,9 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
  	if (!(CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len)) {
  		printf("Warning: no FDT present for current image!\n");
  		return;
-
-Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+diff --git a/board/mediatek/common/fw_dec.c b/board/mediatek/common/fw_dec.c
+new file mode 100644
+index 00000000000..27c5c4573db
 --- /dev/null
 +++ b/board/mediatek/common/fw_dec.c
 @@ -0,0 +1,18 @@
@@ -67,8 +86,9 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
 +
 +	return res.a0;
 +}
-
-Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+diff --git a/board/mediatek/common/fw_dec.h b/board/mediatek/common/fw_dec.h
+new file mode 100644
+index 00000000000..da05b005aaa
 --- /dev/null
 +++ b/board/mediatek/common/fw_dec.h
 @@ -0,0 +1,11 @@
@@ -83,3 +103,6 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
 +int fw_dec_cleanup(void);
 +
 +#endif /* _FW_DEC_H_ */
+-- 
+2.45.2
+

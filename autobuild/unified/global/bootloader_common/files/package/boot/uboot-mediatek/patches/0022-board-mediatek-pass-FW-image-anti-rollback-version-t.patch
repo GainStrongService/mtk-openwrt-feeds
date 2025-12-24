@@ -1,0 +1,81 @@
+From 7afe9b1b77f072c3bf08e0df9bb49065297913e7 Mon Sep 17 00:00:00 2001
+From: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+Date: Mon, 3 Nov 2025 20:10:40 +0800
+Subject: [PATCH 22/23] board: mediatek: pass FW image anti-rollback version to
+ device tree
+
+[Description]
+Pass FW image anti-rollback version to device tree for later updating.
+
+[Release-Log]
+N/A
+
+Change-Id: I222c388bd466b2aa385f9336caaa7b90311e8bd6
+Signed-off-by: Tim-cy Yang <Tim-cy.Yang@mediatek.com>
+CR-Id: WCNCR00402800
+---
+ board/mediatek/common/boot_helper.c | 12 ++++++++++++
+ board/mediatek/common/mtk_ar.c      | 15 +++++++++++++++
+ board/mediatek/common/mtk_ar.h      |  2 ++
+ 3 files changed, 29 insertions(+)
+
+diff --git a/board/mediatek/common/boot_helper.c b/board/mediatek/common/boot_helper.c
+index 76af81f4409..6506847402e 100644
+--- a/board/mediatek/common/boot_helper.c
++++ b/board/mediatek/common/boot_helper.c
+@@ -685,6 +685,18 @@ void board_prep_linux(struct bootm_headers *images)
+ 		}
+ 	}
+ 
++#ifdef CONFIG_MTK_ANTI_ROLLBACK
++	nodeoffset = fdt_find_or_add_subnode(fdt, 0, "chosen");
++	if (nodeoffset < 0)
++		return;
++
++	ret = mtk_ar_set_fdt_fw_ar_ver(fdt, nodeoffset, images->fw_ar_ver);
++	if (ret) {
++		panic("Error: failed to set anti-rollback version\n");
++		return;
++	}
++#endif
++
+ 	ret = fdt_root_prop_merge(fdt);
+ 	if (ret) {
+ 		panic("Error: failed to set FDT root props\n");
+diff --git a/board/mediatek/common/mtk_ar.c b/board/mediatek/common/mtk_ar.c
+index 0f9f12e7a65..855b62d140b 100644
+--- a/board/mediatek/common/mtk_ar.c
++++ b/board/mediatek/common/mtk_ar.c
+@@ -131,3 +131,18 @@ int mtk_ar_update_fw_ar_ver(uint32_t ar_ver)
+ 	sip_lock_ar_ver();
+ 	return ret;
+ }
++
++int mtk_ar_set_fdt_fw_ar_ver(void *fdt, int noffset, uint32_t ar_ver)
++{
++	char buf[4] = "";
++	int len;
++
++	if (!fdt || noffset < 0)
++		return -EINVAL;
++
++	len = snprintf(buf, sizeof(buf), "%u", ar_ver);
++	if (len < 0 || len >= sizeof(buf))
++		return -EINVAL;
++
++	return fdt_setprop(fdt, noffset, FIT_FW_AR_VER_PROP, buf, len + 1);
++}
+diff --git a/board/mediatek/common/mtk_ar.h b/board/mediatek/common/mtk_ar.h
+index cfce4d3c613..9b7680a6bb2 100644
+--- a/board/mediatek/common/mtk_ar.h
++++ b/board/mediatek/common/mtk_ar.h
+@@ -11,4 +11,6 @@ int fit_config_ar_ver_verify(const void *fit, int conf_noffset,
+ 
+ int mtk_ar_update_fw_ar_ver(uint32_t ar_ver);
+ 
++int mtk_ar_set_fdt_fw_ar_ver(void *fdt, int noffset, uint32_t ar_ver);
++
+ #endif /* _MTK_AR_H_ */
+-- 
+2.45.2
+

@@ -33,6 +33,10 @@ platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-sd
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-spim-nand
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-spim-nand-nmbm
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-emmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-sdmmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-snand
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-snand-nmbm
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-emmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-sd
@@ -47,12 +51,10 @@ platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-sd
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-spim-nand-nmbm
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-emmc
-	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-sdmmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-snand
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-snand-nmbm
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-poe-emmc
-	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-poe-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-poe-sdmmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-poe-snand
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_bananapi_bpi-r4-poe-snand-nmbm
@@ -83,11 +85,13 @@ filogic_collect_bootloader_images() {
 		local subfolder=""
 
 		case "$file_name" in
-			mt7981*)	subfolder="bootloader-mt7981" ;;
-			mt7986*)	subfolder="bootloader-mt7986" ;;
-			mt7987*)	subfolder="bootloader-mt7987" ;;
-			mt7988*)	subfolder="bootloader-mt7988" ;;
-			*)		subfolder="" ;;
+			mt7981*)		subfolder="bootloader-mt7981" ;;
+			mt7986*)		subfolder="bootloader-mt7986" ;;
+			mt7987*)		subfolder="bootloader-mt7987" ;;
+			bananapi_bpi-r4-lite*)	subfolder="bootloader-mt7987" ;;
+			mt7988*)		subfolder="bootloader-mt7988" ;;
+			bananapi_bpi-r4*)	subfolder="bootloader-mt7988" ;;
+			*)			subfolder="" ;;
 		esac
 
 		if [ -n "$subfolder" ]; then

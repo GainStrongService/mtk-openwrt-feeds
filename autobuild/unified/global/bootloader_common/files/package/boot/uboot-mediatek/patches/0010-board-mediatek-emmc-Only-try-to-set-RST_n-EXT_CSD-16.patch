@@ -1,0 +1,43 @@
+From 45be386eb0fa5661d0804908cad6fe196052355c Mon Sep 17 00:00:00 2001
+From: Sky Huang <skylake.huang@mediatek.com>
+Date: Thu, 2 Oct 2025 17:48:37 +0800
+Subject: [PATCH 10/23] board: mediatek: emmc: Only try to set
+ RST_n(EXT_CSD[162]) when it is 0x0
+
+[Description]
+For some eMMC devices, such as Macronix MX52LM04A11/MX52LM08A11,
+if you try to set RST_n as 1 twice via CMD13, it will output
+SWITCH_ERROR.
+
+According to JEDEC eMMC 5.1 spec, EXT_CSD[162] cell type is R/W,
+which means "one time programmable and readable". Therefore, the
+above behaviors are reasonable. And that's why we only try to set
+RST_n when it is 0x0.
+
+[Release-log]
+N/A
+
+Change-Id: I1e144fcc20064489b3773304d02cfb585e872ab4
+Signed-off-by: Sky Huang <skylake.huang@mediatek.com>
+CR-Id: WCNCR00270499
+---
+ board/mediatek/common/mmc_helper.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/board/mediatek/common/mmc_helper.c b/board/mediatek/common/mmc_helper.c
+index 11cd1f6be69..70d7d0e16e6 100644
+--- a/board/mediatek/common/mmc_helper.c
++++ b/board/mediatek/common/mmc_helper.c
+@@ -697,6 +697,9 @@ void mmc_setup_boot_options(u32 dev)
+ 			 ret);
+ 	}
+ 
++	/* Only try to set RST_n to permanent enabled when it is 0x0 */
++	if(mmc->ext_csd[EXT_CSD_RST_N_FUNCTION])
++		return;
+ 	ret = mmc_set_rst_n_function(mmc, 1);
+ 	if (ret) {
+ 		cprintln(ERROR,
+-- 
+2.45.2
+

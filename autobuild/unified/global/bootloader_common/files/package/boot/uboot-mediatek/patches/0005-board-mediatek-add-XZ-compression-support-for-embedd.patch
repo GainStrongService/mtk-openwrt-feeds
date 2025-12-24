@@ -1,0 +1,272 @@
+From f8d0fc93d8bb56204c32de506e003d1f475c3d80 Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Mon, 11 Aug 2025 11:30:57 +0800
+Subject: [PATCH 05/23] board: mediatek: add XZ compression support for
+ embedded firmwares
+
+Add support to decompress XZ-compressed firmware data before passing
+to drivers.
+
+Not that the data must be compressed with XZ crc32 support, e.g.:
+xz -e -k -9 -C crc32 -c fw.bin > fw.xz
+
+Change-Id: I5f06993ea2dd2f3b20c78701989597a687642424
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
+---
+ board/mediatek/common/unxz.c       |  2 ++
+ board/mediatek/common/unxz.h       |  2 ++
+ board/mediatek/mt7987/Makefile     |  4 +++
+ board/mediatek/mt7987/i2p5ge_fw.S  |  8 +++++
+ board/mediatek/mt7987/mt7987_rfb.c | 54 ++++++++++++++++++++++++++++++
+ board/mediatek/mt7988/Makefile     |  4 +++
+ board/mediatek/mt7988/i2p5ge_fw.S  |  4 +++
+ board/mediatek/mt7988/mt7988_rfb.c | 29 ++++++++++++++++
+ 8 files changed, 107 insertions(+)
+
+diff --git a/board/mediatek/common/unxz.c b/board/mediatek/common/unxz.c
+index 3cd9c9331fe..29fee1bb21c 100644
+--- a/board/mediatek/common/unxz.c
++++ b/board/mediatek/common/unxz.c
+@@ -26,6 +26,8 @@ static bool xz_crc64_initialized;
+ void xz_crc64_init(void);
+ #endif
+ 
++const uint8_t xz_magic[6] = { 0xFD, '7', 'z', 'X', 'Z', 0x00 };
++
+ void *xz_malloc(size_t size)
+ {
+ 	return malloc(size);
+diff --git a/board/mediatek/common/unxz.h b/board/mediatek/common/unxz.h
+index 19975ed4f80..240fa846574 100644
+--- a/board/mediatek/common/unxz.h
++++ b/board/mediatek/common/unxz.h
+@@ -17,6 +17,8 @@
+ #define XZ_INTERNAL_CRC32	1
+ #endif
+ 
++extern const uint8_t xz_magic[6];
++
+ int unxz(const void *in_buf, size_t in_len, size_t *out_len,
+ 	 const void *out_buf, size_t out_buf_size);
+ 
+diff --git a/board/mediatek/mt7987/Makefile b/board/mediatek/mt7987/Makefile
+index ef8c8257163..35912c5affc 100644
+--- a/board/mediatek/mt7987/Makefile
++++ b/board/mediatek/mt7987/Makefile
+@@ -3,4 +3,8 @@
+ obj-y	+= mt7987_rfb.o
+ obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
+ 
++ifdef CONFIG_XZ
++$(obj)/i2p5ge_fw.o: mt7987-i2p5ge-phy-pmb.xz mt7987-i2p5ge-phy-DSPBitTb.xz FORCE
++else
+ $(obj)/i2p5ge_fw.o: mt7987-i2p5ge-phy-pmb.bin mt7987-i2p5ge-phy-DSPBitTb.bin FORCE
++endif
+diff --git a/board/mediatek/mt7987/i2p5ge_fw.S b/board/mediatek/mt7987/i2p5ge_fw.S
+index dbf4ab6fa74..eae4a7b134b 100644
+--- a/board/mediatek/mt7987/i2p5ge_fw.S
++++ b/board/mediatek/mt7987/i2p5ge_fw.S
+@@ -10,7 +10,11 @@
+ 	.globl	i2p5ge_phy_pmb
+ 	.type	i2p5ge_phy_pmb, %object
+ i2p5ge_phy_pmb:
++#ifdef CONFIG_XZ
++	.incbin	"mt7987-i2p5ge-phy-pmb.xz"
++#else
+ 	.incbin	"mt7987-i2p5ge-phy-pmb.bin"
++#endif
+ 	.equ	_i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb
+ 	.size	i2p5ge_phy_pmb, _i2p5ge_phy_pmb_size
+ 
+@@ -27,7 +31,11 @@ i2p5ge_phy_pmb_size:
+ 	.globl	i2p5ge_phy_dspbit
+ 	.type	i2p5ge_phy_dspbit, %object
+ i2p5ge_phy_dspbit:
++#ifdef CONFIG_XZ
++	.incbin	"mt7987-i2p5ge-phy-DSPBitTb.xz"
++#else
+ 	.incbin	"mt7987-i2p5ge-phy-DSPBitTb.bin"
++#endif
+ 	.equ	_i2p5ge_phy_dspbit_size, . - i2p5ge_phy_dspbit
+ 	.size	i2p5ge_phy_dspbit, _i2p5ge_phy_dspbit_size
+ 
+diff --git a/board/mediatek/mt7987/mt7987_rfb.c b/board/mediatek/mt7987/mt7987_rfb.c
+index 07014082e82..1624a5d485f 100644
+--- a/board/mediatek/mt7987/mt7987_rfb.c
++++ b/board/mediatek/mt7987/mt7987_rfb.c
+@@ -4,12 +4,15 @@
+  * Author: Sam Shih <sam.shih@mediatek.com>
+  */
+ 
++#include <errno.h>
++#include <malloc.h>
+ #include <init.h>
+ #include <asm/io.h>
+ #include <asm/global_data.h>
+ #include <linux/sizes.h>
+ #include <linux/types.h>
+ #include <linux/log2.h>
++#include "../common/unxz.h"
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+@@ -45,6 +48,9 @@ ulong board_get_load_addr(void)
+ 	return gd->ram_base + half_size;
+ }
+ 
++#define MT7987_2P5GE_PMB_FW_SIZE		0x18000
++#define MT7987_2P5GE_DSPBITTB_SIZE		0x7000
++
+ extern const u8 i2p5ge_phy_pmb[];
+ extern const u32 i2p5ge_phy_pmb_size;
+ extern const u8 i2p5ge_phy_dspbit[];
+@@ -53,10 +59,58 @@ extern const u32 i2p5ge_phy_dspbit_size;
+ int mt7987_i2p5ge_get_fw(const void **fw, size_t *fwsize, const void **dspfw,
+ 			 size_t *dspfwsize)
+ {
++#ifdef CONFIG_XZ
++	void *pmb_data = NULL, *dsp_data;
++	int ret;
++
++	if (memcmp(i2p5ge_phy_pmb, xz_magic, sizeof(xz_magic))) {
++		*fw = i2p5ge_phy_pmb;
++		*fwsize = i2p5ge_phy_pmb_size;
++	} else {
++		pmb_data = malloc(MT7987_2P5GE_PMB_FW_SIZE);
++		if (!pmb_data)
++			return -ENOMEM;
++
++		ret = unxz(i2p5ge_phy_pmb, i2p5ge_phy_pmb_size, fwsize,
++			   pmb_data, MT7987_2P5GE_PMB_FW_SIZE);
++		if (ret) {
++			free(pmb_data);
++			return -1;
++		}
++
++		*fw = pmb_data;
++	}
++
++	if (memcmp(i2p5ge_phy_dspbit, xz_magic, sizeof(xz_magic))) {
++		*dspfw = i2p5ge_phy_dspbit;
++		*dspfwsize = i2p5ge_phy_dspbit_size;
++	} else {
++		dsp_data = malloc(MT7987_2P5GE_DSPBITTB_SIZE);
++		if (!dsp_data) {
++			if (pmb_data)
++				free(pmb_data);
++			return -ENOMEM;
++		}
++
++		ret = unxz(i2p5ge_phy_dspbit, i2p5ge_phy_dspbit_size, dspfwsize,
++			   dsp_data, MT7987_2P5GE_DSPBITTB_SIZE);
++		if (ret) {
++			free(dsp_data);
++
++			if (pmb_data)
++				free(pmb_data);
++
++			return -1;
++		}
++
++		*dspfw = dsp_data;
++	}
++#else
+ 	*fw = i2p5ge_phy_pmb;
+ 	*fwsize = i2p5ge_phy_pmb_size;
+ 	*dspfw = i2p5ge_phy_dspbit;
+ 	*dspfwsize = i2p5ge_phy_dspbit_size;
++#endif
+ 
+ 	return 0;
+ }
+diff --git a/board/mediatek/mt7988/Makefile b/board/mediatek/mt7988/Makefile
+index 4c38f2fdfe8..a4ebbebcba6 100644
+--- a/board/mediatek/mt7988/Makefile
++++ b/board/mediatek/mt7988/Makefile
+@@ -3,4 +3,8 @@
+ obj-y	+= mt7988_rfb.o
+ obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
+ 
++ifdef CONFIG_XZ
++$(obj)/i2p5ge_fw.o: mt7988-i2p5ge-phy-pmb.xz FORCE
++else
+ $(obj)/i2p5ge_fw.o: mt7988-i2p5ge-phy-pmb.bin FORCE
++endif
+diff --git a/board/mediatek/mt7988/i2p5ge_fw.S b/board/mediatek/mt7988/i2p5ge_fw.S
+index 44b07f3f36c..b70e4da4037 100644
+--- a/board/mediatek/mt7988/i2p5ge_fw.S
++++ b/board/mediatek/mt7988/i2p5ge_fw.S
+@@ -10,7 +10,11 @@
+ 	.globl	i2p5ge_phy_pmb
+ 	.type	i2p5ge_phy_pmb, %object
+ i2p5ge_phy_pmb:
++#ifdef CONFIG_XZ
++	.incbin	"mt7988-i2p5ge-phy-pmb.xz"
++#else
+ 	.incbin	"mt7988-i2p5ge-phy-pmb.bin"
++#endif
+ 	.equ	_i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb
+ 	.size	i2p5ge_phy_pmb, _i2p5ge_phy_pmb_size
+ 
+diff --git a/board/mediatek/mt7988/mt7988_rfb.c b/board/mediatek/mt7988/mt7988_rfb.c
+index bf2926058f8..de28282f304 100644
+--- a/board/mediatek/mt7988/mt7988_rfb.c
++++ b/board/mediatek/mt7988/mt7988_rfb.c
+@@ -4,10 +4,13 @@
+  * Author: Sam Shih <sam.shih@mediatek.com>
+  */
+ 
++#include <errno.h>
++#include <malloc.h>
+ #include <asm/io.h>
+ #include <asm/global_data.h>
+ #include <linux/sizes.h>
+ #include <linux/types.h>
++#include "../common/unxz.h"
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+@@ -86,13 +89,39 @@ int mtk_board_get_fit_conf_info(const char *name, const char **retdesc)
+ 	return -1;
+ }
+ 
++#define MT7988_2P5GE_PMB_FW_SIZE		0x20000
++
+ extern const u8 i2p5ge_phy_pmb[];
+ extern const u32 i2p5ge_phy_pmb_size;
+ 
+ int mt7988_i2p5ge_get_fw(const void **fw, size_t *size)
+ {
++#ifdef CONFIG_XZ
++	void *data;
++	int ret;
++
++	if (memcmp(i2p5ge_phy_pmb, xz_magic, sizeof(xz_magic))) {
++		*fw = i2p5ge_phy_pmb;
++		*size = i2p5ge_phy_pmb_size;
++		return 0;
++	}
++
++	data = malloc(MT7988_2P5GE_PMB_FW_SIZE);
++	if (!data)
++		return -ENOMEM;
++
++	ret = unxz(i2p5ge_phy_pmb, i2p5ge_phy_pmb_size, size, data,
++		   MT7988_2P5GE_PMB_FW_SIZE);
++	if (ret) {
++		free(data);
++		return -1;
++	}
++
++	*fw = data;
++#else
+ 	*fw = i2p5ge_phy_pmb;
+ 	*size = i2p5ge_phy_pmb_size;
++#endif
+ 
+ 	return 0;
+ }
+-- 
+2.45.2
+

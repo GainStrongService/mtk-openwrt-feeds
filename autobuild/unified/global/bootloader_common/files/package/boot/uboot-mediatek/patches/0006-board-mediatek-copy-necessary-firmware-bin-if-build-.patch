@@ -1,0 +1,94 @@
+From b49f50ea736d43c948281888fe26b39e0d22172b Mon Sep 17 00:00:00 2001
+From: Sky Huang <skylake.huang@mediatek.com>
+Date: Tue, 19 Aug 2025 12:22:45 +0800
+Subject: [PATCH 06/23] board: mediatek: copy necessary firmware bin if build
+ directory is specified
+
+[Description]
+If we specify build directory by O=xxxxx/, for example:
+$ make -C Uboot-upstream/ O=build/ mt7987_spim_nand_rfb_defconfig
+$ make V=s -j40 CROSS_COMPILE=/usr/bin/aarch64-linux-gnu- -C Uboot-upstream/ O=build/
+
+We need to copy necessary firmware bin to build directory first.
+
+[Release-log]
+N/A
+
+Change-Id: Ib7402372a55728b0b7986dbfefc7151e3518220a
+Signed-off-by: Sky Huang <skylake.huang@mediatek.com>
+CR-Id: WCNCR00393321
+---
+ board/mediatek/common/Makefile | 11 +++++++++--
+ board/mediatek/mt7987/Makefile | 11 +++++++++--
+ board/mediatek/mt7988/Makefile | 11 +++++++++--
+ 3 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/board/mediatek/common/Makefile b/board/mediatek/common/Makefile
+index 6ced0ffdf34..3d31e956742 100644
+--- a/board/mediatek/common/Makefile
++++ b/board/mediatek/common/Makefile
+@@ -56,8 +56,15 @@ obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
+ 
+ obj-$(CONFIG_PHY_AQUANTIA) += aquantia_fw.o aquantia_fw_load.o
+ 
++# Copy firmware files to build directory before assembly (only if out-of-tree build)
++$(obj)/aquantia_fw.o: copy_aquantia_fw
++
+ ifdef CONFIG_XZ
+-$(obj)/aquantia_fw.o: aquantia_fw.xz FORCE
++copy_aquantia_fw: $(srctree)/aquantia_fw.xz
++	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+ else
+-$(obj)/aquantia_fw.o: aquantia_fw.cld FORCE
++copy_aquantia_fw: $(srctree)/aquantia_fw.cld
++	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+ endif
++
++.PHONY: copy_aquantia_fw
+diff --git a/board/mediatek/mt7987/Makefile b/board/mediatek/mt7987/Makefile
+index 35912c5affc..a761ad9760c 100644
+--- a/board/mediatek/mt7987/Makefile
++++ b/board/mediatek/mt7987/Makefile
+@@ -3,8 +3,15 @@
+ obj-y	+= mt7987_rfb.o
+ obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
+ 
++# Copy firmware files to build directory before assembly (only if out-of-tree build)
++$(obj)/i2p5ge_fw.o: copy_i2p5ge_fw
++
+ ifdef CONFIG_XZ
+-$(obj)/i2p5ge_fw.o: mt7987-i2p5ge-phy-pmb.xz mt7987-i2p5ge-phy-DSPBitTb.xz FORCE
++copy_i2p5ge_fw: $(srctree)/mt7987-i2p5ge-phy-pmb.xz $(srctree)/mt7987-i2p5ge-phy-DSPBitTb.xz
++	@[ "$(srctree)" != "$(objtree)" ] && cp $^ $(objtree)/ || true
+ else
+-$(obj)/i2p5ge_fw.o: mt7987-i2p5ge-phy-pmb.bin mt7987-i2p5ge-phy-DSPBitTb.bin FORCE
++copy_i2p5ge_fw: $(srctree)/mt7987-i2p5ge-phy-pmb.bin $(srctree)/mt7987-i2p5ge-phy-DSPBitTb.bin
++	@[ "$(srctree)" != "$(objtree)" ] && cp $^ $(objtree)/ || true
+ endif
++
++.PHONY: copy_i2p5ge_fw
+diff --git a/board/mediatek/mt7988/Makefile b/board/mediatek/mt7988/Makefile
+index a4ebbebcba6..9b15b769217 100644
+--- a/board/mediatek/mt7988/Makefile
++++ b/board/mediatek/mt7988/Makefile
+@@ -3,8 +3,15 @@
+ obj-y	+= mt7988_rfb.o
+ obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
+ 
++# Copy firmware files to build directory before assembly (only if out-of-tree build)
++$(obj)/i2p5ge_fw.o: copy_i2p5ge_fw
++
+ ifdef CONFIG_XZ
+-$(obj)/i2p5ge_fw.o: mt7988-i2p5ge-phy-pmb.xz FORCE
++copy_i2p5ge_fw: $(srctree)/mt7988-i2p5ge-phy-pmb.xz
++	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+ else
+-$(obj)/i2p5ge_fw.o: mt7988-i2p5ge-phy-pmb.bin FORCE
++copy_i2p5ge_fw: $(srctree)/mt7988-i2p5ge-phy-pmb.bin
++	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+ endif
++
++.PHONY: copy_i2p5ge_fw
+-- 
+2.45.2
+

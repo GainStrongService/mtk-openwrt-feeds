@@ -118,6 +118,11 @@ define Build/U-Boot/Target
   endef
 endef
 
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	$(CP) $(CURDIR)/files/*.xz $(PKG_BUILD_DIR)/
+endef
+
 define Build/Configure/U-Boot
 	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -472,6 +477,54 @@ define U-Boot/mt7988_bananapi_bpi-r4-poe-sdmmc
   DEPENDS:=+trusted-firmware-a-mt7988-sdmmc-comb
 endef
 
+define U-Boot/mt7987_bananapi_bpi-r4-lite-snand
+  NAME:=BananaPi BPi-R4-LITE NAND-UBI
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-lite
+  UBOOT_CONFIG:=bananapi_r4_lite_spim_nand_ubi
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand0-ubi
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-ubi-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-lite-snand-nmbm
+  NAME:=BananaPi BPi-R4-LITE NAND-NMBM
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-lite
+  UBOOT_CONFIG:=bananapi_r4_lite_spim_nand_nmbm
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand0-nmbm
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-nmbm-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-lite-emmc
+  NAME:=BananaPi BPi-R4-LITE EMMC
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-lite
+  UBOOT_CONFIG:=mt7988_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-emmc-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-lite-sdmmc
+  NAME:=BananaPi BPi-R4-LITE SD
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-lite
+  UBOOT_CONFIG:=mt7988_sd_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-sdmmc-comb
+endef
+
 UBOOT_TARGETS := \
 	mt7981_rfb-spim-nand-nmbm \
 	mt7981_rfb-nor \
@@ -486,6 +539,10 @@ UBOOT_TARGETS := \
 	mt7987_rfb-nor \
 	mt7987_rfb-emmc \
 	mt7987_rfb-sd \
+	mt7987_bananapi_bpi-r4-lite-snand \
+	mt7987_bananapi_bpi-r4-lite-snand-nmbm \
+	mt7987_bananapi_bpi-r4-lite-emmc \
+	mt7987_bananapi_bpi-r4-lite-sdmmc \
 	mt7988_rfb-spim-nand \
 	mt7988_rfb-spim-nand-nmbm \
 	mt7988_rfb-nor \

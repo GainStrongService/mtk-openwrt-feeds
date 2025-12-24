@@ -1,0 +1,47 @@
+--- a/cmd/ubi.c
++++ b/cmd/ubi.c
+@@ -553,6 +553,7 @@ int ubi_volume_read(char *volume, char *
+ 	}
+ 	len = size > tbuf_size ? tbuf_size : size;
+ 
++	led_activity_blink();
+ 	tmp = offp;
+ 	off = do_div(tmp, vol->usable_leb_size);
+ 	lnum = tmp;
+@@ -586,6 +587,7 @@ int ubi_volume_read(char *volume, char *
+ 		env_set_hex("filesize", len_read);
+ 
+ 	free(tbuf);
++	led_activity_off();
+ 	return err;
+ }
+ 
+@@ -604,7 +606,9 @@ static int ubi_dev_scan(struct mtd_info
+ 	if (err)
+ 		return -err;
+ 
++	led_activity_blink();
+ 	err = ubi_init();
++	led_activity_off();
+ 	if (err)
+ 		return -err;
+ 
+@@ -635,7 +639,7 @@ static int ubi_set_skip_check(char *volu
+ 	return ubi_change_vtbl_record(ubi, vol->vol_id, &vtbl_rec);
+ }
+ 
+-static int ubi_detach(void)
++int ubi_detach(void)
+ {
+ #ifdef CONFIG_CMD_UBIFS
+ 	/*
+--- a/include/ubi_uboot.h
++++ b/include/ubi_uboot.h
+@@ -47,6 +47,7 @@
+ extern int ubi_mtd_param_parse(const char *val, struct kernel_param *kp);
+ extern int ubi_init(void);
+ extern void ubi_exit(void);
++extern int ubi_detach(void);
+ extern int ubi_part(char *part_name, const char *vid_header_offset);
+ extern int ubi_volume_write(char *volume, void *buf, loff_t offset, size_t size);
+ extern int ubi_volume_read(char *volume, char *buf, loff_t offset, size_t size);

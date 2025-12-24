@@ -1,0 +1,31 @@
+From 1dc43a0b0e1d43023bccf890b979afe6a3d9e0dc Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Wed, 10 Dec 2025 15:48:29 +0800
+Subject: [PATCH 18/23] board: mediatek: fix nmbm initialization error message
+
+Fix nmbm initialization error message
+
+Change-Id: I3896ec591a1ed79c70b1017fc7c3ad6febdd51b2
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
+---
+ board/mediatek/common/nmbm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/board/mediatek/common/nmbm.c b/board/mediatek/common/nmbm.c
+index ffddf40f6a4..03f5a3e867b 100644
+--- a/board/mediatek/common/nmbm.c
++++ b/board/mediatek/common/nmbm.c
+@@ -25,7 +25,8 @@ int board_nmbm_init(void)
+ 
+ 	lower = get_mtd_device_nm(CONFIG_NMBM_LOWER_MTD);
+ 	if (IS_ERR(lower) || !lower) {
+-		printf("Lower MTD device 'spi-nand0' not found\n");
++		printf("Lower MTD device '%s' not found\n",
++		       CONFIG_NMBM_LOWER_MTD);
+ 		return 0;
+ 	}
+ 
+-- 
+2.45.2
+

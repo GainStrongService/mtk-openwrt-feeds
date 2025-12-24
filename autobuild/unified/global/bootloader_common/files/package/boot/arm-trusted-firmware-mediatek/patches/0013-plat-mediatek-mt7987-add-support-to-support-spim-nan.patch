@@ -1,0 +1,277 @@
+[PATCH 7/7] plat: mediatek: mt7987: add support to support spim-nand
+
+Add support to support spim-nand on spi2 auto probing
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+---
+ fdts/mt7987-spi0.dts                          | 27 ++++++++++++--
+ plat/mediatek/apsoc_common/Config.in          |  2 ++
+ .../apsoc_common/bl2/bl2_dev_spi_nand_init.c  | 35 ++++++++++++++-----
+ plat/mediatek/mt7987/bl2/Config.in            | 31 ++++++++++++++++
+ plat/mediatek/mt7987/bl2/bl2.mk               |  6 ++++
+ plat/mediatek/mt7987/bl2/bl2_dev_qspi.c       | 19 ----------
+ plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c   | 35 +++++++++++++++++--
+ plat/mediatek/mt7987/platform.mk              |  3 +-
+ 8 files changed, 124 insertions(+), 34 deletions(-)
+ create mode 100644 plat/mediatek/mt7987/bl2/Config.in
+ delete mode 100644 plat/mediatek/mt7987/bl2/bl2_dev_qspi.c
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/fdts/mt7987-spi0.dts
++++ b/fdts/mt7987-spi0.dts
+@@ -9,27 +9,48 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <1>;
+
+-		qspi: spi@11007800 {
++		qspi0: spi@11007800 {
+ 			compatible = "mediatek,ipm-spi";
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			reg = <0x11007800 0x1000>;
+ 			status = "okay";
+
+-			flash0: spiflash@0 {
++			spiflash@0 {
+ 				compatible = "spi-flash";
+ 				reg = <0>;
+ 				spi-tx-bus-width = <4>;
+ 				spi-rx-bus-width = <4>;
+ 				spi-cpol = <1>;
+ 				spi-cpha = <1>;
++				tick-dly = <2>;
+ 				spi-max-frequency = <52000000>;
+ 				sample-sel = <0>;
+-				tick-dly = <2>;
+ 				inter-loopback = <0>;
+ 				#address-cells = <1>;
+ 				#size-cells = <1>;
+ 			};
++		};
++
++		qspi2: spi@11009800 {
++			compatible = "mediatek,ipm-spi";
++			#address-cells = <1>;
++			#size-cells = <0>;
++			reg = <0x11009800 0x1000>;
++			status = "okay";
++
++			spiflash@0 {
++				compatible = "spi-flash";
++				reg = <0>;
++				spi-tx-bus-width = <4>;
++				spi-rx-bus-width = <4>;
++				spi-cpol = <1>;
++				spi-cpha = <1>;
++				tick-dly = <2>;
++				spi-max-frequency = <52000000>;
++				#address-cells = <1>;
++				#size-cells = <1>;
++			};
+ 		};
+ 	};
+ };
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/plat/mediatek/apsoc_common/Config.in
++++ b/plat/mediatek/apsoc_common/Config.in
+@@ -489,6 +489,8 @@ endchoice
+
+ menu "Advanced boot device configuration"
+
++source "plat/mediatek/mt7987/bl2/Config.in"
++
+ config _BROM_NAND_HEADER_LEGACY
+ 	bool
+
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nand_init.c
++++ b/plat/mediatek/apsoc_common/bl2/bl2_dev_spi_nand_init.c
+@@ -10,6 +10,12 @@
+ #include <mtk_spi.h>
+ #include "bl2_plat_setup.h"
+
++#pragma weak mtk_plat_switch_qspi_if
++int mtk_plat_switch_qspi_if(void)
++{
++	return -ENOTSUP;
++}
++
+ int mtk_plat_nand_setup(size_t *page_size, size_t *block_size, uint64_t *size)
+ {
+ 	struct nand_device *nand_dev;
+@@ -19,17 +25,28 @@ int mtk_plat_nand_setup(size_t *page_siz
+
+ 	mtk_qspi_setup_buffer((void *)QSPI_BUF_OFFSET);
+
+-	ret = mtk_plat_qspi_init();
+-	if (ret) {
+-		ERROR("Failed to initialize SPI controller, error %d\n", ret);
+-		return ret;
+-	}
++	while (true) {
++		ret = mtk_plat_qspi_init();
++		if (ret) {
++			ERROR("Failed to initialize SPI controller, error %d\n",
++			      ret);
++			return ret;
++		}
++
++		ret = spi_nand_init(&chip_size, &erase_size);
++		if (!ret)
++			break;
++
++		if (ret == -ENODEV) {
++			ret = mtk_plat_switch_qspi_if();
++			if (!ret)
++				continue;
+
+-	ret = spi_nand_init(&chip_size, &erase_size);
+-	if (ret) {
+-		if (ret == -ENODEV)
+ 			ERROR("No SPI-NAND flash present\n");
+-		else if (ret != -ENOENT)
++			return ret;
++		}
++
++		if (ret != -ENOENT)
+ 			ERROR("Failed to initialize SPI-NAND, error %d\n", ret);
+
+ 		return ret;
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- /dev/null
++++ b/plat/mediatek/mt7987/bl2/Config.in
+@@ -0,0 +1,31 @@
++# SPDX-License-Identifier: BSD-3-Clause
++#
++# Copyright (c) 2023, MediaTek Inc. All rights reserved.
++# Author: Weijie Gao <weijie.gao@mediatek.com>
++#
++# MT7987 booting configurations
++#
++
++if _PLAT_MT7987
++
++config _MT7987_SPIM_NAND_PREFER_SPI2
++	bool "Prefer booting FIP from SPI2"
++	depends on _BOOT_DEVICE_SPIM_NAND
++	default n
++
++config _MT7987_SPIM_NAND_NO_RETRY
++	bool "Don't try another SPI controller"
++	depends on _BOOT_DEVICE_SPIM_NAND
++	default n
++
++config SPIM_NAND_PREFER_SPI2
++	int
++	default 1
++	depends on _MT7987_SPIM_NAND_PREFER_SPI2
++
++config SPIM_NAND_NO_RETRY
++	int
++	default 1
++	depends on _MT7987_SPIM_NAND_NO_RETRY
++
++endif # _PLAT_MT7987
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/plat/mediatek/mt7987/bl2/bl2.mk
++++ b/plat/mediatek/mt7987/bl2/bl2.mk
+@@ -115,6 +115,12 @@ endif # END OF BOOTDEVICE = sdmmc
+ ifeq ($(BOOT_DEVICE),spim-nand)
+ $(eval $(call BL2_BOOT_SPI_NAND,0,0))
+ BL2_SOURCES		+=	$(MTK_PLAT_SOC)/bl2/bl2_dev_spi_nand.c
++ifeq ($(SPIM_NAND_PREFER_SPI2),1)
++BL2_CPPFLAGS		+=	-DSPIM_NAND_PREFER_SPI2
++endif # END OF SPIM_NAND_PREFER_SPI2
++ifeq ($(SPIM_NAND_NO_RETRY),1)
++BL2_CPPFLAGS		+=	-DSPIM_NAND_NO_RETRY
++endif # END OF SPIM_NAND_NO_RETRY
+ NAND_TYPE		?=	spim:2k+64
+ ifeq ($(SPIM_CTRL),2)
+ DTS_NAME		:=	mt7987-spi2
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/plat/mediatek/mt7987/bl2/bl2_dev_qspi.c
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// SPDX-License-Identifier: BSD-3-Clause
+-/*
+- * Copyright (c) 2024, MediaTek Inc. All rights reserved.
+- */
+-
+-#include <boot_spi.h>
+-
+-#define MTK_QSPI_SRC_CLK		CLK_MPLL_D2
+-
+-uint32_t mtk_plat_get_qspi_src_clk(void)
+-{
+-	/* config GPIO pinmux to spi mode */
+-	mtk_spi_gpio_init();
+-
+-	/* select 208M clk */
+-	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+-
+-	return MTK_QSPI_SRC_CLK;
+-}
+
+Change-Id: I4484b60c72b0cdffa5e9c24aec9c741b8eac6e2d
+--- a/plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c
++++ b/plat/mediatek/mt7987/bl2/bl2_dev_spi_nand.c
+@@ -13,24 +13,47 @@
+
+ #define MTK_QSPI_SRC_CLK		CB_MPLL_D2
+
+-#if SPIM_CTRL == 0
+-#define SELECTED_SPIM SPIM0
+-#elif SPIM_CTRL == 2
+-#define SELECTED_SPIM SPIM2
++#ifdef SPIM_NAND_PREFER_SPI2
++#define DEFAULT_QSPI_IF		2
+ #else
+-#error "Invalid SPI controller selection"
++#define DEFAULT_QSPI_IF		0
+ #endif
+
++static uint32_t curr_qspi_if = DEFAULT_QSPI_IF;
++
+ int mtk_plat_qspi_init(void)
+ {
+ 	/* config GPIO pinmux to spi mode */
+-	mtk_spi_gpio_init(SELECTED_SPIM);
++	mtk_spi_gpio_init(curr_qspi_if == 2 ? SPIM2 : SPIM0);
+
+ 	/* select 208M clk */
+ 	mtk_spi_source_clock_select(MTK_QSPI_SRC_CLK);
+
+-	return mtk_qspi_init(MTK_QSPI_SRC_CLK);
++	return mtk_qspi_init_by_path(
++		curr_qspi_if == 2 ? "/soc/spi@11009800" : "/soc/spi@11007800",
++		MTK_QSPI_SRC_CLK);
++}
++
++#ifndef SPIM_NAND_NO_RETRY
++static bool qspi_if_switched;
++
++int mtk_plat_switch_qspi_if(void)
++{
++	if (qspi_if_switched)
++		return -ENODEV;
++
++	qspi_if_switched = true;
++
++	if (curr_qspi_if == 2)
++		curr_qspi_if = 0;
++	else
++		curr_qspi_if = 2;
++
++	NOTICE("Switched to SPI%u for probing\n", curr_qspi_if);
++
++	return 0;
+ }
++#endif
+
+ void mtk_plat_fip_location(size_t *fip_off, size_t *fip_size)
+ {

@@ -1,0 +1,144 @@
+From 4c102186d8ab323a9d86fdde9057a62962b74f23 Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Tue, 12 Aug 2025 10:28:13 +0800
+Subject: [PATCH 03/23] board: mediatek: re-implement firmware embedding for
+ aquantia PHY
+
+Use new method to embed firmware of aquantia PHY with compression.
+
+Not that the data must be compressed with XZ crc32 support, e.g.:
+xz -e -k -9 -C crc32 -c fw.bin > fw.xz
+
+Change-Id: Ib6943ecbb1694bd90de1e3a2fa945998edeabed0
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
+---
+ board/mediatek/common/Makefile           |  8 +++
+ board/mediatek/common/aquantia_fw.S      | 27 ++++++++++
+ board/mediatek/common/aquantia_fw_load.c | 64 ++++++++++++++++++++++++
+ 3 files changed, 99 insertions(+)
+ create mode 100644 board/mediatek/common/aquantia_fw.S
+ create mode 100644 board/mediatek/common/aquantia_fw_load.c
+
+diff --git a/board/mediatek/common/Makefile b/board/mediatek/common/Makefile
+index 819bc431218..6ced0ffdf34 100644
+--- a/board/mediatek/common/Makefile
++++ b/board/mediatek/common/Makefile
+@@ -53,3 +53,11 @@ obj-$(CONFIG_MTK_MISC_CUSTOMIZED) += customizations/
+ 
+ obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_BL31) += mtk_aes_decrypt.o
+ obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
++
++obj-$(CONFIG_PHY_AQUANTIA) += aquantia_fw.o aquantia_fw_load.o
++
++ifdef CONFIG_XZ
++$(obj)/aquantia_fw.o: aquantia_fw.xz FORCE
++else
++$(obj)/aquantia_fw.o: aquantia_fw.cld FORCE
++endif
+diff --git a/board/mediatek/common/aquantia_fw.S b/board/mediatek/common/aquantia_fw.S
+new file mode 100644
+index 00000000000..df7d9f994f0
+--- /dev/null
++++ b/board/mediatek/common/aquantia_fw.S
+@@ -0,0 +1,27 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ * Author: Weijie Gao <weijie.gao@mediatek.com>
++ */
++
++	.section	.rodata.aquantia_fw, "a"
++	.align	2
++	.globl	aquantia_fw
++	.type	aquantia_fw, %object
++aquantia_fw:
++#ifdef CONFIG_XZ
++	.incbin	"aquantia_fw.xz"
++#else
++	.incbin	"aquantia_fw.cld"
++#endif
++	.equ	_aquantia_fw_size, . - aquantia_fw
++	.size	aquantia_fw, _aquantia_fw_size
++
++	.section	.rodata.aquantia_fw_size, "a"
++	.align	2
++	.globl	aquantia_fw_size
++	.type	aquantia_fw_size, %object
++aquantia_fw_size:
++	.word	_aquantia_fw_size
++	.size	aquantia_fw_size, . - aquantia_fw_size
+diff --git a/board/mediatek/common/aquantia_fw_load.c b/board/mediatek/common/aquantia_fw_load.c
+new file mode 100644
+index 00000000000..484aa676fa8
+--- /dev/null
++++ b/board/mediatek/common/aquantia_fw_load.c
+@@ -0,0 +1,64 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ * Author: Weijie Gao <weijie.gao@mediatek.com>
++ *
++ * Aquantia PHY embedded FW loader
++ */
++
++#include <malloc.h>
++#include <stdio.h>
++#include <linux/errno.h>
++#include <linux/types.h>
++#include "unxz.h"
++
++#define AQR_FW_MAX_SIZE			0x64000
++
++extern const u8 aquantia_fw[];
++extern const u32 aquantia_fw_size;
++
++static int aquantia_read_fw_direct(u8 **fw_addr, size_t *fw_length)
++{
++	void *data;
++
++	data = malloc(aquantia_fw_size);
++	if (!data)
++		return -ENOMEM;
++
++	memcpy(data, aquantia_fw, aquantia_fw_size);
++
++	*fw_addr = data;
++	*fw_length = aquantia_fw_size;
++
++	return 0;
++}
++
++int aquantia_read_fw(u8 **fw_addr, size_t *fw_length)
++{
++	void *data;
++
++#ifdef CONFIG_XZ
++	int ret;
++
++	if (memcmp(aquantia_fw, xz_magic, sizeof(xz_magic)))
++		return aquantia_read_fw_direct(fw_addr, fw_length);
++
++	data = malloc(AQR_FW_MAX_SIZE);
++	if (!data)
++		return -ENOMEM;
++
++	ret = unxz(aquantia_fw, aquantia_fw_size, fw_length, data,
++		   AQR_FW_MAX_SIZE);
++	if (ret) {
++		free(data);
++		return -1;
++	}
++
++	*fw_addr = data;
++
++	return 0;
++#else
++	return aquantia_read_fw_direct(fw_addr, fw_length);
++#endif
++}
+-- 
+2.45.2
+

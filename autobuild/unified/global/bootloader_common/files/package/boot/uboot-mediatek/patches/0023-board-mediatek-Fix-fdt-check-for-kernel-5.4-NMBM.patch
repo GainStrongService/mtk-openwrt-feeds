@@ -1,0 +1,67 @@
+From e6fe0291cabd863d3a3a2b892bc1263ddcb75b11 Mon Sep 17 00:00:00 2001
+From: Sky Huang <skylake.huang@mediatek.com>
+Date: Thu, 18 Dec 2025 11:42:43 +0800
+Subject: [PATCH 23/23] board: mediatek: Fix fdt check for kernel-5.4 NMBM
+
+[Description]
+Fix fdt check for kernel-5.4 NMBM. Kernel-5.4 dts uses "generic,nmbm"
+as an identifier for NMBM.
+
+[Release-log]
+N/A
+
+Change-Id: Ie5de0b1fbd41a31b73b4b5a462053a712dabae0d
+Signed-off-by: Sky Huang <skylake.huang@mediatek.com>
+CR-Id: WCNCR00270499
+---
+ board/mediatek/common/mtd_helper.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/board/mediatek/common/mtd_helper.c b/board/mediatek/common/mtd_helper.c
+index f9c691a14b7..794a2ba5dcc 100644
+--- a/board/mediatek/common/mtd_helper.c
++++ b/board/mediatek/common/mtd_helper.c
+@@ -1757,28 +1757,34 @@ int mtd_verify_linux_fdt(void *fdt)
+ 	nodeoffset = 0;
+ 	depth = 0;
+ 	while ((nodeoffset = fdt_next_node(fdt, nodeoffset, &depth)) >= 0) {
++		/* For kernel-6.6 and later on */
+ 		prop = fdt_getprop(fdt, nodeoffset, "mediatek,nmbm", &len);
+ 		if (prop)
+ 			fdt_has_nmbm = true;
+ 
+ 		prop = fdt_getprop(fdt, nodeoffset, "compatible", &len);
+-		if (prop && strstr((const char *)prop, "fixed-partitions"))
+-			partitions_node = nodeoffset;
++		if (prop) {
++			/* To comply with kernel-5.4 */
++			if (strstr((const char *)prop, "generic,nmbm"))
++				fdt_has_nmbm = true;
++			if (strstr((const char *)prop, "fixed-partitions"))
++				partitions_node = nodeoffset;
++		}
+ 	}
+ 
+-	/* Count UBI partitions (partitions with compatible = "linux,ubi") */
++	/* Count UBI partitions (partitions with label = "ubi") */
+ 	if (partitions_node >= 0) {
+ 		int child;
+ 		fdt_for_each_subnode(child, fdt, partitions_node) {
+-			prop = fdt_getprop(fdt, child, "compatible", &len);
+-			if (prop && strstr((const char *)prop, "linux,ubi"))
++			prop = fdt_getprop(fdt, child, "label", &len);
++			if (prop && len > 0 && strncmp((const char *)prop, "ubi", len) == 0)
+ 				ubi_partition_count++;
+ 		}
+ 	}
+ 
+ 	pr_debug("\nFDT verification:\n");
+ 	pr_debug("  U-Boot type: %s\n", uboot_is_nmbm ? "NMBM" : "Full-UBI");
+-	pr_debug("  FDT contains 'mediatek,nmbm' property: %s\n", fdt_has_nmbm ? "yes" : "no");
++	pr_debug("  FDT contains NMBM property: %s\n", fdt_has_nmbm ? "yes" : "no");
+ 	pr_debug("  UBI partitions count: %d\n", ubi_partition_count);
+ 
+ 	/* Check for duplicate UBI partitions (both overlays applied) */
+-- 
+2.45.2
+

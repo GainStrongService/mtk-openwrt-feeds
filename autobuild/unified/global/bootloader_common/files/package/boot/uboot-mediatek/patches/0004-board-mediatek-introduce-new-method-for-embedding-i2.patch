@@ -1,0 +1,166 @@
+From bb0f2cab888305b831e6b8e83862f64d33cc7549 Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Fri, 8 Aug 2025 10:23:10 +0800
+Subject: [PATCH 04/23] board: mediatek: introduce new method for embedding
+ i2p5ge PHY firmware data
+
+Introduce new method for embedding i2p5ge PHY firmware data for
+refactored i2p5ge PHY driver.
+
+Change-Id: I31b6a3c588e3ce7ab14cfdd0ef4e4ac78ac35636
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+CR-Id: WCNCR00180092
+---
+ board/mediatek/mt7987/Makefile     |  3 +++
+ board/mediatek/mt7987/i2p5ge_fw.S  | 40 ++++++++++++++++++++++++++++++
+ board/mediatek/mt7987/mt7987_rfb.c | 16 ++++++++++++
+ board/mediatek/mt7988/Makefile     |  3 +++
+ board/mediatek/mt7988/i2p5ge_fw.S  | 23 +++++++++++++++++
+ board/mediatek/mt7988/mt7988_rfb.c | 11 ++++++++
+ 6 files changed, 96 insertions(+)
+ create mode 100644 board/mediatek/mt7987/i2p5ge_fw.S
+ create mode 100644 board/mediatek/mt7988/i2p5ge_fw.S
+
+diff --git a/board/mediatek/mt7987/Makefile b/board/mediatek/mt7987/Makefile
+index 9f3f493f3c9..ef8c8257163 100644
+--- a/board/mediatek/mt7987/Makefile
++++ b/board/mediatek/mt7987/Makefile
+@@ -1,3 +1,6 @@
+ # SPDX-License-Identifier:	GPL-2.0
+ 
+ obj-y	+= mt7987_rfb.o
++obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
++
++$(obj)/i2p5ge_fw.o: mt7987-i2p5ge-phy-pmb.bin mt7987-i2p5ge-phy-DSPBitTb.bin FORCE
+diff --git a/board/mediatek/mt7987/i2p5ge_fw.S b/board/mediatek/mt7987/i2p5ge_fw.S
+new file mode 100644
+index 00000000000..dbf4ab6fa74
+--- /dev/null
++++ b/board/mediatek/mt7987/i2p5ge_fw.S
+@@ -0,0 +1,40 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ * Author: Weijie Gao <weijie.gao@mediatek.com>
++ */
++
++	.section	.rodata.i2p5ge_phy_pmb, "a"
++	.align	2
++	.globl	i2p5ge_phy_pmb
++	.type	i2p5ge_phy_pmb, %object
++i2p5ge_phy_pmb:
++	.incbin	"mt7987-i2p5ge-phy-pmb.bin"
++	.equ	_i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb
++	.size	i2p5ge_phy_pmb, _i2p5ge_phy_pmb_size
++
++	.section	.rodata.i2p5ge_phy_pmb_size, "a"
++	.align	2
++	.globl	i2p5ge_phy_pmb_size
++	.type	i2p5ge_phy_pmb_size, %object
++i2p5ge_phy_pmb_size:
++	.word	_i2p5ge_phy_pmb_size
++	.size	i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb_size
++
++	.section	.rodata.i2p5ge_phy_dspbit, "a"
++	.align	2
++	.globl	i2p5ge_phy_dspbit
++	.type	i2p5ge_phy_dspbit, %object
++i2p5ge_phy_dspbit:
++	.incbin	"mt7987-i2p5ge-phy-DSPBitTb.bin"
++	.equ	_i2p5ge_phy_dspbit_size, . - i2p5ge_phy_dspbit
++	.size	i2p5ge_phy_dspbit, _i2p5ge_phy_dspbit_size
++
++	.section	.rodata.i2p5ge_phy_dspbit_size, "a"
++	.align	2
++	.globl	i2p5ge_phy_dspbit_size
++	.type	i2p5ge_phy_dspbit_size, %object
++i2p5ge_phy_dspbit_size:
++	.word	_i2p5ge_phy_dspbit_size
++	.size	i2p5ge_phy_dspbit_size, . - i2p5ge_phy_dspbit_size
+diff --git a/board/mediatek/mt7987/mt7987_rfb.c b/board/mediatek/mt7987/mt7987_rfb.c
+index d8ce1904abc..07014082e82 100644
+--- a/board/mediatek/mt7987/mt7987_rfb.c
++++ b/board/mediatek/mt7987/mt7987_rfb.c
+@@ -44,3 +44,19 @@ ulong board_get_load_addr(void)
+ 
+ 	return gd->ram_base + half_size;
+ }
++
++extern const u8 i2p5ge_phy_pmb[];
++extern const u32 i2p5ge_phy_pmb_size;
++extern const u8 i2p5ge_phy_dspbit[];
++extern const u32 i2p5ge_phy_dspbit_size;
++
++int mt7987_i2p5ge_get_fw(const void **fw, size_t *fwsize, const void **dspfw,
++			 size_t *dspfwsize)
++{
++	*fw = i2p5ge_phy_pmb;
++	*fwsize = i2p5ge_phy_pmb_size;
++	*dspfw = i2p5ge_phy_dspbit;
++	*dspfwsize = i2p5ge_phy_dspbit_size;
++
++	return 0;
++}
+diff --git a/board/mediatek/mt7988/Makefile b/board/mediatek/mt7988/Makefile
+index f1249ab3715..4c38f2fdfe8 100644
+--- a/board/mediatek/mt7988/Makefile
++++ b/board/mediatek/mt7988/Makefile
+@@ -1,3 +1,6 @@
+ # SPDX-License-Identifier:	GPL-2.0
+ 
+ obj-y	+= mt7988_rfb.o
++obj-$(CONFIG_PHY_MEDIATEK_2P5GE) += i2p5ge_fw.o
++
++$(obj)/i2p5ge_fw.o: mt7988-i2p5ge-phy-pmb.bin FORCE
+diff --git a/board/mediatek/mt7988/i2p5ge_fw.S b/board/mediatek/mt7988/i2p5ge_fw.S
+new file mode 100644
+index 00000000000..44b07f3f36c
+--- /dev/null
++++ b/board/mediatek/mt7988/i2p5ge_fw.S
+@@ -0,0 +1,23 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ * Author: Weijie Gao <weijie.gao@mediatek.com>
++ */
++
++	.section	.rodata.i2p5ge_phy_pmb, "a"
++	.align	2
++	.globl	i2p5ge_phy_pmb
++	.type	i2p5ge_phy_pmb, %object
++i2p5ge_phy_pmb:
++	.incbin	"mt7988-i2p5ge-phy-pmb.bin"
++	.equ	_i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb
++	.size	i2p5ge_phy_pmb, _i2p5ge_phy_pmb_size
++
++	.section	.rodata.i2p5ge_phy_pmb_size, "a"
++	.align	2
++	.globl	i2p5ge_phy_pmb_size
++	.type	i2p5ge_phy_pmb_size, %object
++i2p5ge_phy_pmb_size:
++	.word	_i2p5ge_phy_pmb_size
++	.size	i2p5ge_phy_pmb_size, . - i2p5ge_phy_pmb_size
+diff --git a/board/mediatek/mt7988/mt7988_rfb.c b/board/mediatek/mt7988/mt7988_rfb.c
+index e10ccf1db12..bf2926058f8 100644
+--- a/board/mediatek/mt7988/mt7988_rfb.c
++++ b/board/mediatek/mt7988/mt7988_rfb.c
+@@ -85,3 +85,14 @@ int mtk_board_get_fit_conf_info(const char *name, const char **retdesc)
+ 	(*retdesc) = NULL;
+ 	return -1;
+ }
++
++extern const u8 i2p5ge_phy_pmb[];
++extern const u32 i2p5ge_phy_pmb_size;
++
++int mt7988_i2p5ge_get_fw(const void **fw, size_t *size)
++{
++	*fw = i2p5ge_phy_pmb;
++	*size = i2p5ge_phy_pmb_size;
++
++	return 0;
++}
+-- 
+2.45.2
+
