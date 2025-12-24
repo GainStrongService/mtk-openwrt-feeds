@@ -5988,40 +5988,86 @@ static const struct net_device_ops mtk_netdev_ops = {
 #endif
 };
 
-static void mux_poll(struct work_struct *work)
+static int mtk_mux_create_phylink(struct mtk_mux *mux, unsigned int channel)
 {
-	struct mtk_mux *mux = container_of(work, struct mtk_mux, poll.work);
+	struct mtk_mac *mac = mux->mac;
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_mux_channel *chan = &mux->channels[channel];
+	struct phylink *pl;
+
+	pl = phylink_create(&mac->phylink_config,
+			    of_fwnode_handle(chan->of_node),
+			    chan->phy_mode, &mtk_phylink_ops);
+	if (IS_ERR(pl)) {
+		dev_err(eth->dev, "Ethernet mux: channel %u: create phylink failed\n", channel);
+		return PTR_ERR(pl);
+	}
+
+	mac->phylink = pl;
+	mac->of_node = mux->channels[channel].of_node;
+	dev_info(eth->dev, "Ethernet mux: created phylink for channel %u\n", channel);
+
+	return 0;
+}
+
+static void mtk_mux_destroy_phylink(struct mtk_mac *mac)
+{
+	if (mac->phylink) {
+		phylink_destroy(mac->phylink);
+		mac->phylink = NULL;
+	}
+}
+
+static void mtk_mux_switch_channel(struct mtk_mux *mux, unsigned int new_channel)
+{
 	struct mtk_mac *mac = mux->mac;
 	struct mtk_eth *eth = mac->hw;
 	struct net_device *dev = eth->netdev[mac->id];
+	int err;
+
+	rtnl_lock();
+	mtk_stop(dev);
+	rtnl_unlock();
+
+	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
+		cpu_relax();
+
+	mtk_mux_destroy_phylink(mac);
+
+	err = mtk_mux_create_phylink(mux, new_channel);
+	if (err) {
+		clear_bit_unlock(MTK_RESETTING, &eth->state);
+		return;
+	}
+
+	clear_bit_unlock(MTK_RESETTING, &eth->state);
+	dev_info(eth->dev, "Ethernet mux: switched to channel %d\n", new_channel);
+
+	rtnl_lock();
+	mtk_open(dev);
+	rtnl_unlock();
+
+	gpiod_set_value_cansleep(mux->chan_sel_gpio, new_channel);
+	mux->active_channel = new_channel;
+}
+
+static void mux_poll(struct work_struct *work)
+{
+	struct mtk_mux *mux = container_of(work, struct mtk_mux, poll.work);
+	struct net_device *dev = mux->mac->hw->netdev[mux->mac->id];
 	unsigned int new_channel;
-	int sfp_present;
+	int sfp_connected;
 
 	if (IS_ERR(mux->mod_def0_gpio) || IS_ERR(mux->chan_sel_gpio))
 		goto reschedule;
 
-	sfp_present = gpiod_get_value_cansleep(mux->mod_def0_gpio);
-	new_channel = sfp_present ? mux->sfp_present_channel : !mux->sfp_present_channel;
+	sfp_connected = gpiod_get_value_cansleep(mux->mod_def0_gpio);
+	new_channel = sfp_connected ? mux->sfp_connected_channel : !mux->sfp_connected_channel;
 
-	if (mux->channel == new_channel || !netif_running(dev))
+	if (mux->active_channel == new_channel || !netif_running(dev))
 		goto reschedule;
 
-	rtnl_lock();
-
-	mtk_stop(dev);
-
-	mac->of_node = mux->data[new_channel]->of_node;
-	mac->phylink = mux->data[new_channel]->phylink;
-
-	dev_info(eth->dev, "ethernet mux: switch to channel%d\n", new_channel);
-
-	gpiod_set_value_cansleep(mux->chan_sel_gpio, new_channel);
-
-	mtk_open(dev);
-
-	rtnl_unlock();
-
-	mux->channel = new_channel;
+	mtk_mux_switch_channel(mux, new_channel);
 
 reschedule:
 	mod_delayed_work(system_wq, &mux->poll, msecs_to_jiffies(100));
@@ -6030,60 +6076,34 @@ reschedule:
 static int mtk_add_mux_channel(struct mtk_mux *mux, struct device_node *np)
 {
 	const __be32 *_id = of_get_property(np, "reg", NULL);
-	struct mtk_mac *mac = mux->mac;
-	struct mtk_eth *eth = mac->hw;
-	struct mtk_mux_data *data;
-	struct phylink *phylink;
-	int phy_mode, id, err;
+	struct mtk_eth *eth = mux->mac->hw;
+	int id;
 
 	if (!_id) {
-		dev_err(eth->dev, "missing mux channel id\n");
+		dev_err(eth->dev, "Ethernet mux: missing mux channel id\n");
 		return -EINVAL;
 	}
 
 	id = be32_to_cpup(_id);
 	if (id < 0 || id > 1) {
-		dev_err(eth->dev, "%d is not a valid mux channel id\n", id);
+		dev_err(eth->dev, "Ethernet mux: %d is not a valid mux channel id\n", id);
 		return -EINVAL;
 	}
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
-	if (unlikely(!data)) {
-		dev_err(eth->dev, "failed to create mux data structure\n");
-		return -ENOMEM;
-	}
+	mux->channels[id].of_node = np;
+	mux->channels[id].phy_mode = of_get_phy_mode(np);
 
-	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
-		dev_err(eth->dev, "incorrect phy-mode\n");
-		err = -EINVAL;
-		goto err_free_data;
+	if (mux->channels[id].phy_mode < 0) {
+		dev_err(eth->dev, "Ethernet mux: invalid phy-mode for channel %d\n", id);
+		return -EINVAL;
 	}
-
-	phylink = phylink_create(&mux->mac->phylink_config,
-				 of_fwnode_handle(np),
-				 phy_mode, &mtk_phylink_ops);
-	if (IS_ERR(phylink)) {
-		dev_err(eth->dev, "failed to create phylink structure\n");
-		err = PTR_ERR(phylink);
-		goto err_free_data;
-	}
-
-	data->of_node = np;
-	data->phylink = phylink;
-	mux->data[id] = data;
 
 	return 0;
-
-err_free_data:
-	kfree(data);
-	return err;
 }
 
 static void mtk_release_mux(struct mtk_eth *eth, int id)
 {
 	struct mtk_mux *mux;
-	int i;
 
 	if (id < 0 || id >= MTK_MAX_DEVS)
 		return;
@@ -6100,13 +6120,6 @@ static void mtk_release_mux(struct mtk_eth *eth, int id)
 	if (!IS_ERR_OR_NULL(mux->chan_sel_gpio))
 		gpiod_put(mux->chan_sel_gpio);
 
-	for (i = 0; i < 2; i++) {
-		if (mux->data[i]) {
-			if (mux->data[i]->phylink)
-				phylink_destroy(mux->data[i]->phylink);
-			kfree(mux->data[i]);
-		}
-	}
 	kfree(mux);
 	eth->mux[id] = NULL;
 }
@@ -6128,19 +6141,19 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 	int err;
 
 	if (!_id) {
-		dev_err(eth->dev, "missing attach mac id\n");
+		dev_err(eth->dev, "Ethernet mux: missing attach mac id\n");
 		return -EINVAL;
 	}
 
 	id = be32_to_cpup(_id);
 	if (id >= MTK_MAX_DEVS) {
-		dev_err(eth->dev, "%d is not a valid attach mac id\n", id);
+		dev_err(eth->dev, "Ethernet mux: %d is not a valid attach mac id\n", id);
 		return -EINVAL;
 	}
 
 	mux = kmalloc(sizeof(struct mtk_mux), GFP_KERNEL);
 	if (unlikely(!mux)) {
-		dev_err(eth->dev, "failed to create mux structure\n");
+		dev_err(eth->dev, "Ethernet mux: failed to create mux structure\n");
 		return -ENOMEM;
 	}
 
@@ -6149,7 +6162,7 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 				GPIOD_FLAGS_BIT_NONEXCLUSIVE, "?");
 
 	if (IS_ERR(mux->mod_def0_gpio)) {
-		dev_err(eth->dev, "failed to requset gpio for mod-def0\n");
+		dev_err(eth->dev, "Ethernet mux: failed to requset gpio for mod-def0\n");
 		err = PTR_ERR(mux->mod_def0_gpio);
 		goto err_free_mux;
 	}
@@ -6158,23 +6171,23 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 				"chan-sel-gpios", 0, GPIOD_OUT_LOW, "?");
 
 	if (IS_ERR(mux->chan_sel_gpio)) {
-		dev_err(eth->dev, "failed to requset gpio for chan-sel\n");
+		dev_err(eth->dev, "Ethernet mux: failed to requset gpio for chan-sel\n");
 		err = PTR_ERR(mux->chan_sel_gpio);
 		goto err_put_mod_def0;
 	}
 
-	of_property_read_u32(np, "sfp-present-channel",
-				&mux->sfp_present_channel);
+	of_property_read_u32(np, "sfp-connected-channel",
+				&mux->sfp_connected_channel);
 
 	eth->mux[id] = mux;
 	mux->mac = eth->mac[id];
-	/* configure default channel to 10G PHY */
-	mux->channel = !mux->sfp_present_channel;
+	/* configure active channel to 10G PHY */
+	mux->active_channel = !mux->sfp_connected_channel;
 
 	for_each_child_of_node(np, child) {
 		err = mtk_add_mux_channel(mux, child);
 		if (err) {
-			dev_err(eth->dev, "failed to add mtk_mux\n");
+			dev_err(eth->dev, "Ethernet mux: failed to add mtk_mux\n");
 			of_node_put(child);
 			goto err_put_chan_sel;
 		}
