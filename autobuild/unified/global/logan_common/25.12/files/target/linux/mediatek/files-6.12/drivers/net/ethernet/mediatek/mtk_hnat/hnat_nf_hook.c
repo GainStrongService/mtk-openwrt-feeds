@@ -1380,6 +1380,38 @@ static u16 ppe_get_chkbase(struct iphdr *iph)
 	return chksum_base;
 }
 
+static int hnat_add_vlan_layer(struct foe_entry *entry, u16 vlan_tci, bool outer)
+{
+	if (entry->bfib1.vlan_layer >= 2)
+		return -EINVAL;
+
+	if (IS_IPV4_GRP(entry) || IS_L2_BRIDGE(entry)) {
+		if (outer) {
+			/* if the vlan is outer layer, insert it into vlan1 field */
+			entry->ipv4_hnapt.vlan2 = entry->ipv4_hnapt.vlan1;
+			entry->ipv4_hnapt.vlan1 = vlan_tci;
+		} else if (entry->bfib1.vlan_layer == 0) {
+			entry->ipv4_hnapt.vlan1 = vlan_tci;
+		} else if (entry->bfib1.vlan_layer == 1) {
+			entry->ipv4_hnapt.vlan2 = vlan_tci;
+		}
+	} else {
+		if (outer) {
+			/* if the vlan is outer layer, insert it into vlan1 field */
+			entry->ipv6_5t_route.vlan2 = entry->ipv6_5t_route.vlan1;
+			entry->ipv6_5t_route.vlan1 = vlan_tci;
+		} else if (entry->bfib1.vlan_layer == 0) {
+			entry->ipv6_5t_route.vlan1 = vlan_tci;
+		} else if (entry->bfib1.vlan_layer == 1) {
+			entry->ipv6_5t_route.vlan2 = vlan_tci;
+		}
+	}
+
+	entry->bfib1.vlan_layer++;
+
+	return 0;
+}
+
 static struct foe_entry ppe_fill_L2_info(struct foe_entry entry,
 					 struct flow_offload_hw_path *hw_path)
 {
@@ -2750,9 +2782,11 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 {
 	struct foe_entry *hw_entry, entry;
 	struct hnat_flow_entry *flow_entry;
+	struct vlan_hdr *vhdr;
 	struct ethhdr *eth;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+	u16 h_proto, h_offset = 0;
 
 	if (!skb_hnat_is_hashed(skb) || skb_hnat_ppe(skb) >= CFG_PPE_NUM)
 		return NF_ACCEPT;
@@ -2842,17 +2876,37 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		break;
 	}
 
-	if (skb_vlan_tagged(skb)) {
-		entry.bfib1.vlan_layer = 1;
-		if (IS_IPV4_GRP(&entry) || IS_L2_BRIDGE(&entry)) {
-			entry.ipv4_hnapt.sp_tag = ETH_P_8021Q;
-			entry.ipv4_hnapt.vlan1 = skb->vlan_tci;
-		} else if (IS_IPV6_GRP(&entry)) {
-			entry.ipv6_5t_route.sp_tag = ETH_P_8021Q;
-			entry.ipv6_5t_route.vlan1 = skb->vlan_tci;
+	entry.bfib1.vlan_layer = 0;
+
+	if (skb_vlan_tag_present(skb)) {
+		if (skb->vlan_proto != htons(ETH_P_8021Q))
+			return NF_ACCEPT;
+
+		if (hnat_add_vlan_layer(&entry, skb->vlan_tci, false))
+			return NF_ACCEPT;
+	}
+
+	h_proto = skb->protocol;
+	while (h_proto == htons(ETH_P_8021Q)) {
+		vhdr = (struct vlan_hdr *)(skb_mac_header(skb) + ETH_HLEN + h_offset);
+		if (hnat_add_vlan_layer(&entry, ntohs(vhdr->h_vlan_TCI), false)) {
+			if (debug_level >= 7)
+				printk_ratelimited(KERN_WARNING
+						   "Unsupported PPE VLAN layer%d in WiFiTx\n",
+						   entry.bfib1.vlan_layer + 1);
+			return NF_ACCEPT;
 		}
-	} else {
-		entry.bfib1.vlan_layer = 0;
+		h_proto = vhdr->h_vlan_encapsulated_proto;
+		h_offset += VLAN_HLEN;
+	}
+
+	if (entry.bfib1.vlan_layer) {
+		if (IS_IPV4_GRP(&entry) || IS_L2_BRIDGE(&entry))
+			entry.ipv4_hnapt.sp_tag = ETH_P_8021Q;
+		else if (IS_IPV6_GRP(&entry))
+			entry.ipv6_5t_route.sp_tag = ETH_P_8021Q;
+		else
+			return NF_ACCEPT;
 	}
 
 	/* MT7622 wifi hw_nat not support QoS */
