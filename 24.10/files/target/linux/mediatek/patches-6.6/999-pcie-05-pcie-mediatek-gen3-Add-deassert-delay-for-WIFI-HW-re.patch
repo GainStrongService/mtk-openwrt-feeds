@@ -1,0 +1,58 @@
+From 4d83e35d26f74e3321fc4820efdeba2879b65e7e Mon Sep 17 00:00:00 2001
+From: Jianguo Zhang <jianguo.zhang@mediatek.com>
+Date: Thu, 25 Dec 2025 16:28:46 +0800
+Subject: [PATCH] pcie: mediatek-gen3: Add deassert delay for WIFI HW reset
+
+[Description]
+Add deassert delay for WIFI HW reset.
+
+[Release-log]
+N/A
+
+Signed-off-by: Jianguo Zhang <jianguo.zhang@mediatek.com>
+---
+ drivers/pci/controller/pcie-mediatek-gen3.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/pci/controller/pcie-mediatek-gen3.c b/drivers/pci/controller/pcie-mediatek-gen3.c
+index 405b902..437ee81 100644
+--- a/drivers/pci/controller/pcie-mediatek-gen3.c
++++ b/drivers/pci/controller/pcie-mediatek-gen3.c
+@@ -162,6 +162,7 @@ struct mtk_pcie_irq {
+  * @max_link_width: PCIe slot max supported link width
+  * @wifi_reset: reset pin for WIFI chip
+  * @wifi_reset_delay_ms: delaty time for WIFI chip reset
++ * @wifi_deassert_delay_ms: delaty time after WIFI chip reset
+  * @irq: PCIe controller interrupt number
+  * @num_irqs: PCIe irqs count
+  * @irqs: PCIe controller interrupts information
+@@ -188,6 +189,7 @@ struct mtk_gen3_pcie {
+ 
+ 	struct gpio_desc *wifi_reset;
+ 	u32 wifi_reset_delay_ms;
++	u32 wifi_deassert_delay_ms;
+ 
+ 	int irq;
+ 	int num_irqs;
+@@ -470,6 +472,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
+ 		gpiod_set_value_cansleep(pcie->wifi_reset, 0);
+ 		msleep(pcie->wifi_reset_delay_ms);
+ 		gpiod_set_value_cansleep(pcie->wifi_reset, 1);
++		msleep(pcie->wifi_deassert_delay_ms);
+ 	}
+ 
+ 	/*
+@@ -1118,6 +1121,10 @@ static int mtk_pcie_parse_port(struct mtk_gen3_pcie *pcie)
+ 
+ 	}
+ 
++	pcie->wifi_deassert_delay_ms = 0;
++	of_property_read_u32(dev->of_node, "wifi-deassert-msleep",
++			     &pcie->wifi_deassert_delay_ms);
++
+ 	return 0;
+ }
+ 
+-- 
+2.45.2
+
