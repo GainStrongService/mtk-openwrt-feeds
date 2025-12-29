@@ -1106,44 +1106,6 @@ bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed)
 	return mac->speed <= speed;
 }
 
-static inline void qos_rate_limit_set(u32 id, const struct net_device *dev)
-{
-	const struct mtk_mac *mac;
-	u32 max_man = SPEED_10000 / SPEED_100;
-	u32 max_exp = 5;
-	u32 cfg;
-
-	if (id > MTK_QDMA_NUM_QUEUES)
-		return;
-
-	if (!dev)
-		goto setup_rate_limit;
-
-	mac = netdev_priv(dev);
-
-	switch (mac->speed) {
-	case SPEED_100:
-	case SPEED_1000:
-	case SPEED_2500:
-	case SPEED_5000:
-	case SPEED_10000:
-		max_man = mac->speed / SPEED_100;
-		break;
-	default:
-		return;
-	}
-
-setup_rate_limit:
-	cfg = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
-	cfg |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
-	       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
-	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_man) |
-	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp) |
-	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
-	writel(cfg, hnat_priv->fe_base + mac->hw->soc->reg_map->qdma.qtx_cfg +
-	       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
-}
-
 static unsigned int
 mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 			     const struct nf_hook_state *state)
@@ -1169,16 +1131,8 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	if (skb_hnat_tops(skb) && skb_hnat_is_decap(skb) &&
 	    is_magic_tag_valid(skb) &&
 	    skb_hnat_iface(skb) == FOE_MAGIC_GE_VIRTUAL &&
-	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb)) {
-		if (skb_hnat_cdrt(skb) && skb_hnat_is_decrypt(skb))
-			/*
-			 * inbound flow of offload engines use QID 15
-			 * set its rate limit to maximum
-			 */
-			qos_rate_limit_set(15, NULL);
-
+	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb))
 		return NF_ACCEPT;
-	}
 
 	/*
 	 * Avoid mistakenly binding of outer IP, ports in SW L2TP decap flow.
@@ -1259,16 +1213,8 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 	if (skb_hnat_tops(skb) && skb_hnat_is_decap(skb) &&
 	    is_magic_tag_valid(skb) &&
 	    skb_hnat_iface(skb) == FOE_MAGIC_GE_VIRTUAL &&
-	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb)) {
-		if (skb_hnat_cdrt(skb) && skb_hnat_is_decrypt(skb))
-			/*
-			 * inbound flow of offload engines use QID 15
-			 * set its rate limit to maximum
-			 */
-			qos_rate_limit_set(15, NULL);
-
+	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb))
 		return NF_ACCEPT;
-	}
 
 	pre_routing_print(skb, state->in, state->out, __func__);
 
@@ -1657,16 +1603,6 @@ static inline void hnat_fill_offload_engine_entry(struct sk_buff *skb,
 		}
 	} else
 		return;
-
-	/*
-	 * outbound flow of offload engines use QID 14
-	 * set its rate limit to line rate
-	 */
-	if (IS_IPV4_GRP(entry))
-		entry->ipv4_hnapt.iblk2.qid = 14;
-	else
-		entry->ipv6_5t_route.iblk2.qid = 14;
-	qos_rate_limit_set(14, dev);
 #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 }
 
@@ -1698,6 +1634,7 @@ static int hnat_foe_entry_commit(struct foe_entry *foe,
 
 int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, int fill_inner_info)
 {
+	struct net_device *master_dev;
 	struct foe_entry *foe;
 	struct foe_entry entry = { 0 };
 	struct ethhdr eth = {0};
@@ -1706,8 +1643,10 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	struct tcpudphdr _ports;
 	const struct tcpudphdr *pptr;
 	u32 gmac = NR_DISCARD;
+	int port_id = 0;
 	int udp = 0;
-	struct mtk_mac *mac = netdev_priv(dev);
+	u32 qid;
+	struct mtk_mac *mac;
 	struct flow_offload_hw_path hw_path = { .dev = (struct net_device *) dev,
 						.virt_dev = (struct net_device *) dev };
 	u16 h_proto = 0;
@@ -1897,19 +1836,16 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 hnat_skip_fill_inner:
 	entry = ppe_fill_info_blk(entry, &hw_path);
 
-	if (IS_LAN(dev)) {
-		if (IS_BOND(dev))
-			gmac = ((skb_hnat_entry(skb) >> 1) % hnat_priv->gmac_num) ?
-				 NR_GMAC2_PORT : NR_GMAC1_PORT;
-		else
-			gmac = NR_GMAC1_PORT;
-	} else if (IS_LAN2(dev)) {
-		gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
-	} else if (IS_WAN(dev)) {
-		if (IS_GMAC1_MODE)
-			gmac = NR_GMAC1_PORT;
-		else
-			gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
+	if (IS_LAN_GRP(dev) || IS_WAN(dev)) { /* Forward to GMAC Ports */
+		master_dev = (struct net_device *)dev;
+		port_id = hnat_dsa_get_port(&master_dev);
+		if (port_id >= 0) {
+			if (hnat_dsa_fill_stag(dev, &entry, h_proto, 0) < 0)
+				return -1;
+		}
+
+		mac = netdev_priv(master_dev);
+		gmac = HNAT_GMAC_FP(mac->id);
 	} else {
 		pr_notice("Unknown case of dp, iif=%x --> %s\n", skb_hnat_iface(skb), dev->name);
 		return -1;
@@ -1944,6 +1880,18 @@ hnat_skip_fill_inner:
 		}
 		entry.ipv6_5t_route.pppoe_id = hw_path.pppoe_sid;
 	}
+
+	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_QUEUE_MASK) >= MAX_PPPQ_QUEUE_NUM)
+		qid = skb->mark & (MTK_QDMA_QUEUE_MASK);
+	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
+		qid = ((port_id >= 0) ? MTK_GMAC_ID_MAX + port_id : mac->id) & MTK_QDMA_QUEUE_MASK;
+	else
+		qid = 0;
+
+	if (IS_IPV4_GRP(&entry))
+		entry.ipv4_hnapt.iblk2.qid = qid;
+	else
+		entry.ipv6_5t_route.iblk2.qid = qid;
 
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
 
