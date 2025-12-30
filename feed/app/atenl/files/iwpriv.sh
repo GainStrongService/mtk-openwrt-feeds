@@ -1438,11 +1438,12 @@ elif [ "${cmd_type}" = "switch" ]; then
     if [ "${cmd}" = "testmode" ]; then
         testmode_enable="1"
         do_cmd "wifi down"
-        do_cmd "uci set wireless.radio0.disabled=1"
-        do_cmd "uci set wireless.radio1.disabled=1"
-        do_cmd "uci set wireless.radio2.disabled=1"
-        do_cmd "uci commit"
     fi
+
+    do_cmd "uci set wireless.radio0.disabled=${testmode_enable}"
+    do_cmd "uci set wireless.radio1.disabled=${testmode_enable}"
+    do_cmd "uci set wireless.radio2.disabled=${testmode_enable}"
+    do_cmd "uci commit"
 
     if [ "${eeprom_mode}" = "flash" ]; then
         ## flash mode should set eeprom testmode offset bit
