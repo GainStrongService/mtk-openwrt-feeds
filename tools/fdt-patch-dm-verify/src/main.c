@@ -576,10 +576,8 @@ int main(int argc, char *argv[])
 	}
 
 	bootargs = fdt_getprop(fdt, nodeoffset, "bootargs", &len);
-	if (!bootargs) {
-		fprintf(stderr, "Property `bootargs' not found\n");
-		return 5;
-	}
+	if (!bootargs)
+		bootargs = "";
 
 	parse_bootargs(bootargs);
 
