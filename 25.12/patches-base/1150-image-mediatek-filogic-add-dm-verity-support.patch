@@ -1,21 +1,38 @@
 --- a/target/linux/mediatek/image/Makefile
 +++ b/target/linux/mediatek/image/Makefile
-@@ -51,7 +51,18 @@ define Build/append-opteenode
+@@ -51,7 +51,35 @@ define Build/append-opteenode
  		$(if $(CONFIG_OPTEE_CORE_RESERVED_SHMEM),+ $(CONFIG_OPTEE_RESERVED_SHMEM_SIZE),))))
  endef
  
++define fdt-patch-all-rootdev
++	$(TOPDIR)/scripts/fdt-patch-rootdev.sh $(STAGING_DIR_HOSTPKG) \
++		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(1) $(2) $(3)
++	$(foreach dts,$(DEVICE_DTS_OVERLAY), \
++		$(call locked,$(TOPDIR)/scripts/fdt-patch-rootdev.sh $(STAGING_DIR_HOSTPKG) \
++				$(KDIR)/image-$(firstword $(dts)).dtbo $(1) $(2) $(3),fdt-patch-rootdev-$(dts));)
++endef
++
 +# build squashfs-hashed
 +define Build/squashfs-hashed
 +	$(TOPDIR)/scripts/make-squashfs-hashed.sh \
 +		$(ROOTFS/squashfs/$(DEVICE_NAME)) \
 +		$(STAGING_DIR_HOSTPKG) \
 +		$(ROOTFS/squashfs/$(DEVICE_NAME))-hashed-summary
++endef
++
++define Build/fdt-patch-dm-verity
 +	fdt-patch-dm-verify $(ROOTFS/squashfs/$(DEVICE_NAME))-hashed-summary \
-+		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb
++		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /dev/fit0
++	$(call fdt-patch-all-rootdev,bootargs-append,/dev/dm-0,0)
++endef
++
++define Build/prepare-dm-verity
++	$(call Build/squashfs-hashed)
++	$(call Build/fdt-patch-dm-verity)
 +endef
 +
  define Build/secure-boot
-+	$(if $(CONFIG_MTK_SECURE_BOOT),$(call Build/squashfs-hashed))
++	$(if $(CONFIG_MTK_SECURE_BOOT),$(call Build/prepare-dm-verity))
  	$(if $(filter-out mt7987%, $(DEVICE_DTS)), \
  		$(if $(CONFIG_PACKAGE_optee-mediatek),$(call Build/append-opteenode)))
  endef
