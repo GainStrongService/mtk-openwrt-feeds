@@ -1953,8 +1953,6 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 			    struct flow_offload_hw_path *hw_path)
 {
 	struct net_device *master_dev = (struct net_device *)dev;
-	struct net_device *slave_dev[10];
-	struct list_head *iter;
 	struct foe_entry entry = { 0 };
 	struct hnat_flow_entry *flow_entry;
 	struct mtk_mac *mac;
@@ -1970,7 +1968,6 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	int port_id = 0;
 	int mape = 0;
 	int udp = 0;
-	int i = 0;
 	int ret;
 	u32 payload_len = 0;
 	u32 qid = 0;
@@ -2467,26 +2464,6 @@ hnat_entry_bind:
 	entry = ppe_fill_info_blk(entry, hw_path);
 
 	if (IS_LAN_GRP(dev) || IS_WAN(dev)) { /* Forward to GMAC Ports */
-		if (IS_BOND(dev)) {
-			/* Retrieve subordinate devices that are connected to the Bond device */
-			netdev_for_each_lower_dev(master_dev, slave_dev[i], iter) {
-				/* Check the link status of the slave device */
-				if (!(slave_dev[i]->flags & IFF_UP) ||
-				    !netif_carrier_ok(slave_dev[i]))
-					continue;
-				i++;
-				if (i >= ARRAY_SIZE(slave_dev))
-					break;
-			}
-			if (i > 0) {
-				i = (skb_hnat_entry(skb) >> 1) % i;
-				if (i >= 0 && i < ARRAY_SIZE(slave_dev)) {
-					/* Choose a subordinate device by hash index */
-					dev = slave_dev[i];
-					master_dev = slave_dev[i];
-				}
-			}
-		}
 		port_id = hnat_dsa_get_port(&master_dev);
 		if (port_id >= 0) {
 			if (hnat_dsa_fill_stag(dev, &entry, h_proto, mape) < 0)
@@ -3614,8 +3591,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 {
 	struct ethhdr eth = {0};
 	struct foe_entry *entry;
-	struct flow_offload_hw_path hw_path = { .dev = (struct net_device *)out,
-						.virt_dev = (struct net_device *)out };
+	struct flow_offload_hw_path hw_path = { .virt_dev = (struct net_device *)out };
 	const struct net_device *arp_dev = out;
 	bool is_virt_dev = false;
 
@@ -3634,6 +3610,15 @@ static unsigned int mtk_hnat_nf_post_routing(
 
 	if (unlikely(skb->mark == HNAT_EXCEPTION_TAG))
 		return 0;
+
+	/* Get bond device slave for the following binding flow */
+	if (netif_is_bond_master(out) && out->netdev_ops->ndo_get_xmit_slave) {
+		out = out->netdev_ops->ndo_get_xmit_slave((struct net_device *)out, skb, false);
+		if (!out)
+			return 0;
+	}
+
+	hw_path.dev = (struct net_device *)out;
 
 	if (out->netdev_ops->ndo_flow_offload_check) {
 		out->netdev_ops->ndo_flow_offload_check(&hw_path);
