@@ -52,7 +52,7 @@ filogic_change_kernel_config() {
 
 	# APSoC related configs
 	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"airoha/EthMD32.dm.bin airoha/EthMD32.DSP.bin as21x1x_fw.bin Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld airoha/an8811hb/EthMD32_CRC.DM.bin airoha/an8811hb/EthMD32_CRC.DSP.bin\""
-	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../../../staging_dir/firmware\""
+	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"drivers/base/firmware_loader/builtin\""
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY_DEBUGFS
 	kernel_config_enable CONFIG_MT753X_GSW
@@ -126,16 +126,18 @@ airoha_firmware_install() {
 
 copy_phy_firmware() {
 	if test x"${internal_sync_set}" != x"yes"; then
+		firmware_dir="target/linux/mediatek/files-${kernel_ver}/drivers/base/firmware_loader/builtin"
+
 		# ensure the PHY firmware is located in the same directory when compiling the kernel's built-in PHY driver
-		copy_file "${openwrt_root}/package/kernel/as21xxx/firmware/as21x1x_fw.bin" "staging_dir/firmware"
-		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld" "staging_dir/firmware"
-		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld" "staging_dir/firmware"
-		copy_file "${openwrt_root}/package/kernel/airoha-phy-fw/files/an8811hb/EthMD32_CRC.DM.bin" "staging_dir/firmware/airoha/an8811hb"
-		copy_file "${openwrt_root}/package/kernel/airoha-phy-fw/files/an8811hb/EthMD32_CRC.DSP.bin" "staging_dir/firmware/airoha/an8811hb"
+		copy_file "${openwrt_root}/package/kernel/as21xxx/firmware/as21x1x_fw.bin" "${firmware_dir}"
+		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld" "${firmware_dir}"
+		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld" "${firmware_dir}"
+		copy_file "${openwrt_root}/package/kernel/airoha-phy-fw/files/an8811hb/EthMD32_CRC.DM.bin" "${firmware_dir}/airoha/an8811hb"
+		copy_file "${openwrt_root}/package/kernel/airoha-phy-fw/files/an8811hb/EthMD32_CRC.DSP.bin" "${firmware_dir}/airoha/an8811hb"
 
 		# copy linux firmware
 		linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
-		copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware/airoha"
+		copy_files "${linux_firmware_path}/airoha" "${firmware_dir}/airoha"
 	fi
 }
 
