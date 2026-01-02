@@ -1,18 +1,18 @@
-From c844d5d16f89e1123d2397233ce1ec4c4fe978b4 Mon Sep 17 00:00:00 2001
+From a62fc31865f3fd125ddd4ea8d470ca0dc140c16a Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 25 Nov 2025 21:04:17 +0800
+Date: Fri, 2 Jan 2026 09:45:29 +0800
 Subject: [PATCH] net: pcs: mtk_usxgmii: add link_poll mechanism
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/pcs/pcs-mtk-usxgmii.c    | 165 ++++++++++++++++++---------
+ drivers/net/pcs/pcs-mtk-usxgmii.c    | 168 +++++++++++++++++++--------
  include/linux/pcs/pcs-mtk-usxgmii.h  |  29 +++++
  include/linux/phy/phy-mtk-xfi-tphy.h |  23 ++++
- 3 files changed, 166 insertions(+), 51 deletions(-)
+ 3 files changed, 169 insertions(+), 51 deletions(-)
  create mode 100644 include/linux/phy/phy-mtk-xfi-tphy.h
 
 diff --git a/drivers/net/pcs/pcs-mtk-usxgmii.c b/drivers/net/pcs/pcs-mtk-usxgmii.c
-index b7729fd..c543ff9 100644
+index b7729fd..1e77896 100644
 --- a/drivers/net/pcs/pcs-mtk-usxgmii.c
 +++ b/drivers/net/pcs/pcs-mtk-usxgmii.c
 @@ -15,6 +15,7 @@
@@ -127,16 +127,19 @@ index b7729fd..c543ff9 100644
  
  	/* Configure the interface polarity */
  	mtk_m32(mpcs, RG_PHY_TOP_CTRL0,
-@@ -211,6 +233,8 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode
+@@ -211,6 +233,11 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode
  	if (an_ctrl & USXGMII_AN_ENABLE)
  		mtk_m32(mpcs, RG_PHY_TOP_SPEED_CTRL1, USXGMII_IF_FORCE_EN, 0);
  
++	/* Setup PMA/PMD */
++	phy_set_mode_ext(mpcs->xfi_tphy, PHY_MODE_ETHERNET, interface);
++
 +	mutex_unlock(&mpcs->regmap_lock);
 +
  	return mode_changed;
  }
  
-@@ -281,41 +305,42 @@ static void mtk_usxgmii_pcs_get_an_state(struct mtk_usxgmii_pcs *mpcs,
+@@ -281,41 +308,43 @@ static void mtk_usxgmii_pcs_get_an_state(struct mtk_usxgmii_pcs *mpcs,
  	phylink_decode_usxgmii_word(state, lpa);
  }
  
@@ -154,6 +157,7 @@ index b7729fd..c543ff9 100644
 -	mtk_m32(mpcs, RG_PCS_RX_STATUS0, RG_PCS_RX_STATUS_UPDATE, 0);
 -	ndelay(1020);
 +	state->link = mtk_usxgmii_pcs_link_status(mpcs);
++	state->interface = mpcs->interface;
  
 -	/* Read USXGMII link status */
 -	state->link = FIELD_GET(RG_PCS_RX_LINK_STATUS,
@@ -181,12 +185,12 @@ index b7729fd..c543ff9 100644
 +{
 +	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 +
-+	if (mpcs->state.interface != PHY_INTERFACE_MODE_NA) {
++	if (mpcs->state.interface != PHY_INTERFACE_MODE_NA)
 +		state->interface = mpcs->state.interface;
-+		state->speed = mpcs->state.speed;
-+		state->duplex = mpcs->state.duplex;
-+		state->link = mpcs->state.link;
-+	}
++
++	state->speed = mpcs->state.speed;
++	state->duplex = mpcs->state.duplex;
++	state->link = mpcs->state.link;
  }
  
  static void mtk_usxgmii_pcs_restart_an(struct phylink_pcs *pcs)
@@ -199,26 +203,26 @@ index b7729fd..c543ff9 100644
  }
  
  static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
-@@ -323,12 +348,42 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mo
+@@ -323,12 +352,41 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mo
  				    int speed, int duplex)
  {
  	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 +	unsigned long t_start = jiffies;
-+
-+	do {
-+		msleep(10);
-+
-+		if (mtk_usxgmii_pcs_link_status(mpcs) &&
-+		    mtk_usxgmii_pcs_is_valid_ctle(mpcs))
-+			return;
-+
-+	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));
  
 -	/* Reconfiguring USXGMII to ensure the quality of the RX signal
 -	 * after the line side link up.
 -	 */
 -	mtk_usxgmii_pcs_config(pcs, neg_mode, interface, NULL, false);
 -	phy_set_mode_ext(mpcs->xfi_tphy, PHY_MODE_ETHERNET, interface);
++	do {
++		msleep(100);
++
++		if (mtk_usxgmii_pcs_link_status(mpcs) &&
++		    mtk_usxgmii_pcs_is_valid_ctle(mpcs))
++			return;
++
++	} while (time_before(jiffies, t_start + msecs_to_jiffies(10000)));
++
 +	dev_warn(mpcs->dev, "wait link up timeout!\n");
 +}
 +
@@ -228,6 +232,7 @@ index b7729fd..c543ff9 100644
 +						   link_poll.work);
 +
 +	if ((mpcs->interface != PHY_INTERFACE_MODE_5GBASER &&
++	     mpcs->interface != PHY_INTERFACE_MODE_10GBASER &&
 +	     mpcs->interface != PHY_INTERFACE_MODE_10GKR &&
 +	     mpcs->interface != PHY_INTERFACE_MODE_USXGMII) ||
 +	    (mpcs->poll == false))
@@ -235,11 +240,9 @@ index b7729fd..c543ff9 100644
 +
 +	if (mtk_usxgmii_pcs_link_status(mpcs) && mtk_usxgmii_pcs_is_valid_ctle(mpcs))
 +		mtk_usxgmii_pcs_update_state(mpcs);
-+	else {
++	else
 +		mtk_usxgmii_pcs_config(&mpcs->pcs, mpcs->neg_mode,
 +				       mpcs->interface, NULL, false);
-+		phy_set_mode_ext(mpcs->xfi_tphy, PHY_MODE_ETHERNET, mpcs->interface);
-+	}
 +
 +exit:
 +	if (!delayed_work_pending(&mpcs->link_poll))
@@ -247,7 +250,7 @@ index b7729fd..c543ff9 100644
  }
  
  static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
-@@ -337,6 +392,9 @@ static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
+@@ -337,6 +395,9 @@ static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
  
  	phy_power_on(mpcs->xfi_tphy);
  
@@ -257,7 +260,7 @@ index b7729fd..c543ff9 100644
  	return 0;
  }
  
-@@ -344,6 +402,8 @@ static void mtk_usxgmii_pcs_disable(struct phylink_pcs *pcs)
+@@ -344,6 +405,8 @@ static void mtk_usxgmii_pcs_disable(struct phylink_pcs *pcs)
  {
  	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
  
@@ -266,7 +269,7 @@ index b7729fd..c543ff9 100644
  	mpcs->interface = PHY_INTERFACE_MODE_NA;
  	mpcs->neg_mode = -1;
  
-@@ -386,6 +446,9 @@ static int mtk_usxgmii_probe(struct platform_device *pdev)
+@@ -386,6 +449,9 @@ static int mtk_usxgmii_probe(struct platform_device *pdev)
  	mpcs->pcs.neg_mode = true;
  	mpcs->interface = PHY_INTERFACE_MODE_NA;
  	mpcs->neg_mode = -1;
