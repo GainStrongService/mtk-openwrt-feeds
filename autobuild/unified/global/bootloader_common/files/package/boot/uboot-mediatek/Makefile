@@ -505,7 +505,7 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-emmc
   NAME:=BananaPi BPi-R4-LITE EMMC
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=bananapi_bpi-r4-lite
-  UBOOT_CONFIG:=mt7988_emmc_rfb
+  UBOOT_CONFIG:=mt7987_emmc_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=emmc
   BL2_SOC:=mt7987
@@ -517,7 +517,7 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-sdmmc
   NAME:=BananaPi BPi-R4-LITE SD
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=bananapi_bpi-r4-lite
-  UBOOT_CONFIG:=mt7988_sd_rfb
+  UBOOT_CONFIG:=mt7987_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=sdmmc
   BL2_SOC:=mt7987
