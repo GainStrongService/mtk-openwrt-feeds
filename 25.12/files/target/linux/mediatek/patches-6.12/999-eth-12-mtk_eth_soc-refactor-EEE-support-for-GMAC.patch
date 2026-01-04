@@ -20,11 +20,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  1 +
  2 files changed, 52 insertions(+), 37 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 199a0ac..4be6b27 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -931,6 +931,40 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
+@@ -931,6 +931,40 @@ static void mtk_set_queue_speed(struct m
  	mtk_w32(eth, val, soc->reg_map->qdma.qtx_sch + ofs);
  }
  
@@ -65,7 +63,7 @@ index 199a0ac..4be6b27 100644
  static void mtk_gdm_mac_link_up(struct mtk_mac *mac,
  				struct phy_device *phy,
  				unsigned int mode, phy_interface_t interface,
-@@ -966,17 +1000,12 @@ static void mtk_gdm_mac_link_up(struct mtk_mac *mac,
+@@ -966,17 +1000,12 @@ static void mtk_gdm_mac_link_up(struct m
  	if (rx_pause)
  		mcr |= MAC_MCR_FORCE_RX_FC;
  
@@ -87,7 +85,7 @@ index 199a0ac..4be6b27 100644
  }
  
  static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
-@@ -5503,9 +5531,11 @@ static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
+@@ -5506,9 +5535,11 @@ static int mtk_get_eee(struct net_device
  	if (ret)
  		return ret;
  
@@ -102,7 +100,7 @@ index 199a0ac..4be6b27 100644
  
  	return 0;
  }
-@@ -5513,37 +5543,20 @@ static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
+@@ -5516,37 +5547,20 @@ static int mtk_get_eee(struct net_device
  static int mtk_set_eee(struct net_device *dev, struct ethtool_keee *eee)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
@@ -148,8 +146,6 @@ index 199a0ac..4be6b27 100644
  
  	return 0;
  }
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index c9805e5..fb1901a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -525,6 +525,7 @@
@@ -160,6 +156,3 @@ index c9805e5..fb1901a 100644
  #define MAC_EEE_CKG_TXIDLE		BIT(3)
  #define MAC_EEE_CKG_RXLPI		BIT(2)
  #define MAC_EEE_LPI_MODE		BIT(0)
--- 
-2.45.2
-

@@ -18,11 +18,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |   4 +
  2 files changed, 102 insertions(+), 17 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index b05e320..21f85b9 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -807,6 +807,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
+@@ -795,6 +795,7 @@ static void mtk_mac_config(struct phylin
  		}
  	}
  
@@ -30,7 +28,7 @@ index b05e320..21f85b9 100644
  	mac->interface = state->interface;
  	mtk_set_mcr_max_rx(mac, MTK_MAX_RX_LENGTH);
  
-@@ -1178,6 +1179,9 @@ static void mtk_mac_link_up(struct phylink_config *config,
+@@ -1166,6 +1167,9 @@ static void mtk_mac_link_up(struct phyli
  					   phylink_config);
  
  	mac->speed = speed;
@@ -40,7 +38,7 @@ index b05e320..21f85b9 100644
  	if (mtk_is_netsys_v3_or_greater(mac->hw) && mtk_interface_mode_is_xgmii(interface))
  		mtk_xgdm_mac_link_up(mac, phy, mode, interface, speed, duplex,
  				     tx_pause, rx_pause);
-@@ -4343,6 +4347,68 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+@@ -4335,6 +4339,68 @@ found:
  	return NOTIFY_DONE;
  }
  
@@ -109,7 +107,7 @@ index b05e320..21f85b9 100644
  static int mtk_open(struct net_device *dev)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
-@@ -4352,13 +4418,6 @@ static int mtk_open(struct net_device *dev)
+@@ -4344,13 +4410,6 @@ static int mtk_open(struct net_device *d
  
  	ppe_num = eth->soc->ppe_num;
  
@@ -123,7 +121,7 @@ index b05e320..21f85b9 100644
  	/* we run 2 netdevs on the same dma ring so we only bring it up once */
  	if (!refcount_read(&eth->dma_refcnt)) {
  		const struct mtk_soc_data *soc = eth->soc;
-@@ -4366,10 +4425,8 @@ static int mtk_open(struct net_device *dev)
+@@ -4358,10 +4417,8 @@ static int mtk_open(struct net_device *d
  		int i;
  
  		err = mtk_start_dma(eth);
@@ -135,7 +133,7 @@ index b05e320..21f85b9 100644
  
  		for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  			mtk_ppe_start(eth->ppe[i]);
-@@ -4424,7 +4481,20 @@ static int mtk_open(struct net_device *dev)
+@@ -4411,7 +4468,20 @@ static int mtk_open(struct net_device *d
  		refcount_inc(&eth->dma_refcnt);
  	}
  
@@ -157,7 +155,7 @@ index b05e320..21f85b9 100644
  	netif_tx_start_all_queues(dev);
  
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_9K) &&
-@@ -4498,11 +4568,17 @@ static int mtk_stop(struct net_device *dev)
+@@ -4485,11 +4555,17 @@ static int mtk_stop(struct net_device *d
  	struct mtk_eth *eth = mac->hw;
  	int i;
  
@@ -178,7 +176,7 @@ index b05e320..21f85b9 100644
  
  	/* only shutdown DMA if this is the last user */
  	if (!refcount_dec_and_test(&eth->dma_refcnt))
-@@ -4853,8 +4929,11 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+@@ -4838,8 +4914,11 @@ static void mtk_hw_warm_reset(struct mtk
  		return;
  	}
  
@@ -191,7 +189,7 @@ index b05e320..21f85b9 100644
  		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
  			rst_mask |= RSTCTRL_PPE1_V3;
  		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
-@@ -4862,11 +4941,11 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+@@ -4847,11 +4926,11 @@ static void mtk_hw_warm_reset(struct mtk
  
  		rst_mask |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
  	} else if (mtk_is_netsys_v2_or_greater(eth)) {
@@ -205,7 +203,7 @@ index b05e320..21f85b9 100644
  	}
  
  	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL, rst_mask, rst_mask);
-@@ -5614,6 +5693,8 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -5593,6 +5672,8 @@ static void mtk_pending_work(struct work
  			mt7988_esw_force_link(eth, true);
  	}
  
@@ -214,11 +212,9 @@ index b05e320..21f85b9 100644
  	clear_bit(MTK_RESETTING, &eth->state);
  
  	mtk_wed_fe_reset_complete();
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index a690bb1..3bc0835 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1751,11 +1751,15 @@ struct mtk_eth {
+@@ -1689,11 +1689,15 @@ struct mtk_eth {
   */
  struct mtk_mac {
  	int				id;
@@ -234,6 +230,3 @@ index a690bb1..3bc0835 100644
  	struct device_node		*of_node;
  	struct phylink			*phylink;
  	struct phylink_config		phylink_config;
--- 
-2.45.2
-

@@ -16,19 +16,17 @@ cat /sys/kernel/debug/mtketh/qdma_pppq
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  7 +++
  3 files changed, 117 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-index c83d27b..25ebf57 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-@@ -20,6 +20,7 @@
- #include <linux/kernel.h>
+@@ -22,6 +22,7 @@
+ #include <linux/pcs/pcs-mtk-usxgmii.h>
  #include <linux/phylink.h>
  #include <linux/proc_fs.h>
 +#include <net/dsa.h>
  
  #include "mtk_eth_soc.h"
  #include "mtk_eth_dbg.h"
-@@ -29,14 +30,60 @@
+@@ -30,14 +31,60 @@
  static int mtk_qdma_pppq_show(struct seq_file *m, void *v)
  {
  	struct mtk_eth *eth = m->private;
@@ -94,11 +92,9 @@ index c83d27b..25ebf57 100644
  
  	return 0;
  }
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index abfee7e..7ac83c3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4229,6 +4229,51 @@ static bool mtk_uses_dsa(struct net_device *dev)
+@@ -4243,6 +4243,51 @@ static bool mtk_uses_dsa(struct net_devi
  #endif
  }
  
@@ -150,7 +146,7 @@ index abfee7e..7ac83c3 100644
  static int mtk_device_event(struct notifier_block *n, unsigned long event, void *ptr)
  {
  	struct mtk_mac *mac = container_of(n, struct mtk_mac, device_notifier);
-@@ -4239,6 +4284,7 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+@@ -4253,6 +4298,7 @@ static int mtk_device_event(struct notif
  	struct list_head *iter;
  	struct dsa_port *dp;
  	unsigned int queue;
@@ -158,7 +154,7 @@ index abfee7e..7ac83c3 100644
  
  	if (event != NETDEV_CHANGE || dev->priv_flags & IFF_EBRIDGE)
  		return NOTIFY_DONE;
-@@ -4263,8 +4309,15 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+@@ -4277,8 +4323,15 @@ found:
  		return NOTIFY_DONE;
  
  	if (dsa_slave_dev_check(dev)) {
@@ -175,7 +171,7 @@ index abfee7e..7ac83c3 100644
  	} else
  		queue = mac->id;
  
-@@ -6155,13 +6208,15 @@ static u16 mtk_select_queue(struct net_device *dev, struct sk_buff *skb,
+@@ -6090,13 +6143,15 @@ static u16 mtk_select_queue(struct net_d
  			    struct net_device *sb_dev)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
@@ -193,8 +189,6 @@ index abfee7e..7ac83c3 100644
  	else
  		queue = mac->id;
  
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index a108917..c0845d4 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -1709,6 +1709,7 @@ struct mtk_soc_data {
@@ -213,7 +207,7 @@ index a108917..c0845d4 100644
  	unsigned long			sysclk;
  	struct regmap			*ethsys;
  	struct regmap			*infra;
-@@ -1819,6 +1821,7 @@ struct mtk_eth {
+@@ -1811,6 +1813,7 @@ struct mtk_eth {
   * @of_node:		Our devicetree node
   * @hw:			Backpointer to our main datastruture
   * @hw_stats:		Packet statistics counter
@@ -221,15 +215,15 @@ index a108917..c0845d4 100644
   */
  struct mtk_mac {
  	int				id;
-@@ -1846,6 +1849,7 @@ struct mtk_mac {
+@@ -1838,6 +1841,7 @@ struct mtk_mac {
  	struct sk_buff			*ptp_tx_skb;
  	unsigned long			ptp_tx_start;
  	unsigned int			ptp_tx_class;
 +	u8				dsa_user_idx[16];
  };
  
- /* struct mtk_mux_data -	the structure that holds the private data about the
-@@ -2078,4 +2082,7 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+ #define MTK_MUX_CHANNELS_MAX	2
+@@ -2023,4 +2027,7 @@ void mtk_eth_set_dma_device(struct mtk_e
  bool mtk_shaper_is_available(struct mtk_eth *eth, int idx);
  void mtk_shaper_update_refcnt(struct mtk_eth *eth, int idx, bool add);
  
@@ -237,6 +231,3 @@ index a108917..c0845d4 100644
 +void mtk_eth_set_dsa_user_idx(struct mtk_eth *eth, struct net_device *dev);
 +
  #endif /* MTK_ETH_H */
--- 
-2.45.2
-

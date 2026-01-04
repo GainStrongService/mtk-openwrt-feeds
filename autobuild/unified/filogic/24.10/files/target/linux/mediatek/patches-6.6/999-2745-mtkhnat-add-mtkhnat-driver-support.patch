@@ -1,8 +1,6 @@
-diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-index fca9a3d..c20ef82 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-@@ -219,6 +219,15 @@
+@@ -228,6 +228,15 @@
  	status = "okay";
  };
  
@@ -18,11 +16,9 @@ index fca9a3d..c20ef82 100644
  &uart0 {
  	status = "okay";
  };
-diff --git a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi b/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-index 9285457..f748ad2 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-@@ -1606,6 +1606,14 @@
+@@ -1605,6 +1605,14 @@
  			};
  		};
  
@@ -37,8 +33,6 @@ index 9285457..f748ad2 100644
  		wo_ccif0: syscon@151a5000 {
  			compatible = "mediatek,mt7988-wo-ccif", "syscon";
  			reg = <0 0x151a5000 0 0x1000>;
-diff --git a/drivers/net/ethernet/mediatek/Kconfig b/drivers/net/ethernet/mediatek/Kconfig
-index a8d88fa..259935e 100644
 --- a/drivers/net/ethernet/mediatek/Kconfig
 +++ b/drivers/net/ethernet/mediatek/Kconfig
 @@ -32,4 +32,28 @@ config NET_MEDIATEK_STAR_EMAC
@@ -70,8 +64,6 @@ index a8d88fa..259935e 100644
 +	  family.
 +
  endif #NET_VENDOR_MEDIATEK
-diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index b6b45ce..013945a 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -11,3 +11,4 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) +
@@ -79,8 +71,6 @@ index b6b45ce..013945a 100644
  obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o
  obj-$(CONFIG_NET_MEDIATEK_STAR_EMAC) += mtk_star_emac.o
 +obj-$(CONFIG_NET_MEDIATEK_HNAT) += mtk_hnat/
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 851766b..afcd264 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -36,6 +36,10 @@
@@ -94,7 +84,7 @@ index 851766b..afcd264 100644
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2598,8 +2602,32 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2610,8 +2614,32 @@ static int mtk_poll_rx(struct napi_struc
  				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
  		}
  
@@ -125,9 +115,9 @@ index 851766b..afcd264 100644
  			mtk_ppe_check_skb(eth->ppe[ppe_idx], skb, hash);
 +#endif
  
- 		if (eth->hwlro && mtk_hwlro_stats_ebl &&
+ 		if (eth->hwlro && eth->debugfs->hwlro_stats.ebl &&
  		    IS_HW_LRO_RING(ring->ring_no)) {
-@@ -4205,8 +4233,10 @@ static int mtk_open(struct net_device *d
+@@ -4217,8 +4245,10 @@ static int mtk_open(struct net_device *d
  			return err;
  		}
  
@@ -138,7 +128,7 @@ index 851766b..afcd264 100644
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4372,8 +4402,10 @@ static int mtk_stop(struct net_device *d
+@@ -4384,8 +4414,10 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -149,7 +139,7 @@ index 851766b..afcd264 100644
  
  	return 0;
  }
-@@ -6729,6 +6761,7 @@ static int mtk_probe(struct platform_dev
+@@ -6761,6 +6793,7 @@ static int mtk_probe(struct platform_dev
  		};
  	}
  
@@ -157,11 +147,11 @@ index 851766b..afcd264 100644
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -6749,6 +6782,7 @@ static int mtk_probe(struct platform_dev
+@@ -6781,6 +6814,7 @@ static int mtk_probe(struct platform_dev
  				goto err_deinit_ppe;
  		}
  	}
 +#endif
  
- 	/* we run 2 devices on the same DMA ring so we need a dummy device
- 	 * for NAPI to work
+ 	mtk_eth_debugfs_init(eth);
+ 

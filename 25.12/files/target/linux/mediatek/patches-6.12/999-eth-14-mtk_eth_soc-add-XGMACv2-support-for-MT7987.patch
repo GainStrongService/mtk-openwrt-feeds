@@ -11,11 +11,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.c | 59 +++++++++++++++------
  1 file changed, 44 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index a3aa658..4916d61 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -778,14 +778,21 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
+@@ -778,14 +778,21 @@ static int mtk_mac_prepare(struct phylin
  {
  	struct mtk_mac *mac = container_of(config, struct mtk_mac,
  					   phylink_config);
@@ -39,7 +37,7 @@ index a3aa658..4916d61 100644
  	}
  
  	return 0;
-@@ -823,12 +830,16 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
+@@ -823,12 +830,16 @@ static void mtk_mac_link_down(struct phy
  {
  	struct mtk_mac *mac = container_of(config, struct mtk_mac,
  					   phylink_config);
@@ -57,7 +55,7 @@ index a3aa658..4916d61 100644
  	}
  }
  
-@@ -991,6 +1032,7 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
+@@ -1013,6 +1024,7 @@ static void mtk_xgdm_mac_link_up(struct
  				 unsigned int mode, phy_interface_t interface,
  				 int speed, int duplex, bool tx_pause, bool rx_pause)
  {
@@ -65,7 +63,7 @@ index a3aa658..4916d61 100644
  	u32 mcr;
  
  	if (mac->id == MTK_GMAC1_ID)
-@@ -1023,20 +1034,37 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
+@@ -1023,20 +1035,37 @@ static void mtk_xgdm_mac_link_up(struct
  	mdelay(20);
  	mtk_m32(mac->hw, XMAC_GLB_CNTCLR, XMAC_GLB_CNTCLR, MTK_XMAC_CNT_CTRL(mac->id));
  
@@ -93,13 +91,13 @@ index a3aa658..4916d61 100644
 -	if (rx_pause)
 -		mcr |= XMAC_MCR_FORCE_RX_FC;
 +		mtk_w32(mac->hw, mcr, MTK_XMAC_STS_FRC(mac->id));
-+
+ 
+-	mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 +		mtk_m32(mac->hw, XMAC_MCR_TRX_DISABLE, 0, MTK_XMAC_MCR(mac->id));
 +	} else {
 +		mtk_m32(mac->hw, MTK_XGMAC_FORCE_LINK(mac->id),
 +			MTK_XGMAC_FORCE_LINK(mac->id), MTK_XGMAC_STS(mac->id));
- 
--	mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
++
 +		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 +		mcr &= ~(XMAC_MCR_FORCE_TX_FC | XMAC_MCR_FORCE_RX_FC | XMAC_MCR_TRX_DISABLE);
 +		/* Configure pause modes -
@@ -115,6 +113,3 @@ index a3aa658..4916d61 100644
  }
  
  static void mtk_mac_link_up(struct phylink_config *config,
--- 
-2.45.2
-

@@ -23,8 +23,6 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.h | 79 ++++++++++++++++++++-
  3 files changed, 125 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index 39338a6..bd0bfe7 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -4,7 +4,7 @@
@@ -36,11 +34,9 @@ index 39338a6..bd0bfe7 100644
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed.o mtk_wed_mcu.o mtk_wed_wo.o
  ifdef CONFIG_DEBUG_FS
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 004f8c7..76265f0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2572,6 +2572,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2598,6 +2598,9 @@ static int mtk_poll_rx(struct napi_struc
  		skb->dev = netdev;
  		bytes += skb->len;
  
@@ -50,7 +46,7 @@ index 004f8c7..76265f0 100644
  		if (mtk_is_netsys_v3_or_greater(eth)) {
  			reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON, trxd.rxd5);
  			hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY;
-@@ -2750,6 +2753,11 @@ static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
+@@ -2776,6 +2779,11 @@ static int mtk_poll_tx_qdma(struct mtk_e
  		if (!tx_buf->data)
  			break;
  
@@ -62,7 +58,7 @@ index 004f8c7..76265f0 100644
  		if (tx_buf->data != (void *)MTK_DMA_DUMMY_DESC) {
  			if (tx_buf->type == MTK_TYPE_SKB)
  				mtk_poll_tx_done(eth, state, tx_buf->mac_id,
-@@ -2790,6 +2798,11 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
+@@ -2816,6 +2824,11 @@ static int mtk_poll_tx_pdma(struct mtk_e
  		if (!tx_buf->data)
  			break;
  
@@ -74,7 +70,7 @@ index 004f8c7..76265f0 100644
  		if (tx_buf->data != (void *)MTK_DMA_DUMMY_DESC) {
  			if (tx_buf->type == MTK_TYPE_SKB)
  				mtk_poll_tx_done(eth, state, 0, tx_buf->data);
-@@ -4272,6 +4285,9 @@ static int mtk_open(struct net_device *dev)
+@@ -4346,6 +4359,9 @@ static int mtk_open(struct net_device *d
  		mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
  		mtk_w32(eth, 0, MTK_RST_GL);
  
@@ -84,7 +80,7 @@ index 004f8c7..76265f0 100644
  		napi_enable(&eth->tx_napi);
  		napi_enable(&eth->rx_napi[0].napi);
  		mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
-@@ -4409,6 +4425,9 @@ static int mtk_stop(struct net_device *dev)
+@@ -4498,6 +4514,9 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -94,7 +90,7 @@ index 004f8c7..76265f0 100644
  #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  		mtk_ppe_stop(eth->ppe[i]);
-@@ -5301,6 +5320,10 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+@@ -5392,6 +5411,10 @@ static int mtk_do_ioctl(struct net_devic
  	struct mtk_mac *mac = netdev_priv(dev);
  
  	switch (cmd) {
@@ -105,7 +101,7 @@ index 004f8c7..76265f0 100644
  	case SIOCGMIIPHY:
  	case SIOCGMIIREG:
  	case SIOCSMIIREG:
-@@ -5866,6 +5889,28 @@ static int mtk_set_rxfh(struct net_device *dev, const u32 *indir,
+@@ -5959,6 +5982,28 @@ static int mtk_set_rxfh(struct net_devic
  	return 0;
  }
  
@@ -134,7 +130,7 @@ index 004f8c7..76265f0 100644
  static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
-@@ -5943,6 +5988,7 @@ static const struct ethtool_ops mtk_ethtool_ops = {
+@@ -6036,6 +6081,7 @@ static const struct ethtool_ops mtk_etht
  	.get_rxfh_indir_size	= mtk_get_rxfh_indir_size,
  	.get_rxfh		= mtk_get_rxfh,
  	.set_rxfh		= mtk_set_rxfh,
@@ -142,8 +138,6 @@ index 004f8c7..76265f0 100644
  	.get_eee		= mtk_get_eee,
  	.set_eee		= mtk_set_eee,
  };
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index d96cac5..ae64e54 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -15,6 +15,7 @@
@@ -218,7 +212,7 @@ index d96cac5..ae64e54 100644
  /* GPIO port control registers for GMAC 2*/
  #define GPIO_OD33_CTRL8		0x4c0
  #define GPIO_BIAS_CTRL		0xed0
-@@ -1282,6 +1340,7 @@ enum mkt_eth_capabilities {
+@@ -1283,6 +1341,7 @@ enum mkt_eth_capabilities {
  	MTK_INFRA_BIT,
  	MTK_SHARED_SGMII_BIT,
  	MTK_GLO_MEM_ACCESS_BIT,
@@ -226,7 +220,7 @@ index d96cac5..ae64e54 100644
  	MTK_HWLRO_BIT,
  	MTK_RSS_BIT,
  	MTK_SHARED_INT_BIT,
-@@ -1335,6 +1394,7 @@ enum mkt_eth_capabilities {
+@@ -1336,6 +1395,7 @@ enum mkt_eth_capabilities {
  #define MTK_INFRA		BIT_ULL(MTK_INFRA_BIT)
  #define MTK_SHARED_SGMII	BIT_ULL(MTK_SHARED_SGMII_BIT)
  #define MTK_GLO_MEM_ACCESS	BIT_ULL(MTK_GLO_MEM_ACCESS_BIT)
@@ -234,7 +228,7 @@ index d96cac5..ae64e54 100644
  #define MTK_HWLRO		BIT_ULL(MTK_HWLRO_BIT)
  #define MTK_RSS			BIT_ULL(MTK_RSS_BIT)
  #define MTK_SHARED_INT		BIT_ULL(MTK_SHARED_INT_BIT)
-@@ -1463,7 +1523,7 @@ enum mkt_eth_capabilities {
+@@ -1464,7 +1524,7 @@ enum mkt_eth_capabilities {
  		      MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX_GMAC2_TO_2P5GPHY | \
  		      MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | MTK_SRAM | \
  		      MTK_QDMA | MTK_PDMA_INT | MTK_RSS | MTK_HWLRO | \
@@ -243,7 +237,7 @@ index d96cac5..ae64e54 100644
  
  #define MT7988_CAPS  (MTK_36BIT_DMA | MTK_GDM1_ESW | MTK_GMAC1_SGMII | \
  		      MTK_GMAC2_2P5GPHY | MTK_GMAC2_SGMII | MTK_GMAC2_USXGMII | \
-@@ -1690,6 +1750,12 @@ struct mtk_eth {
+@@ -1693,6 +1753,12 @@ struct mtk_eth {
  	struct work_struct		pending_work;
  	unsigned long			state;
  
@@ -256,7 +250,7 @@ index d96cac5..ae64e54 100644
  	const struct mtk_soc_data	*soc;
  
  	spinlock_t			dim_lock;
-@@ -1769,6 +1835,10 @@ struct mtk_mac {
+@@ -1768,6 +1834,10 @@ struct mtk_mac {
  	bool				tx_lpi_enabled;
  	u32				tx_lpi_timer;
  	struct notifier_block		device_notifier;
@@ -266,8 +260,8 @@ index d96cac5..ae64e54 100644
 +	unsigned int			ptp_tx_class;
  };
  
- /* struct mtk_mux_data -	the structure that holds the private data about the
-@@ -1983,6 +2053,13 @@ int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
+ #define MTK_MUX_CHANNELS_MAX	2
+@@ -1935,6 +2005,13 @@ int mtk_gmac_gephy_path_setup(struct mtk
  int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_usxgmii_path_setup(struct mtk_eth *eth, int mac_id);
  
@@ -281,6 +275,3 @@ index d96cac5..ae64e54 100644
  int mtk_eth_offload_init(struct mtk_eth *eth, u8 id);
  int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
--- 
-2.45.2
-

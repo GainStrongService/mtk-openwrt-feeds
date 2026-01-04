@@ -13,8 +13,6 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 
-diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index ddbb7f4..24f7d04 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -4,7 +4,7 @@
@@ -26,9 +24,6 @@ index ddbb7f4..24f7d04 100644
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed.o mtk_wed_mcu.o mtk_wed_wo.o
  ifdef CONFIG_DEBUG_FS
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-new file mode 100644
-index 0000000..0c69495
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
 @@ -0,0 +1,2616 @@
@@ -2648,9 +2643,6 @@ index 0000000..0c69495
 +	debugfs_remove_recursive(eth->debugfs->root);
 +	remove_proc_subtree(PROCREG_DIR, eth->debugfs->procfs_root);
 +}
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.h b/drivers/net/ethernet/mediatek/mtk_eth_dbg.h
-new file mode 100644
-index 0000000..0eff3e6
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 @@ -0,0 +1,458 @@
@@ -3112,8 +3104,6 @@ index 0000000..0eff3e6
 +void mtk_eth_debugfs_exit(struct mtk_eth *eth);
 +
 +#endif /* MTK_ETH_DBG_H */
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 1675d82..a7b8c20 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -36,6 +36,7 @@
@@ -3124,7 +3114,7 @@ index 1675d82..a7b8c20 100644
  #include "mtk_wed.h"
  
  static int mtk_msg_level = -1;
-@@ -87,9 +88,11 @@ static const struct mtk_reg_map mtk_reg_map = {
+@@ -87,9 +88,11 @@ static const struct mtk_reg_map mtk_reg_
  		.fc_th		= 0x1a10,
  		.tx_sch_rate	= 0x1a14,
  		.int_grp	= 0x1a20,
@@ -3136,7 +3126,7 @@ index 1675d82..a7b8c20 100644
  		.crx_ptr	= 0x1b10,
  		.drx_ptr	= 0x1b14,
  		.fq_head	= 0x1b20,
-@@ -117,6 +120,7 @@ static const struct mtk_reg_map mt7628_reg_map = {
+@@ -117,6 +120,7 @@ static const struct mtk_reg_map mt7628_r
  		.rx_ptr		= 0x0900,
  		.rx_cnt_cfg	= 0x0904,
  		.pcrx_ptr	= 0x0908,
@@ -3144,7 +3134,7 @@ index 1675d82..a7b8c20 100644
  		.glo_cfg	= 0x0a04,
  		.rst_idx	= 0x0a08,
  		.delay_irq	= 0x0a0c,
-@@ -134,6 +138,7 @@ static const struct mtk_reg_map mt7986_reg_map = {
+@@ -134,6 +138,7 @@ static const struct mtk_reg_map mt7986_r
  		.rx_ptr		= 0x4100,
  		.rx_cnt_cfg	= 0x4104,
  		.pcrx_ptr	= 0x4108,
@@ -3152,7 +3142,7 @@ index 1675d82..a7b8c20 100644
  		.glo_cfg	= 0x4204,
  		.rst_idx	= 0x4208,
  		.delay_irq	= 0x420c,
-@@ -160,9 +165,12 @@ static const struct mtk_reg_map mt7986_reg_map = {
+@@ -160,9 +165,12 @@ static const struct mtk_reg_map mt7986_r
  		.delay_irq	= 0x460c,
  		.fc_th		= 0x4610,
  		.int_grp	= 0x4620,
@@ -3165,7 +3155,7 @@ index 1675d82..a7b8c20 100644
  		.crx_ptr	= 0x4710,
  		.drx_ptr	= 0x4714,
  		.fq_head	= 0x4720,
-@@ -192,6 +200,7 @@ static const struct mtk_reg_map mt7988_reg_map = {
+@@ -192,6 +200,7 @@ static const struct mtk_reg_map mt7988_r
  		.rx_ptr		= 0x6900,
  		.rx_cnt_cfg	= 0x6904,
  		.pcrx_ptr	= 0x6908,
@@ -3173,7 +3163,7 @@ index 1675d82..a7b8c20 100644
  		.glo_cfg	= 0x6a04,
  		.rst_idx	= 0x6a08,
  		.delay_irq	= 0x6a0c,
-@@ -223,9 +232,12 @@ static const struct mtk_reg_map mt7988_reg_map = {
+@@ -223,9 +232,12 @@ static const struct mtk_reg_map mt7988_r
  		.delay_irq	= 0x460c,
  		.fc_th		= 0x4610,
  		.int_grp	= 0x4620,
@@ -3186,7 +3176,7 @@ index 1675d82..a7b8c20 100644
  		.crx_ptr	= 0x4710,
  		.drx_ptr	= 0x4714,
  		.fq_head	= 0x4720,
-@@ -360,8 +372,8 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
+@@ -360,8 +372,8 @@ static int mtk_mdio_busy_wait(struct mtk
  	return -ETIMEDOUT;
  }
  
@@ -3197,7 +3187,7 @@ index 1675d82..a7b8c20 100644
  {
  	int ret;
  
-@@ -384,8 +396,8 @@ static int _mtk_mdio_write_c22(struct mtk_eth *eth, u32 phy_addr, u32 phy_reg,
+@@ -384,8 +396,8 @@ static int _mtk_mdio_write_c22(struct mt
  	return 0;
  }
  
@@ -3208,7 +3198,7 @@ index 1675d82..a7b8c20 100644
  {
  	int ret;
  
-@@ -420,7 +432,7 @@ static int _mtk_mdio_write_c45(struct mtk_eth *eth, u32 phy_addr,
+@@ -420,7 +432,7 @@ static int _mtk_mdio_write_c45(struct mt
  	return 0;
  }
  
@@ -3217,7 +3207,7 @@ index 1675d82..a7b8c20 100644
  {
  	int ret;
  
-@@ -442,8 +454,8 @@ static int _mtk_mdio_read_c22(struct mtk_eth *eth, u32 phy_addr, u32 phy_reg)
+@@ -442,8 +454,8 @@ static int _mtk_mdio_read_c22(struct mtk
  	return mtk_r32(eth, MTK_PHY_IAC) & PHY_IAC_DATA_MASK;
  }
  
@@ -3228,7 +3218,7 @@ index 1675d82..a7b8c20 100644
  {
  	int ret;
  
-@@ -2769,6 +2781,12 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2780,6 +2792,12 @@ static int mtk_poll_rx(struct napi_struc
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
  			mtk_ppe_check_skb(eth->ppe[ppe_idx], skb, hash);
  
@@ -3241,7 +3231,7 @@ index 1675d82..a7b8c20 100644
  		skb_record_rx_queue(skb, 0);
  		napi_gro_receive(napi, skb);
  
-@@ -5598,6 +5616,12 @@ static void mtk_restore_qdma_cfg(struct mtk_eth *eth)
+@@ -5599,6 +5617,12 @@ static void mtk_restore_qdma_cfg(struct
  			reg_map->qdma.tx_sch_rate + 0x4);
  }
  
@@ -3254,7 +3244,7 @@ index 1675d82..a7b8c20 100644
  static void mtk_prepare_for_reset(struct mtk_eth *eth)
  {
  	struct mtk_mac *mac;
-@@ -6152,6 +6176,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -6153,6 +6177,7 @@ static const struct net_device_ops mtk_n
  	.ndo_set_mac_address	= mtk_set_mac_address,
  	.ndo_validate_addr	= eth_validate_addr,
  	.ndo_eth_ioctl		= mtk_do_ioctl,
@@ -3262,8 +3252,8 @@ index 1675d82..a7b8c20 100644
  	.ndo_change_mtu		= mtk_change_mtu,
  	.ndo_tx_timeout		= mtk_tx_timeout,
  	.ndo_get_stats64        = mtk_get_stats64,
-@@ -7003,6 +7028,8 @@ static int mtk_probe(struct platform_device *pdev)
- 		mtk_ppe_internal_debugfs_init(eth);
+@@ -7025,6 +7050,8 @@ static int mtk_probe(struct platform_dev
+ 		}
  	}
  
 +	mtk_eth_debugfs_init(eth);
@@ -3271,8 +3261,6 @@ index 1675d82..a7b8c20 100644
  	/* we run 2 devices on the same DMA ring so we need a dummy device
  	 * for NAPI to work
  	 */
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index f5236c6..fcc6513 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -346,6 +346,8 @@
@@ -3330,6 +3318,3 @@ index f5236c6..fcc6513 100644
  	struct mii_bus			*mii_bus;
  	unsigned int			mdc_divider;
  	struct work_struct		pending_work;
--- 
-2.45.2
-

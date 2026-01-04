@@ -8,11 +8,9 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  34 ++-
  2 files changed, 218 insertions(+), 43 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index a3959f6..6b8241d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2720,12 +2720,12 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
+@@ -2760,12 +2760,12 @@ static int mtk_poll_tx(struct mtk_eth *e
  
  static void mtk_handle_status_irq(struct mtk_eth *eth)
  {
@@ -27,7 +25,7 @@ index a3959f6..6b8241d 100644
  	}
  }
  
-@@ -3748,7 +3748,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
+@@ -3794,7 +3794,7 @@ static void mtk_dma_free(struct mtk_eth
  
  static bool mtk_hw_reset_check(struct mtk_eth *eth)
  {
@@ -36,7 +34,7 @@ index a3959f6..6b8241d 100644
  
  	return (val & MTK_FE_INT_FQ_EMPTY) || (val & MTK_FE_INT_RFIFO_UF) ||
  	       (val & MTK_FE_INT_RFIFO_OV) || (val & MTK_FE_INT_TSO_FAIL) ||
-@@ -4514,80 +4514,231 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+@@ -4560,80 +4560,231 @@ static void mtk_hw_warm_reset(struct mtk
  			val, rst_mask);
  }
  
@@ -158,14 +156,15 @@ index a3959f6..6b8241d 100644
 -	gmac2_tx = FIELD_GET(GENMASK(31, 24), mtk_r32(eth, MTK_MAC_FSM(1))) != 1;
 -	gdm1_fc = mtk_r32(eth, reg_map->gdm1_cnt + 0x24);
 -	gdm2_fc = mtk_r32(eth, reg_map->gdm1_cnt + 0x64);
+-
+-	if (qfsm_hang && qfwd_hang &&
+-	    ((gdm1_tx && gmac1_tx && gdm1_fc < 1) ||
+-	     (gdm2_tx && gmac2_tx && gdm2_fc < 1))) {
 +	val = mtk_r32(eth, MTK_FE_INT_STATUS);
 +	qpse_fc = !!(FIELD_GET(BIT(PSE_QDMA_TX_PORT), val));
 +	if (qpse_fc)
 +		mtk_w32(eth, BIT(PSE_QDMA_TX_PORT), MTK_FE_INT_STATUS);
- 
--	if (qfsm_hang && qfwd_hang &&
--	    ((gdm1_tx && gmac1_tx && gdm1_fc < 1) ||
--	     (gdm2_tx && gmac2_tx && gdm2_fc < 1))) {
++
 +	if (!qpse_fc && qfsm_hang && qfwd_hang) {
  		if (++eth->reset.qdma_hang_count > 2) {
 +			dev_warn(eth->dev, "detect QDMA Tx hang !\n");
@@ -303,8 +302,6 @@ index a3959f6..6b8241d 100644
  
  	return ret;
  }
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 643546d..b5c7bfa 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -94,7 +94,7 @@
@@ -326,7 +323,7 @@ index 643546d..b5c7bfa 100644
  /* CDMP Ingress Control Register */
  #define MTK_CDMQ_IG_CTRL	0x1400
  #define MTK_CDMQ_STAG_EN	BIT(0)
-@@ -343,8 +346,6 @@
+@@ -350,8 +353,6 @@
  #define MTK_TX_DONE_INT0	BIT(0)
  #define MTK_TX_DONE_INT		MTK_TX_DONE_DLY
  
@@ -335,7 +332,7 @@ index 643546d..b5c7bfa 100644
  /* QDMA Interrupt grouping registers */
  #define MTK_RLS_DONE_INT	BIT(0)
  
-@@ -689,6 +690,12 @@
+@@ -710,6 +711,12 @@
  #define MTK_FE_DROP_FC		0x248
  #define MTK_FE_DROP_PPE		0x24C
  
@@ -348,7 +345,7 @@ index 643546d..b5c7bfa 100644
  #define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
  
  #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-@@ -959,6 +966,12 @@ enum mtk_pse_port {
+@@ -991,6 +998,12 @@ enum mtk_pse_port {
  	PSE_PORT_MAX
  };
  
@@ -361,7 +358,7 @@ index 643546d..b5c7bfa 100644
  /* GMAC Identifier */
  enum mtk_gmac_id {
  	MTK_GMAC1_ID = 0,
-@@ -1502,10 +1515,21 @@ struct mtk_eth {
+@@ -1545,10 +1558,21 @@ struct mtk_eth {
  	struct {
  		struct delayed_work monitor_work;
  		atomic_t force;
@@ -385,6 +382,3 @@ index 643546d..b5c7bfa 100644
  	} reset;
  };
  
--- 
-2.45.2
-

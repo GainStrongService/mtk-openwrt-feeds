@@ -16,11 +16,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.c | 28 +++++++++++++++++----
  1 file changed, 23 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 5dc262a..7a9e176 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1211,14 +1211,14 @@ static void mtk_mdio_config(struct mtk_eth *eth)
+@@ -1210,14 +1210,14 @@ static void mtk_mdio_config(struct mtk_e
  	if (mtk_is_netsys_v3_or_greater(eth))
  		mtk_m32(eth, 0, MISC_MDC_TURBO, MTK_MAC_MISC_V3);
  	else
@@ -37,7 +35,7 @@ index 5dc262a..7a9e176 100644
  	struct device_node *mii_np;
  	int ret;
  	u32 val;
-@@ -1251,16 +1251,34 @@ static int mtk_mdio_init(struct mtk_eth *eth)
+@@ -1250,16 +1250,34 @@ static int mtk_mdio_init(struct mtk_eth
  	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
  
  	if (!of_property_read_u32(mii_np, "clock-frequency", &val)) {
@@ -75,6 +73,3 @@ index 5dc262a..7a9e176 100644
  	ret = of_mdiobus_register(eth->mii_bus, mii_np);
  
  err_put_node:
--- 
-2.45.2
-

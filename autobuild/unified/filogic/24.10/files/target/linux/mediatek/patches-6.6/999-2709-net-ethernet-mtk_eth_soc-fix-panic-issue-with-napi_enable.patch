@@ -15,7 +15,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4561,6 +4561,12 @@ static void mtk_pending_work(struct work
+@@ -4573,6 +4573,12 @@ static void mtk_pending_work(struct work
  	rtnl_unlock();
  }
  
@@ -28,7 +28,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  static int mtk_free_dev(struct mtk_eth *eth)
  {
  	int i;
-@@ -5671,6 +5677,17 @@ static int mtk_probe(struct platform_dev
+@@ -5703,6 +5709,17 @@ static int mtk_probe(struct platform_dev
  		}
  	}
  
@@ -46,8 +46,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5685,17 +5700,6 @@ static int mtk_probe(struct platform_dev
- 				    eth->netdev[i]->base_addr, eth->irq[0]);
+@@ -5717,17 +5734,6 @@ static int mtk_probe(struct platform_dev
+ 				   eth->netdev[i]->base_addr, eth->irq[0]);
  	}
  
 -	mtk_eth_debugfs_init(eth);
@@ -64,7 +64,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	platform_set_drvdata(pdev, eth);
  	schedule_delayed_work(&eth->reset.monitor_work,
  			      MTK_DMA_MONITOR_TIMEOUT);
-@@ -5704,6 +5710,7 @@ static int mtk_probe(struct platform_dev
+@@ -5735,6 +5741,7 @@ static int mtk_probe(struct platform_dev
  	return 0;
  
  err_deinit_ppe:
@@ -72,7 +72,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_ppe_deinit(eth);
  	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
-@@ -5742,8 +5749,7 @@ static int mtk_remove(struct platform_de
+@@ -5773,8 +5780,7 @@ static int mtk_remove(struct platform_de
  	mtk_wed_exit();
  	mtk_hw_deinit(eth);
  

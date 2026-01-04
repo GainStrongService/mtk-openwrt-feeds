@@ -13,11 +13,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.c | 44 ++++++++++++---------
  1 file changed, 26 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 6d6d18c..47e6e42 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4672,6 +4672,12 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4731,6 +4731,12 @@ static void mtk_pending_work(struct work
  	rtnl_unlock();
  }
  
@@ -30,7 +28,7 @@ index 6d6d18c..47e6e42 100644
  static int mtk_free_dev(struct mtk_eth *eth)
  {
  	int i;
-@@ -4702,7 +4708,8 @@ static int mtk_unreg_dev(struct mtk_eth *eth)
+@@ -4761,7 +4767,8 @@ static int mtk_unreg_dev(struct mtk_eth
  		mac = netdev_priv(eth->netdev[i]);
  		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
  			unregister_netdevice_notifier(&mac->device_notifier);
@@ -40,7 +38,7 @@ index 6d6d18c..47e6e42 100644
  	}
  
  	return 0;
-@@ -5837,20 +5844,6 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5916,20 +5923,6 @@ static int mtk_probe(struct platform_dev
  		}
  	}
  
@@ -61,7 +59,7 @@ index 6d6d18c..47e6e42 100644
  	/* we run 2 devices on the same DMA ring so we need a dummy device
  	 * for NAPI to work
  	 */
-@@ -5858,13 +5851,27 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5937,13 +5930,27 @@ static int mtk_probe(struct platform_dev
  	if (!eth->dummy_dev) {
  		err = -ENOMEM;
  		dev_err(eth->dev, "failed to allocated dummy device\n");
@@ -90,7 +88,7 @@ index 6d6d18c..47e6e42 100644
  	platform_set_drvdata(pdev, eth);
  	schedule_delayed_work(&eth->reset.monitor_work,
  			      MTK_DMA_MONITOR_TIMEOUT);
-@@ -5873,7 +5880,9 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5952,7 +5959,9 @@ static int mtk_probe(struct platform_dev
  
  err_unreg_netdev:
  	mtk_unreg_dev(eth);
@@ -100,7 +98,7 @@ index 6d6d18c..47e6e42 100644
  	mtk_ppe_deinit(eth);
  	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
-@@ -5912,8 +5921,7 @@ static void mtk_remove(struct platform_device *pdev)
+@@ -5991,8 +6000,7 @@ static void mtk_remove(struct platform_d
  	mtk_wed_exit();
  	mtk_hw_deinit(eth);
  
@@ -110,6 +108,3 @@ index 6d6d18c..47e6e42 100644
  	mtk_cleanup(eth);
  	free_netdev(eth->dummy_dev);
  	mtk_mdio_cleanup(eth);
--- 
-2.45.2
-

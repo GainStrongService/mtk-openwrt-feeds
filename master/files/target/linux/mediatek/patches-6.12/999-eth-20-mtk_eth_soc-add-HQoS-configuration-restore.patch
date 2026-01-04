@@ -17,11 +17,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_eth_soc.h | 19 ++++++++
  2 files changed, 69 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index c2b1322..2b39ea1 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5299,6 +5299,54 @@ static void mt7988_esw_force_link(struct mtk_eth *eth, bool link_up)
+@@ -5314,6 +5314,54 @@ static void mt7988_esw_force_link(struct
  	__raw_writel(val, eth->esw_base + MT753X_PMCR_P(6));
  }
  
@@ -76,7 +74,7 @@ index c2b1322..2b39ea1 100644
  static void mtk_prepare_for_reset(struct mtk_eth *eth)
  {
  	struct mtk_mac *mac;
-@@ -5351,6 +5399,7 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -5366,6 +5414,7 @@ static void mtk_pending_work(struct work
  
  	mtk_hw_dump_all(eth);
  
@@ -84,7 +82,7 @@ index c2b1322..2b39ea1 100644
  	mtk_prepare_for_reset(eth);
  	mtk_wed_fe_reset();
  	/* Run again reset preliminary configuration in order to avoid any
-@@ -5394,6 +5443,7 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -5409,6 +5458,7 @@ static void mtk_pending_work(struct work
  	clear_bit(MTK_RESETTING, &eth->state);
  
  	mtk_wed_fe_reset_complete();
@@ -92,8 +90,6 @@ index c2b1322..2b39ea1 100644
  
  	rtnl_unlock();
  }
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index b2ab0e4..b3abf0d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -336,6 +336,9 @@
@@ -106,7 +102,7 @@ index b2ab0e4..b3abf0d 100644
  /* QDMA TX Scheduler Rate Control Register */
  #define MTK_QDMA_TX_SCH_MAX_WFQ		BIT(15)
  
-@@ -1172,6 +1175,21 @@ struct mtk_napi {
+@@ -1165,6 +1168,21 @@ struct mtk_napi {
  	struct mtk_rx_ring	*rx_ring;
  };
  
@@ -128,7 +124,7 @@ index b2ab0e4..b3abf0d 100644
  enum mkt_eth_capabilities {
  	MTK_RGMII_BIT = 0,
  	MTK_TRGMII_BIT,
-@@ -1579,6 +1597,7 @@ struct mtk_eth {
+@@ -1572,6 +1590,7 @@ struct mtk_eth {
  	struct napi_struct		tx_napi;
  	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
  	struct mtk_rss_params		rss_params;
@@ -136,6 +132,3 @@ index b2ab0e4..b3abf0d 100644
  	void				*scratch_ring;
  	dma_addr_t			phy_scratch_ring;
  	void				*scratch_head[MTK_FQ_DMA_HEAD];
--- 
-2.45.2
-
