@@ -81,15 +81,20 @@ filogic_change_kernel_config() {
 }
 
 platform_enable_optee_config() {
+	openwrt_config_enable CONFIG_PACKAGE_optee-os-mt7981
+	openwrt_config_enable CONFIG_PACKAGE_optee-os-mt7986
+	openwrt_config_enable CONFIG_PACKAGE_optee-os-mt7987
+	openwrt_config_enable CONFIG_PACKAGE_optee-os-mt7988
 	openwrt_config_enable CONFIG_PACKAGE_optee-mediatek
 	openwrt_config_enable CONFIG_OPTEE_TEST
 	openwrt_config_enable CONFIG_OPTEE_FW_ENC_EARLY_TA
 	openwrt_config_enable CONFIG_OPTEE_MTK_TEST
+	openwrt_config_enable CONFIG_PACKAGE_optee-pkcs11
 }
 
 platform_build_optee_rpmb() {
 	# clean optee package
-	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/clean V=s"
+	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/optee-platform/clean V=s"
 
 	# add RPMB config
 	openwrt_config_enable CONFIG_OPTEE_RPMB_FS
@@ -99,7 +104,7 @@ platform_build_optee_rpmb() {
 	make_defconfig
 
 	# re-build optee
-	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/compile V=s"
+	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/optee-platform/compile V=s"
 
 	# revert RPMB config
 	openwrt_config_disable CONFIG_OPTEE_RPMB_FS
@@ -109,7 +114,7 @@ platform_build_optee_rpmb() {
 	make_defconfig
 
 	# clean optee package
-	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/clean V=s"
+	exec_log "make -C \"${openwrt_root}\" package/mtk/optee-mediatek/optee-platform/clean V=s"
 }
 
 platform_enable_security_config() {
