@@ -251,37 +251,45 @@ void set_gmac_ppe_fwd(int id, int enable)
 
 }
 
-static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
+int entry_mac_cmp(struct foe_entry *entry, u8 *mac, enum entry_cmp_flags flags)
 {
-	int ret = 0;
+	u32 smac_hi, dmac_hi;
+	u16 smac_lo, dmac_lo;
 
 	if (IS_IPV4_GRP(entry)) {
-		if (((swab32(entry->ipv4_hnapt.dmac_hi) == *(u32 *)mac) &&
-			(swab16(entry->ipv4_hnapt.dmac_lo) == *(u16 *)&mac[4])) ||
-			((swab32(entry->ipv4_hnapt.smac_hi) == *(u32 *)mac) &&
-			(swab16(entry->ipv4_hnapt.smac_lo) == *(u16 *)&mac[4])))
-			ret = 1;
+		smac_hi = swab32(entry->ipv4_hnapt.smac_hi);
+		smac_lo = swab16(entry->ipv4_hnapt.smac_lo);
+		dmac_hi = swab32(entry->ipv4_hnapt.dmac_hi);
+		dmac_lo = swab16(entry->ipv4_hnapt.dmac_lo);
 	} else {
-		if (((swab32(entry->ipv6_5t_route.dmac_hi) == *(u32 *)mac) &&
-			(swab16(entry->ipv6_5t_route.dmac_lo) == *(u16 *)&mac[4])) ||
-			((swab32(entry->ipv6_5t_route.smac_hi) == *(u32 *)mac) &&
-			(swab16(entry->ipv6_5t_route.smac_lo) == *(u16 *)&mac[4])))
-			ret = 1;
+		smac_hi = swab32(entry->ipv6_5t_route.smac_hi);
+		smac_lo = swab16(entry->ipv6_5t_route.smac_lo);
+		dmac_hi = swab32(entry->ipv6_5t_route.dmac_hi);
+		dmac_lo = swab16(entry->ipv6_5t_route.dmac_lo);
 	}
 
-	if (ret && debug_level >= 2)
-		pr_info("mac=%pM\n", mac);
+	if ((flags & ENTRY_CMP_SRC) &&
+	    (smac_hi == *(u32 *)mac) && (smac_lo == *(u16 *)&mac[4]))
+		return 1;
 
-	return ret;
+	if ((flags & ENTRY_CMP_DST) &&
+	    (dmac_hi == *(u32 *)mac) && (dmac_lo == *(u16 *)&mac[4]))
+		return 1;
+
+	return 0;
 }
 
-static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
+int entry_ip_cmp(struct foe_entry *entry,
+		 bool is_ipv4,
+		 void *addr,
+		 enum entry_cmp_flags flags)
 {
 	struct in6_addr *tmp_ipv6;
 	struct in6_addr ipv6 = {0};
 	struct in6_addr foe_sipv6 = {0};
 	struct in6_addr foe_dipv6 = {0};
 	u32 *tmp_ipv4, ipv4;
+	u32 foe_sipv4 = {0}, foe_dipv4 = {0};
 	u32 *sipv6_0 = NULL;
 	u32 *dipv6_0 = NULL;
 	int ret = 0;
@@ -293,19 +301,25 @@ static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
 		switch ((int)entry->bfib1.pkt_type) {
 		case IPV4_HNAPT:
 		case IPV4_HNAT:
-			if (entry->ipv4_hnapt.sip == ipv4 ||
-			    entry->ipv4_hnapt.new_dip == ipv4)
-				ret = 1;
+			foe_sipv4 = entry->ipv4_hnapt.sip;
+			foe_dipv4 = entry->ipv4_hnapt.new_dip;
 			break;
 		case IPV4_DSLITE:
 		case IPV4_MAP_E:
-			if (entry->ipv4_dslite.sip == ipv4 ||
-			    entry->ipv4_dslite.dip == ipv4)
-				ret = 1;
+			foe_sipv4 = entry->ipv4_dslite.sip;
+			foe_dipv4 = entry->ipv4_dslite.dip;
+			break;
+		case IPV6_6RD:
+			foe_sipv4 = entry->ipv6_6rd.tunnel_sipv4;
+			foe_dipv4 = entry->ipv6_6rd.tunnel_dipv4;
 			break;
 		default:
-			break;
+			return ret;
 		}
+
+		if (((flags & ENTRY_CMP_SRC) && (foe_sipv4 == ipv4)) ||
+		    ((flags & ENTRY_CMP_DST) && (foe_dipv4 == ipv4)))
+			ret = 1;
 	} else {
 		memset(&foe_sipv6, 0, sizeof(struct in6_addr));
 		memset(&foe_dipv6, 0, sizeof(struct in6_addr));
@@ -331,26 +345,27 @@ static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
 			dipv6_0 = &(entry->ipv6_hnapt.new_ipv6_ip0);
 			break;
 #endif
-		default:
+		case IPV4_DSLITE:
+		case IPV4_MAP_E:
+			sipv6_0 = &(entry->ipv4_dslite.tunnel_sipv6_0);
+			dipv6_0 = &(entry->ipv4_dslite.tunnel_dipv6_0);
 			break;
+		default:
+			return ret;
 		}
 
-		if (sipv6_0 && dipv6_0) {
+		if ((flags & ENTRY_CMP_SRC) && sipv6_0) {
 			memcpy(&foe_sipv6, sipv6_0, sizeof(struct in6_addr));
+			if (!memcmp(&foe_sipv6, &ipv6, sizeof(struct in6_addr)))
+				ret = 1;
+		}
+
+		if ((flags & ENTRY_CMP_DST) && dipv6_0) {
 			memcpy(&foe_dipv6, dipv6_0, sizeof(struct in6_addr));
-			if (!memcmp(&foe_sipv6, &ipv6, sizeof(struct in6_addr)) ||
-			    !memcmp(&foe_dipv6, &ipv6, sizeof(struct in6_addr)))
+			if (!memcmp(&foe_dipv6, &ipv6, sizeof(struct in6_addr)))
 				ret = 1;
 		}
 	}
-
-	if (ret && debug_level >= 2) {
-		if (is_ipv4)
-			pr_info("ipv4=%pI4\n", tmp_ipv4);
-		else
-			pr_info("ipv6=%pI6\n", tmp_ipv6);
-	}
-
 	return ret;
 }
 
@@ -370,7 +385,8 @@ int entry_delete_by_mac(u8 *mac)
 		entry = hnat_priv->foe_table_cpu[i];
 		cnt = 0;
 		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
-			if (entry->bfib1.state == BIND && entry_mac_cmp(entry, mac)) {
+			if (entry->bfib1.state == BIND &&
+			    entry_mac_cmp(entry, mac, ENTRY_CMP_ANY)) {
 				spin_lock_bh(&hnat_priv->entry_lock);
 				__entry_delete(entry);
 				spin_unlock_bh(&hnat_priv->entry_lock);
@@ -408,7 +424,8 @@ int entry_delete_by_ip(bool is_ipv4, void *addr)
 		entry = hnat_priv->foe_table_cpu[i];
 		cnt = 0;
 		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
-			if (entry->bfib1.state == BIND && entry_ip_cmp(entry, is_ipv4, addr)) {
+			if (entry->bfib1.state == BIND &&
+			    entry_ip_cmp(entry, is_ipv4, addr, ENTRY_CMP_ANY)) {
 				spin_lock_bh(&hnat_priv->entry_lock);
 				__entry_delete(entry);
 				spin_unlock_bh(&hnat_priv->entry_lock);
@@ -1452,6 +1469,7 @@ int hnat_warm_init(void)
 	int i;
 
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
+	hnat_neigh_update_cleanup();
 
 	for (ppe_id = 0; ppe_id < CFG_PPE_NUM; ppe_id++) {
 		foe_table_sz =
@@ -1679,6 +1697,7 @@ static int hnat_probe(struct platform_device *pdev)
 
 	register_netdevice_notifier(&nf_hnat_netdevice_nb);
 	register_netevent_notifier(&nf_hnat_netevent_nb);
+	hnat_neigh_update_init();
 
 	if (hnat_priv->data->mcast) {
 		for (i = 0; i < CFG_PPE_NUM; i++)
@@ -1729,6 +1748,7 @@ static void hnat_remove(struct platform_device *pdev)
 	hnat_flow_entry_teardown_disable();
 	unregister_netdevice_notifier(&nf_hnat_netdevice_nb);
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
+	hnat_neigh_update_cleanup();
 	hnat_disable_hook();
 
 	if (hnat_priv->data->mcast)

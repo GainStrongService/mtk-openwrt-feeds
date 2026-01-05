@@ -453,16 +453,13 @@ void foe_clear_crypto_entry(u32 cdrt_idx)
 }
 EXPORT_SYMBOL(foe_clear_crypto_entry);
 
-void foe_clear_entry(struct neighbour *neigh)
+void foe_clear_entry(struct list_head *head)
 {
-	u32 *daddr = (u32 *)neigh->primary_key;
-	unsigned char h_dest[ETH_ALEN];
+	struct hnat_neigh_update_event *neigh;
 	struct foe_entry *entry;
 	int i, hash_index;
 	int cnt;
-	u32 dip;
-
-	dip = (u32)(*daddr);
+	bool is_ipv4, dip_match, dmac_match;
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		if (!hnat_priv->foe_table_cpu[i])
@@ -470,32 +467,36 @@ void foe_clear_entry(struct neighbour *neigh)
 		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
-			if (entry->bfib1.state == BIND &&
-			    entry->ipv4_hnapt.new_dip == ntohl(dip) &&
-			    IS_IPV4_HNAPT(entry)) {
-				*((u32 *)h_dest) = swab32(entry->ipv4_hnapt.dmac_hi);
-				*((u16 *)&h_dest[4]) =
-					swab16(entry->ipv4_hnapt.dmac_lo);
-				if (strncmp(h_dest, neigh->ha, ETH_ALEN) == 0)
-					continue;
+			if (entry->bfib1.state != BIND)
+				continue;
 
-				cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
-					     SMA, SMA_ONLY_FWD_CPU);
+			list_for_each_entry(neigh, head, list) {
+				is_ipv4 = (neigh->tbl_family == AF_INET);
+				dip_match = entry_ip_cmp(entry, is_ipv4, &neigh->dip,
+							 ENTRY_CMP_DST);
+				if (!dip_match)
+					continue;
+				dmac_match = entry_mac_cmp(entry, neigh->ha, ENTRY_CMP_DST);
+				/* Delete entry if nud_state is NUD_FAILED or DMAC not match */
+				if (!((neigh->nud_state & NUD_FAILED) || !dmac_match))
+					continue;
 
 				spin_lock_bh(&hnat_priv->entry_lock);
 				__entry_delete(entry);
 				spin_unlock_bh(&hnat_priv->entry_lock);
 
-				mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
-					  jiffies + 3 * HZ);
-				if (debug_level >= 2) {
-					pr_info("%s: state=%d\n", __func__,
-						neigh->nud_state);
-					pr_info("Delete old entry: dip =%pI4\n", &dip);
-					pr_info("Old mac= %pM\n", h_dest);
-					pr_info("New mac= %pM\n", neigh->ha);
+				if (debug_level >= 7) {
+					pr_info("%s: state=%d, New mac= %pM\n",
+						__func__, neigh->nud_state, neigh->ha);
+					if (is_ipv4)
+						pr_info("Delete old entry: dip =%pI4\n",
+							&neigh->dip);
+					else
+						pr_info("Delete old entry: dip =%pI6\n",
+							&neigh->dip6);
 				}
 				cnt++;
+				break;
 			}
 		}
 		/* clear HWNAT cache */
@@ -504,21 +505,122 @@ void foe_clear_entry(struct neighbour *neigh)
 	}
 }
 
+void hnat_neigh_update_init(void)
+{
+	INIT_DELAYED_WORK(&hnat_priv->neigh_update.work, hnat_neigh_update_work_handler);
+	INIT_LIST_HEAD(&hnat_priv->neigh_update.head);
+	spin_lock_init(&hnat_priv->neigh_update.lock);
+
+	hnat_priv->neigh_update.pending_cnt = 0;
+}
+
+void hnat_neigh_update_cleanup(void)
+{
+	struct hnat_neigh_update_event *entry, *tmp;
+	int is_pending;
+
+	 /* Take lock first to prevent new entries */
+	spin_lock_bh(&hnat_priv->neigh_update.lock);
+
+	/* Check if work is pending while holding lock */
+	is_pending = delayed_work_pending(&hnat_priv->neigh_update.work);
+
+	/* Clear the list */
+	list_for_each_entry_safe(entry, tmp, &hnat_priv->neigh_update.head, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+	hnat_priv->neigh_update.pending_cnt = 0;
+	spin_unlock_bh(&hnat_priv->neigh_update.lock);
+
+	/* Cancel work after clearing list */
+	if (is_pending)
+		cancel_delayed_work_sync(&hnat_priv->neigh_update.work);
+}
+
+void hnat_neigh_update_work_handler(struct work_struct *work)
+{
+	struct hnat_neigh_update_event *entry, *tmp;
+	LIST_HEAD(local_list);
+	int processed = 0;
+
+	spin_lock_bh(&hnat_priv->neigh_update.lock);
+	/* move the list to local_list */
+	/* Process only a limited number of entries at once */
+	list_for_each_entry_safe(entry, tmp, &hnat_priv->neigh_update.head, list) {
+		/* Batch processing budget, default 128 */
+		if (processed >= NEIGH_PROCESS_BUDGET)
+			break;
+		list_move_tail(&entry->list, &local_list);
+		processed++;
+	}
+	hnat_priv->neigh_update.pending_cnt -= processed;
+	spin_unlock_bh(&hnat_priv->neigh_update.lock);
+
+	if (!list_empty(&local_list))
+		foe_clear_entry(&local_list);
+
+	list_for_each_entry_safe(entry, tmp, &local_list, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+
+	/* reschedule if new update event added during handling */
+	spin_lock_bh(&hnat_priv->neigh_update.lock);
+	if (!list_empty(&hnat_priv->neigh_update.head))
+		schedule_delayed_work(&hnat_priv->neigh_update.work,
+				      msecs_to_jiffies(NEIGH_UPDATE_WORK_DELAY_MS));
+	spin_unlock_bh(&hnat_priv->neigh_update.lock);
+}
+
 int nf_hnat_netevent_handler(struct notifier_block *unused, unsigned long event,
 			     void *ptr)
 {
 	struct net_device *dev = NULL;
 	struct neighbour *neigh = NULL;
+	struct hnat_neigh_update_event *entry;
+	u32 pending_max;
 
 	switch (event) {
 	case NETEVENT_NEIGH_UPDATE:
 		neigh = ptr;
 		dev = neigh->dev;
-		if (dev)
-			foe_clear_entry(neigh);
-		break;
+		if (!dev || !(neigh->nud_state & (NUD_CONNECTED | NUD_FAILED)))
+			return NOTIFY_DONE;
+
+		/* gc_thresh3 is the hard limit for the number of ARP/ND entries
+		 * (default is 1024). We multiply it by 2 to provide a safety buffer
+		 * for handling event bursts.
+		 */
+		pending_max = max(4096, (arp_tbl.gc_thresh3 + nd_tbl.gc_thresh3) * 2);
+
+		spin_lock_bh(&hnat_priv->neigh_update.lock);
+
+		if (hnat_priv->neigh_update.pending_cnt >= pending_max)
+			goto unlock_out;
+
+		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		if (!entry)
+			goto unlock_out;
+
+		memcpy(entry->ha, neigh->ha, ETH_ALEN);
+		memcpy(&entry->dip, neigh->primary_key, neigh->tbl->key_len);
+		entry->nud_state = neigh->nud_state;
+		entry->tbl_family = neigh->tbl->family;
+
+		list_add_tail(&entry->list, &hnat_priv->neigh_update.head);
+		hnat_priv->neigh_update.pending_cnt++;
+
+		if (!delayed_work_pending(&hnat_priv->neigh_update.work))
+			schedule_delayed_work(&hnat_priv->neigh_update.work,
+					      msecs_to_jiffies(NEIGH_UPDATE_WORK_DELAY_MS));
+
+		goto unlock_out;
 	}
 
+	return NOTIFY_DONE;
+unlock_out:
+	spin_unlock_bh(&hnat_priv->neigh_update.lock);
 	return NOTIFY_DONE;
 }
 

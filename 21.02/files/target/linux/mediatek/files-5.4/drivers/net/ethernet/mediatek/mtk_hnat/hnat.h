@@ -946,6 +946,13 @@ enum mtk_hnat_version {
 	MTK_HNAT_V3,		/* version 3:	mt7988		*/
 };
 
+enum entry_cmp_flags {
+	ENTRY_CMP_SRC = BIT(0),
+	ENTRY_CMP_DST = BIT(1),
+	/* Return true if any one of the comparisons succeeds */
+	ENTRY_CMP_ANY = ENTRY_CMP_SRC | ENTRY_CMP_DST,
+};
+
 struct mtk_hnat_data {
 	u8 num_of_sch;
 	bool whnat;
@@ -964,6 +971,24 @@ struct xlat_conf {
 	struct list_head map_list;
 	struct in6_addr prefix;
 	int prefix_len;
+};
+
+struct hnat_neigh_update {
+	struct list_head head;
+	struct delayed_work work;
+	spinlock_t lock;
+	u32 pending_cnt;
+};
+
+struct hnat_neigh_update_event {
+	struct list_head list;
+	union {
+		__be32 dip;
+		struct in6_addr dip6;
+	};
+	u8 ha[ETH_ALEN];
+	u8 nud_state;
+	u8 tbl_family;
 };
 
 struct mtk_hnat {
@@ -1012,6 +1037,7 @@ struct mtk_hnat {
 	spinlock_t		entry_lock;
 	spinlock_t		flow_entry_lock;
 	struct hlist_head *foe_flow[MAX_PPE_NUM];
+	struct hnat_neigh_update neigh_update;
 	int fe_irq2;
 };
 
@@ -1356,6 +1382,9 @@ enum FoeIpAct {
 			  (mac_id == MTK_GMAC3_ID) ? NR_GMAC3_PORT :	\
 						    -EINVAL)
 
+#define NEIGH_UPDATE_WORK_DELAY_MS	300
+#define NEIGH_PROCESS_BUDGET		128
+
 extern const struct of_device_id of_hnat_match[];
 extern struct mtk_hnat *hnat_priv;
 
@@ -1431,6 +1460,9 @@ void __hnat_cache_ebl(u32 ppe_id, int enable);
 void hnat_cache_clr(u32 ppe_id);
 void __hnat_cache_clr(u32 ppe_id);
 void hnat_qos_shaper_ebl(u32 id, u32 enable);
+void hnat_neigh_update_init(void);
+void hnat_neigh_update_cleanup(void);
+void hnat_neigh_update_work_handler(struct work_struct *work);
 void exclude_boundary_entry(struct foe_entry *foe_table_cpu);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
 int entry_detail(u32 ppe_id, int index);
@@ -1438,6 +1470,8 @@ int entry_delete_by_mac(u8 *mac);
 int entry_delete_by_ip(bool is_ipv4, void *addr);
 int entry_delete(u32 ppe_id, int index);
 void __entry_delete(struct foe_entry *entry);
+int entry_mac_cmp(struct foe_entry *entry, u8 *mac, enum entry_cmp_flags flags);
+int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr, enum entry_cmp_flags flags);
 int hnat_warm_init(void);
 u32 hnat_get_ppe_hash(struct foe_entry *entry);
 int mtk_ppe_get_xlat_v4_by_v6(struct in6_addr *ipv6, u32 *ipv4);
