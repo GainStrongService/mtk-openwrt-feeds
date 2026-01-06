@@ -8,8 +8,8 @@ nft_flow_offload.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- net/netfilter/nft_flow_offload.c | 214 +++++++++++++++++++++++++++----
- 1 file changed, 192 insertions(+), 22 deletions(-)
+ net/netfilter/nft_flow_offload.c | 220 +++++++++++++++++++++++++++----
+ 1 file changed, 196 insertions(+), 24 deletions(-)
 
 diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
 index a7611b8..ee7c29d 100644
@@ -124,16 +124,22 @@ index a7611b8..ee7c29d 100644
  			if (is_zero_ether_addr(info->h_source))
  				memcpy(info->h_source, path->dev->dev_addr, ETH_ALEN);
  
-@@ -146,7 +209,8 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
+@@ -146,9 +209,12 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
  				info->num_encaps++;
  				break;
  			case DEV_PATH_BR_VLAN_UNTAG:
--				info->num_encaps--;
-+				if (info->num_encaps > 0)
+-				if (WARN_ON_ONCE(info->num_encaps-- == 0)) {
+-					info->indev = NULL;
+-					break;
++				if (info->num_encaps > 0) {
 +					info->num_encaps--;
++					if (WARN_ON_ONCE(info->num_encaps == 0)) {
++						info->indev = NULL;
++ 						break;
++					}
+				}
  				break;
  			case DEV_PATH_BR_VLAN_KEEP:
- 				break;
 @@ -154,7 +218,6 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
  			info->xmit_type = FLOW_OFFLOAD_XMIT_DIRECT;
  			break;
