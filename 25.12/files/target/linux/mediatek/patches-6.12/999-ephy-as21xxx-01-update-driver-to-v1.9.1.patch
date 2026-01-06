@@ -23,9 +23,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/phy/as21xx_bbu_api/as21xx_api.h   | 1157 +++++++
  .../net/phy/as21xx_bbu_api/as21xx_debugfs.c   | 2824 +++++++++++++++++
  .../net/phy/as21xx_bbu_api/as21xx_debugfs.h   |   27 +
- drivers/net/phy/as21xxx.c                     | 1017 ++++--
+ drivers/net/phy/as21xxx.c                     | 1018 ++++--
  drivers/net/phy/as21xxx.h                     |   65 +
- 7 files changed, 6491 insertions(+), 227 deletions(-)
+ 7 files changed, 6492 insertions(+), 227 deletions(-)
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.c
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_api.h
  create mode 100644 drivers/net/phy/as21xx_bbu_api/as21xx_debugfs.c
@@ -5704,7 +5704,7 @@ index 0000000..af66fd1
 +
 +#endif /**/
 diff --git a/drivers/net/phy/as21xxx.c b/drivers/net/phy/as21xxx.c
-index 0052773..0a36531 100644
+index 0052773..3c24d70 100644
 --- a/drivers/net/phy/as21xxx.c
 +++ b/drivers/net/phy/as21xxx.c
 @@ -10,6 +10,7 @@
@@ -6179,7 +6179,7 @@ index 0052773..0a36531 100644
  }
  
  static int aeon_ipc_noop(struct phy_device *phydev,
-@@ -570,21 +782,20 @@ static int aeon_ipc_sync_parity(struct phy_device *phydev,
+@@ -570,21 +782,21 @@ static int aeon_ipc_sync_parity(struct phy_device *phydev,
  static int aeon_ipc_get_fw_version(struct phy_device *phydev)
  {
  	u16 ret_data[AEON_IPC_DATA_NUM_REGISTERS], data[1];
@@ -6204,11 +6204,12 @@ index 0052773..0a36531 100644
 +		return ret;
  
 -	phydev_info(phydev, "Firmware Version: %s\n", fw_version);
++	ret_data[DIV_ROUND_UP(ret, sizeof(u16))] = '\0';
 +	phydev_info(phydev, "Firmware Version: %s\n", (char *)ret_data);
  
  	return 0;
  }
-@@ -592,12 +803,114 @@ static int aeon_ipc_get_fw_version(struct phy_device *phydev)
+@@ -592,12 +804,114 @@ static int aeon_ipc_get_fw_version(struct phy_device *phydev)
  static int aeon_dpc_ra_enable(struct phy_device *phydev)
  {
  	u16 data[2];
@@ -6324,7 +6325,7 @@ index 0052773..0a36531 100644
  }
  
  static int as21xxx_probe(struct phy_device *phydev)
-@@ -611,8 +924,12 @@ static int as21xxx_probe(struct phy_device *phydev)
+@@ -611,8 +925,12 @@ static int as21xxx_probe(struct phy_device *phydev)
  		return -ENOMEM;
  	phydev->priv = priv;
  
@@ -6339,7 +6340,7 @@ index 0052773..0a36531 100644
  	if (ret)
  		return ret;
  
-@@ -624,84 +941,178 @@ static int as21xxx_probe(struct phy_device *phydev)
+@@ -624,84 +942,178 @@ static int as21xxx_probe(struct phy_device *phydev)
  	if (ret)
  		return ret;
  
@@ -6560,7 +6561,7 @@ index 0052773..0a36531 100644
  
  	/* why bother the PHY if nothing can have changed */
  	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
-@@ -712,57 +1123,15 @@ static int as21xxx_read_status(struct phy_device *phydev)
+@@ -712,57 +1124,15 @@ static int as21xxx_read_status(struct phy_device *phydev)
  	phydev->pause = 0;
  	phydev->asym_pause = 0;
  
@@ -6626,7 +6627,7 @@ index 0052773..0a36531 100644
  	}
  
  	return 0;
-@@ -876,73 +1245,236 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
+@@ -876,73 +1246,236 @@ static int as21xxx_led_polarity_set(struct phy_device *phydev, int index,
  			      mask, val);
  }
  
@@ -6908,7 +6909,7 @@ index 0052773..0a36531 100644
  static struct phy_driver as21xxx_drivers[] = {
  	{
  		/* PHY expose in C45 as 0x7500 0x9410
-@@ -953,13 +1485,28 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -953,13 +1486,28 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21XXX),
  		.name		= "Aeonsemi AS21xxx",
  		.match_phy_device = as21xxx_match_phy_device,
@@ -6937,7 +6938,7 @@ index 0052773..0a36531 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -970,8 +1517,10 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -970,8 +1518,10 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21011PB1),
  		.name		= "Aeonsemi AS21011PB1",
  		.probe		= as21xxx_probe,
@@ -6948,7 +6949,7 @@ index 0052773..0a36531 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -982,8 +1531,10 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -982,8 +1532,10 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21010PB1),
  		.name		= "Aeonsemi AS21010PB1",
  		.probe		= as21xxx_probe,
@@ -6960,7 +6961,7 @@ index 0052773..0a36531 100644
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
  		.led_hw_control_set = as21xxx_led_hw_control_set,
-@@ -994,7 +1545,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -994,7 +1546,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21010JB1),
  		.name		= "Aeonsemi AS21010JB1",
  		.probe		= as21xxx_probe,
@@ -6970,7 +6971,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1006,7 +1559,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1006,7 +1560,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21210PB1),
  		.name		= "Aeonsemi AS21210PB1",
  		.probe		= as21xxx_probe,
@@ -6980,7 +6981,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1018,7 +1573,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1018,7 +1574,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21510JB1),
  		.name		= "Aeonsemi AS21510JB1",
  		.probe		= as21xxx_probe,
@@ -6990,7 +6991,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1030,7 +1587,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1030,7 +1588,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21510PB1),
  		.name		= "Aeonsemi AS21510PB1",
  		.probe		= as21xxx_probe,
@@ -7000,7 +7001,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1042,7 +1601,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1042,7 +1602,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21511JB1),
  		.name		= "Aeonsemi AS21511JB1",
  		.probe		= as21xxx_probe,
@@ -7010,7 +7011,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1054,7 +1615,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1054,7 +1616,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21210JB1),
  		.name		= "Aeonsemi AS21210JB1",
  		.probe		= as21xxx_probe,
@@ -7020,7 +7021,7 @@ index 0052773..0a36531 100644
  		.read_status	= as21xxx_read_status,
  		.led_brightness_set = as21xxx_led_brightness_set,
  		.led_hw_is_supported = as21xxx_led_hw_is_supported,
-@@ -1066,7 +1629,9 @@ static struct phy_driver as21xxx_drivers[] = {
+@@ -1066,7 +1630,9 @@ static struct phy_driver as21xxx_drivers[] = {
  		PHY_ID_MATCH_EXACT(PHY_ID_AS21511PB1),
  		.name		= "Aeonsemi AS21511PB1",
  		.probe		= as21xxx_probe,

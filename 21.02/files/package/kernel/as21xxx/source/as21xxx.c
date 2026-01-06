@@ -805,6 +805,7 @@ static int aeon_ipc_get_fw_version(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
+	ret_data[DIV_ROUND_UP(ret, sizeof(u16))] = '\0';
 	phydev_info(phydev, "Firmware Version: %s\n", (char *)ret_data);
 
 	return 0;
