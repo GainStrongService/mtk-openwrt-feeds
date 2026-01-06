@@ -1,0 +1,32 @@
+--- a/drivers/pci/controller/pcie-mediatek-gen3.c
++++ b/drivers/pci/controller/pcie-mediatek-gen3.c
+@@ -450,7 +450,7 @@ static int mtk_pcie_startup_port(struct
+ 	val |= PCIE_DISABLE_DVFSRC_VLT_REQ;
+ 	writel_relaxed(val, pcie->base + PCIE_MISC_CTRL_REG);
+ 
+-	if (pcie->wifi_reset) {
++	if (!IS_ERR_OR_NULL(pcie->wifi_reset)) {
+ 		gpiod_set_value_cansleep(pcie->wifi_reset, 1);
+ 		msleep(pcie->wifi_reset_delay_ms);
+ 		gpiod_set_value_cansleep(pcie->wifi_reset, 0);
+@@ -1099,10 +1099,18 @@ static int mtk_pcie_parse_port(struct mt
+ 							   GPIOD_OUT_LOW);
+ 		if (IS_ERR(pcie->wifi_reset)) {
+ 			ret = PTR_ERR(pcie->wifi_reset);
+-			if (ret != -EPROBE_DEFER)
++
++			/* Allow other modules to control the WiFi reset GPIO */
++			if (ret == -EBUSY) {
++				dev_warn(dev,
++					"WiFi reset GPIO source is external\n");
++			} else if (ret != -EPROBE_DEFER) {
+ 				dev_err(dev,
+ 					"failed to request WIFI reset gpio\n");
+-			return ret;
++				return ret;
++			} else {
++				return ret;
++			}
+ 		}
+ 	}
+ 

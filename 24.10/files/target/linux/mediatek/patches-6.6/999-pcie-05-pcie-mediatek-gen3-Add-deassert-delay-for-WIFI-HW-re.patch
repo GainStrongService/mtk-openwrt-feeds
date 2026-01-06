@@ -14,8 +14,6 @@ Signed-off-by: Jianguo Zhang <jianguo.zhang@mediatek.com>
  drivers/pci/controller/pcie-mediatek-gen3.c | 7 +++++++
  1 file changed, 7 insertions(+)
 
-diff --git a/drivers/pci/controller/pcie-mediatek-gen3.c b/drivers/pci/controller/pcie-mediatek-gen3.c
-index 405b902..437ee81 100644
 --- a/drivers/pci/controller/pcie-mediatek-gen3.c
 +++ b/drivers/pci/controller/pcie-mediatek-gen3.c
 @@ -162,6 +162,7 @@ struct mtk_pcie_irq {
@@ -34,16 +32,16 @@ index 405b902..437ee81 100644
  
  	int irq;
  	int num_irqs;
-@@ -470,6 +472,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
- 		gpiod_set_value_cansleep(pcie->wifi_reset, 0);
- 		msleep(pcie->wifi_reset_delay_ms);
+@@ -454,6 +456,7 @@ static int mtk_pcie_startup_port(struct
  		gpiod_set_value_cansleep(pcie->wifi_reset, 1);
+ 		msleep(pcie->wifi_reset_delay_ms);
+ 		gpiod_set_value_cansleep(pcie->wifi_reset, 0);
 +		msleep(pcie->wifi_deassert_delay_ms);
  	}
  
- 	/*
-@@ -1118,6 +1121,10 @@ static int mtk_pcie_parse_port(struct mtk_gen3_pcie *pcie)
- 
+ 	/* Assert all reset signals */
+@@ -1114,6 +1117,10 @@ static int mtk_pcie_parse_port(struct mt
+ 		}
  	}
  
 +	pcie->wifi_deassert_delay_ms = 0;
@@ -53,6 +51,3 @@ index 405b902..437ee81 100644
  	return 0;
  }
  
--- 
-2.45.2
-
