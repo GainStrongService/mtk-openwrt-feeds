@@ -1,0 +1,99 @@
+From c1082793f102e17352f65af46e2fb0b69e585a64 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 6 Jan 2026 14:43:41 +0800
+Subject: [PATCH] wifi: mt76: mt7915: add E3 rebinding for MT7981 ifem 7976c
+
+Add E3 re-binding workaround for MT7981 ifem (7976C)
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7915/eeprom.c | 44 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 12 deletions(-)
+
+diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
+index 6a910b0..369de3b 100644
+--- a/mt7915/eeprom.c
++++ b/mt7915/eeprom.c
+@@ -311,12 +311,31 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
+ 	dev->chainshift = hweight8(dev->mphy.chainmask);
+ }
+ 
++static int mt7915_eeprom_rebinding(struct mt7915_dev *dev, u16 base)
++{
++#define MT_EE_ADIE1_MT7976C_OFFSET	0x270
++#define MT_EE_ADIE1_E3_OFFSET		0x271
++	u16 offset = MT_EE_ADIE1_MT7976C_OFFSET;
++	u8 *eeprom = dev->mt76.eeprom.data;
++	u8 buf[MT7915_EEPROM_BLOCK_SIZE];
++	int ret;
++
++	ret = mt7915_mcu_get_eeprom(dev, offset + base, buf);
++	if (ret)
++		return ret;
++
++	offset = (offset + base) % MT7915_EEPROM_BLOCK_SIZE;
++	eeprom[MT_EE_ADIE1_MT7976C_OFFSET] = buf[offset];
++	offset = (MT_EE_ADIE1_E3_OFFSET + base) % MT7915_EEPROM_BLOCK_SIZE;
++	eeprom[MT_EE_ADIE1_E3_OFFSET] = buf[offset];
++
++	return 0;
++}
++
+ static int mt7915_apply_cal_free_data(struct mt7915_dev *dev)
+ {
+ #define MT_EE_CAL_FREE_MAX_SIZE		70
+ #define MT_EE_FREQ_OFFSET		0x77
+-#define MT_EE_ADIE1_MT7976C_OFFSET	0x270
+-#define MT_EE_ADIE1_E3_OFFSET		0x271
+ #define MT_EE_END_OFFSET		0xffff
+ 	enum adie_type {
+ 		ADIE_7975,
+@@ -379,11 +398,17 @@ static int mt7915_apply_cal_free_data(struct mt7915_dev *dev)
+ 		eep_offs[0] = NULL;
+ 		break;
+ 	case 0x7906:
++		ddie_offs = ddie_offs_list[DDIE_7916];
++		adie_offs[0] = adie_offs_list[ADIE_7976];
++		eep_offs[0] = NULL;
++		break;
+ 	case 0x7981:
+-		if (is_mt7916(&dev->mt76))
+-			ddie_offs = ddie_offs_list[DDIE_7916];
+ 		adie_offs[0] = adie_offs_list[ADIE_7976];
+ 		eep_offs[0] = NULL;
++
++		ret = mt7915_eeprom_rebinding(dev, 0);
++		if (ret)
++			return ret;
+ 		break;
+ 	case 0x7986:
+ 		adie_id = mt7915_check_adie(dev, true);
+@@ -400,7 +425,7 @@ static int mt7915_apply_cal_free_data(struct mt7915_dev *dev)
+ 		case MT7976_ONE_ADIE_DBDC:
+ 		case MT7976_ONE_ADIE:
+ 		case MT7976_DUAL_ADIE: {
+-			u16 base = 0, offset = MT_EE_ADIE1_MT7976C_OFFSET;
++			u16 base = 0;
+ 
+ 			adie_offs[0] = adie_offs_list[ADIE_7976];
+ 			eep_offs[0] = NULL;
+@@ -410,14 +435,9 @@ static int mt7915_apply_cal_free_data(struct mt7915_dev *dev)
+ 				base = MT_EE_ADIE1_BASE_7896;
+ 			}
+ 
+-			/* E3 re-bonding workaround */
+-			ret = mt7915_mcu_get_eeprom(dev, offset + base, buf);
++			ret = mt7915_eeprom_rebinding(dev, base);
+ 			if (ret)
+-				break;
+-			offset = (offset + base) % MT7915_EEPROM_BLOCK_SIZE;
+-			eeprom[MT_EE_ADIE1_MT7976C_OFFSET] = buf[offset];
+-			offset = (MT_EE_ADIE1_E3_OFFSET + base) % MT7915_EEPROM_BLOCK_SIZE;
+-			eeprom[MT_EE_ADIE1_E3_OFFSET] = buf[offset];
++				return ret;
+ 			break;
+ 		}
+ 		default:
+-- 
+2.45.2
+
