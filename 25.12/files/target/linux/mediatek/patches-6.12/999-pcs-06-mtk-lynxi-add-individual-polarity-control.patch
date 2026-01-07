@@ -18,9 +18,11 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  include/linux/pcs/pcs-mtk-lynxi.h |  3 ++-
  2 files changed, 18 insertions(+), 7 deletions(-)
 
+diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
+index d36cd52..9ca4447 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
-@@ -74,7 +74,8 @@
+@@ -73,7 +73,8 @@
  /* Register to QPHY wrapper control */
  #define SGMSYS_QPHY_WRAP_CTRL		0xec
  #define SGMII_PN_SWAP_MASK		GENMASK(1, 0)
@@ -30,7 +32,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  
  #define MTK_NETSYS_V3_AMA_RGC3		0x128
  
-@@ -205,6 +206,7 @@ static int mtk_pcs_lynxi_config(struct p
+@@ -202,6 +203,7 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
  	bool mode_changed = false, changed;
  	unsigned int rgc3, sgm_mode, bmcr = 0, trxbuf_thr = 0x3112;
@@ -38,7 +40,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	int advertise, link_timer;
  
  	advertise = phylink_mii_c22_pcs_encode_advertisement(interface,
-@@ -254,10 +256,14 @@ static int mtk_pcs_lynxi_config(struct p
+@@ -251,10 +253,14 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  		regmap_set_bits(mpcs->regmap, SGMSYS_RESERVED_0,
  				SGMII_SW_RESET);
  
@@ -57,7 +59,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  
  		if (interface == PHY_INTERFACE_MODE_2500BASEX)
  			rgc3 = SGMII_PHY_SPEED_3_125G;
-@@ -473,7 +479,11 @@ static int mtk_pcs_lynxi_probe(struct pl
+@@ -469,7 +475,11 @@ static int mtk_pcs_lynxi_probe(struct platform_device *pdev)
  		return PTR_ERR(regmap);
  
  	if (of_property_read_bool(np->parent, "mediatek,pnswap"))
@@ -70,6 +72,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  
  	if (of_property_read_bool(np->parent, "mediatek,phya_trx_ck"))
  		flags |= MTK_SGMII_FLAG_PHYA_TRX_CK;
+diff --git a/include/linux/pcs/pcs-mtk-lynxi.h b/include/linux/pcs/pcs-mtk-lynxi.h
+index 745b90d..4ab8a32 100644
 --- a/include/linux/pcs/pcs-mtk-lynxi.h
 +++ b/include/linux/pcs/pcs-mtk-lynxi.h
 @@ -5,7 +5,8 @@
@@ -82,3 +86,6 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_SGMII_FLAG_PHYA_TRX_CK BIT(2)
  struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
  					 struct regmap *regmap,
+-- 
+2.45.2
+

@@ -7,9 +7,11 @@ Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
  drivers/net/pcs/pcs-mtk-lynxi.c | 43 +++++++++++++++++++++++----------
  1 file changed, 30 insertions(+), 13 deletions(-)
 
+diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
+index cc71a33..0d2c0c0 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
-@@ -50,9 +50,9 @@
+@@ -49,9 +49,9 @@
  #define SGMII_IF_MODE_SGMII		BIT(0)
  #define SGMII_SPEED_DUPLEX_AN		BIT(1)
  #define SGMII_SPEED_MASK		GENMASK(3, 2)
@@ -22,7 +24,7 @@ Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
  #define SGMII_DUPLEX_HALF		BIT(4)
  #define SGMII_REMOTE_FAULT_DIS		BIT(8)
  #define SGMII_TRXBUF_THR_MASK		GENMASK(31, 16)
-@@ -143,23 +143,40 @@ static void mtk_pcs_lynxi_get_state(stru
+@@ -142,23 +142,40 @@ static void mtk_pcs_lynxi_get_state(struct phylink_pcs *pcs,
  				    struct phylink_link_state *state)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
@@ -70,8 +72,8 @@ Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
 +	}
  
  	/* Continuously repeat re-configuration sequence until link comes up */
- 	if (!state->link && time_after(jiffies, mpcs->link_poll_expire)) {
-@@ -268,8 +285,8 @@ static int mtk_pcs_lynxi_config(struct p
+ 	if (!state->link) {
+@@ -265,8 +282,8 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  	/* Update the sgmsys mode register */
  	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
  			   SGMII_TRXBUF_THR_MASK |
@@ -82,3 +84,6 @@ Subject: [PATCH] net: pcs: mtk-lynxi: add autoneg off
  			   SGMII_TRXBUF_THR(trxbuf_thr) | sgm_mode);
  
  	/* Update the BMCR */
+-- 
+2.45.2
+

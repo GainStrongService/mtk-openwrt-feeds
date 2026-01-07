@@ -10,7 +10,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  2 files changed, 174 insertions(+), 81 deletions(-)
 
 diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
-index 7a7014d..95c6187 100644
+index 9ca4447..549fc52 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
 @@ -26,6 +26,7 @@
@@ -69,7 +69,7 @@ index 7a7014d..95c6187 100644
  {
  	return container_of(pcs, struct mtk_pcs_lynxi, pcs);
  }
-@@ -138,12 +107,24 @@ static unsigned int mtk_pcs_lynxi_inband_caps(struct phylink_pcs *pcs,
+@@ -139,12 +108,24 @@ static unsigned int mtk_pcs_lynxi_inband_caps(struct phylink_pcs *pcs,
  	}
  }
  
@@ -97,7 +97,7 @@ index 7a7014d..95c6187 100644
  	/* Read the BMSR and LPA */
  	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &bm);
  	bmsr = FIELD_GET(SGMII_BMSR, bm);
-@@ -177,13 +158,34 @@ static void mtk_pcs_lynxi_get_state(struct phylink_pcs *pcs,
+@@ -178,13 +159,34 @@ static void mtk_pcs_lynxi_get_state(struct phylink_pcs *pcs,
  			state->duplex = DUPLEX_FULL;
  	}
  
@@ -137,7 +137,7 @@ index 7a7014d..95c6187 100644
  {
  	if (!mpcs->rstc)
  		return;
-@@ -235,54 +237,60 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -236,54 +238,60 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  		trxbuf_thr = 0x2111;
  	}
  
@@ -236,7 +236,7 @@ index 7a7014d..95c6187 100644
  
  	/* Update the sgmsys mode register */
  	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
-@@ -308,8 +316,9 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -309,8 +317,9 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
  	regmap_write(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
  	/* Setup PMA/PMD */
@@ -248,7 +248,7 @@ index 7a7014d..95c6187 100644
  
  	return changed || mode_changed;
  }
-@@ -318,7 +327,9 @@ static void mtk_pcs_lynxi_restart_an(struct phylink_pcs *pcs)
+@@ -319,7 +328,9 @@ static void mtk_pcs_lynxi_restart_an(struct phylink_pcs *pcs)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
  
@@ -258,7 +258,7 @@ index 7a7014d..95c6187 100644
  }
  
  static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
-@@ -327,8 +338,20 @@ static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
+@@ -328,8 +339,20 @@ static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
  				  int duplex)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
@@ -279,7 +279,7 @@ index 7a7014d..95c6187 100644
  	if (neg_mode != PHYLINK_PCS_NEG_INBAND_ENABLED) {
  		/* Force the speed and duplex setting */
  		if (speed == SPEED_10)
-@@ -341,12 +364,36 @@ static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
+@@ -342,12 +365,36 @@ static void mtk_pcs_lynxi_link_up(struct phylink_pcs *pcs,
  		if (duplex != DUPLEX_FULL)
  			sgm_mode |= SGMII_DUPLEX_HALF;
  
@@ -316,7 +316,7 @@ index 7a7014d..95c6187 100644
  static int mtk_pcs_lynxi_enable(struct phylink_pcs *pcs)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
-@@ -359,6 +406,9 @@ static int mtk_pcs_lynxi_enable(struct phylink_pcs *pcs)
+@@ -360,6 +407,9 @@ static int mtk_pcs_lynxi_enable(struct phylink_pcs *pcs)
  	if (mpcs->xfi_tphy)
  		phy_power_on(mpcs->xfi_tphy);
  
@@ -326,7 +326,7 @@ index 7a7014d..95c6187 100644
  	return 0;
  }
  
-@@ -366,6 +416,8 @@ static void mtk_pcs_lynxi_disable(struct phylink_pcs *pcs)
+@@ -367,6 +417,8 @@ static void mtk_pcs_lynxi_disable(struct phylink_pcs *pcs)
  {
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
  
@@ -335,7 +335,7 @@ index 7a7014d..95c6187 100644
  	regmap_set_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
  
  	if (mpcs->sgmii_tx && mpcs->sgmii_rx) {
-@@ -434,6 +486,9 @@ static struct phylink_pcs *mtk_pcs_lynxi_init(struct device *dev, struct regmap
+@@ -435,6 +487,9 @@ static struct phylink_pcs *mtk_pcs_lynxi_init(struct device *dev, struct regmap
  	mpcs->pcs.neg_mode = true;
  	mpcs->pcs.poll = true;
  	mpcs->interface = PHY_INTERFACE_MODE_NA;
