@@ -26,9 +26,8 @@ define Package/tops-tool
   TITLE:=Mediatek Tunnel Offload Processor System User Tool
   SECTION:=MTK Properties
   CATEGORY:=MTK Properties
-  DEFAULT:=y
+  DEFAULT:=n
   SUBMENU:=Applications
-  DEPENDS:=kmod-tops
 endef
 
 define Package/tops-tool/description
