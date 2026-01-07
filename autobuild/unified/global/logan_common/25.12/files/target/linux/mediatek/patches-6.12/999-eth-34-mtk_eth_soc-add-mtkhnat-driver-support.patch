@@ -9,8 +9,6 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  drivers/net/ethernet/mediatek/mtk_eth_soc.c | 38 +++++++++++++++++++++
  3 files changed, 63 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/Kconfig b/drivers/net/ethernet/mediatek/Kconfig
-index d974316..1589b36 100644
 --- a/drivers/net/ethernet/mediatek/Kconfig
 +++ b/drivers/net/ethernet/mediatek/Kconfig
 @@ -40,4 +40,28 @@ config NET_MEDIATEK_STAR_EMAC
@@ -42,18 +40,14 @@ index d974316..1589b36 100644
 +	  family.
 +
  endif #NET_VENDOR_MEDIATEK
-diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index 7e71f2d..4e8fede 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
-@@ -11,4 +11,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
+@@ -11,4 +11,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) +
  endif
  obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o
  obj-$(CONFIG_NET_MEDIATEK_STAR_EMAC) += mtk_star_emac.o
 +obj-$(CONFIG_NET_MEDIATEK_HNAT) += mtk_hnat/
  obj-$(CONFIG_NET_AIROHA) += airoha_eth.o
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index f12693b..3b92cec 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -40,6 +40,10 @@
@@ -67,7 +61,7 @@ index f12693b..3b92cec 100644
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2733,6 +2737,30 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2769,6 +2773,31 @@ static int mtk_poll_rx(struct napi_struc
  
  			skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
  			skb_put(skb, pktlen);
@@ -80,6 +74,7 @@ index f12693b..3b92cec 100644
 +
 +			skb_hnat_alg(skb) = 0;
 +			skb_hnat_filled(skb) = 0;
++			skb_hnat_set_cdrt(skb, RX_DMA_GET_CDRT(trxd.rxd7));
 +			skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
 +			skb_hnat_set_tops(skb, 0);
 +			skb_hnat_set_is_decap(skb, 0);
@@ -98,7 +93,7 @@ index f12693b..3b92cec 100644
  		}
  
  		skb->dev = netdev;
-@@ -2772,8 +2800,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2811,8 +2840,10 @@ static int mtk_poll_rx(struct napi_struc
  				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
  		}
  
@@ -109,7 +104,7 @@ index f12693b..3b92cec 100644
  
  		if (eth->hwlro && eth->debugfs->hwlro_stats.ebl &&
  		    IS_HW_LRO_RING(ring->ring_no)) {
-@@ -4432,8 +4462,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4481,8 +4512,10 @@ static int mtk_open(struct net_device *d
  		if (err)
  			return err;
  
@@ -120,7 +115,7 @@ index f12693b..3b92cec 100644
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4612,8 +4644,10 @@ static int mtk_stop(struct net_device *dev)
+@@ -4663,8 +4696,10 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -131,7 +126,7 @@ index f12693b..3b92cec 100644
  
  	return 0;
  }
-@@ -7062,6 +7096,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7164,6 +7199,7 @@ static int mtk_probe(struct platform_dev
  		};
  	}
  
@@ -139,7 +134,7 @@ index f12693b..3b92cec 100644
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -7082,6 +7117,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7184,6 +7220,7 @@ static int mtk_probe(struct platform_dev
  				goto err_deinit_ppe;
  		}
  	}
@@ -147,7 +142,7 @@ index f12693b..3b92cec 100644
  
  	mtk_eth_debugfs_init(eth);
  
-@@ -7142,7 +7178,9 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -7244,7 +7281,9 @@ err_unreg_netdev:
  	free_netdev(eth->dummy_dev);
  err_deinit_ppe:
  	mtk_napi_del(eth);
@@ -157,6 +152,3 @@ index f12693b..3b92cec 100644
  	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
  err_free_dev:
--- 
-2.45.2
-
