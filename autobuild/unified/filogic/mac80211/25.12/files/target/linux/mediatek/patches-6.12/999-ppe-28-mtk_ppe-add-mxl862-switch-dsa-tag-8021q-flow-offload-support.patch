@@ -95,14 +95,13 @@ index 344eb54..396363c 100644
  	return dp->index;
  #else
  	return -ENODEV;
-@@ -282,7 +286,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -282,6 +286,6 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  	struct nf_conn *ct = NULL;
  	struct mtk_mac *mac;
  	u32 ct_mark = 0;
 -	int pse_port, dsa_port, queue;
 +	int pse_port, dsa_port, dsa_proto, queue;
  
- 	info.tid = dscp;
  	if (mtk_flow_get_wdma_info(odev, dest_mac, &info) == 0) {
 @@ -309,7 +313,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		goto out;
