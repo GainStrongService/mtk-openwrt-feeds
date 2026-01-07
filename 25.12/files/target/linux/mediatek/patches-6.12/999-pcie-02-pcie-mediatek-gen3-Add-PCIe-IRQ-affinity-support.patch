@@ -14,11 +14,9 @@ Signed-off-by: Jianguo Zhang <jianguo.zhang@mediatek.com>
  drivers/pci/controller/pcie-mediatek-gen3.c | 270 ++++++++++++++++++--
  1 file changed, 246 insertions(+), 24 deletions(-)
 
-diff --git a/drivers/pci/controller/pcie-mediatek-gen3.c b/drivers/pci/controller/pcie-mediatek-gen3.c
-index 76ad570..5542d59 100644
 --- a/drivers/pci/controller/pcie-mediatek-gen3.c
 +++ b/drivers/pci/controller/pcie-mediatek-gen3.c
-@@ -62,6 +62,7 @@
+@@ -65,6 +65,7 @@
  #define PCIE_LINK_STATUS_REG		0x154
  #define PCIE_PORT_LINKUP		BIT(8)
  
@@ -26,7 +24,7 @@ index 76ad570..5542d59 100644
  #define PCIE_MSI_SET_NUM		8
  #define PCIE_MSI_IRQS_PER_SET		32
  #define PCIE_MSI_IRQS_NUM \
-@@ -90,6 +91,14 @@
+@@ -93,6 +94,14 @@
  #define PCIE_MSI_SET_OFFSET		0x10
  #define PCIE_MSI_SET_STATUS_OFFSET	0x04
  #define PCIE_MSI_SET_ENABLE_OFFSET	0x08
@@ -41,11 +39,10 @@ index 76ad570..5542d59 100644
  
  #define PCIE_MSI_SET_ADDR_HI_BASE	0xc80
  #define PCIE_MSI_SET_ADDR_HI_OFFSET	0x04
-@@ -138,16 +147,42 @@ struct mtk_gen3_pcie_pdata {
- 	} phy_resets;
+@@ -142,15 +151,41 @@ struct mtk_gen3_pcie_pdata {
  };
  
-+/**
+ /**
 + * enum mtk_msi_group_type - PCIe controller MSI group type
 + * @group0_merge_msi: all MSI are merged to group0
 + * @group1_direct_msi: all MSI have independent IRQs via group1
@@ -57,7 +54,7 @@ index 76ad570..5542d59 100644
 +	group_binding_msi,
 +};
 +
- /**
++/**
   * struct mtk_msi_set - MSI information for each set
   * @base: IO mapped register base
 + * @enable: IO mapped enable register address
@@ -85,9 +82,9 @@ index 76ad570..5542d59 100644
  };
  
  /**
-@@ -162,12 +197,15 @@ struct mtk_msi_set {
-  * @num_clks: PCIe clocks count for this port
-  * @max_link_width: PCIe slot max supported link width
+@@ -167,12 +202,15 @@ struct mtk_msi_set {
+  * @wifi_reset: reset pin for WIFI chip
+  * @wifi_reset_delay_ms: delay time for WIFI chip reset
   * @irq: PCIe controller interrupt number
 + * @num_irqs: PCIe irqs count
 + * @irqs: PCIe controller interrupts information
@@ -101,8 +98,8 @@ index 76ad570..5542d59 100644
   * @lock: lock protecting IRQ bit map
   * @msi_irq_in_use: bit map for assigned MSI IRQ
   * @soc: pointer to SoC-dependent operations
-@@ -184,12 +222,15 @@ struct mtk_gen3_pcie {
- 	int max_link_width;
+@@ -192,12 +230,15 @@ struct mtk_gen3_pcie {
+ 	u32 wifi_reset_delay_ms;
  
  	int irq;
 +	int num_irqs;
@@ -117,7 +114,7 @@ index 76ad570..5542d59 100644
  	struct mutex lock;
  	DECLARE_BITMAP(msi_irq_in_use, PCIE_MSI_IRQS_NUM);
  
-@@ -368,14 +409,23 @@ static int mtk_pcie_set_trans_table(struct mtk_gen3_pcie *pcie,
+@@ -376,14 +417,23 @@ static int mtk_pcie_set_trans_table(stru
  
  static void mtk_pcie_enable_msi(struct mtk_gen3_pcie *pcie)
  {
@@ -143,7 +140,7 @@ index 76ad570..5542d59 100644
  		msi_set->msg_addr = pcie->reg_base + PCIE_MSI_SET_BASE_REG +
  				    i * PCIE_MSI_SET_OFFSET;
  
-@@ -503,6 +553,55 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
+@@ -517,6 +567,55 @@ static int mtk_pcie_startup_port(struct
  	return 0;
  }
  
@@ -199,7 +196,7 @@ index 76ad570..5542d59 100644
  static void mtk_pcie_msi_irq_mask(struct irq_data *data)
  {
  	pci_msi_mask_irq(data);
-@@ -558,15 +657,19 @@ static void mtk_msi_bottom_irq_mask(struct irq_data *data)
+@@ -572,15 +671,19 @@ static void mtk_msi_bottom_irq_mask(stru
  {
  	struct mtk_msi_set *msi_set = irq_data_get_irq_chip_data(data);
  	struct mtk_gen3_pcie *pcie = data->domain->host_data;
@@ -221,7 +218,7 @@ index 76ad570..5542d59 100644
  	raw_spin_unlock_irqrestore(&pcie->irq_lock, flags);
  }
  
-@@ -574,15 +677,19 @@ static void mtk_msi_bottom_irq_unmask(struct irq_data *data)
+@@ -588,15 +691,19 @@ static void mtk_msi_bottom_irq_unmask(st
  {
  	struct mtk_msi_set *msi_set = irq_data_get_irq_chip_data(data);
  	struct mtk_gen3_pcie *pcie = data->domain->host_data;
@@ -243,7 +240,7 @@ index 76ad570..5542d59 100644
  	raw_spin_unlock_irqrestore(&pcie->irq_lock, flags);
  }
  
-@@ -591,6 +698,7 @@ static struct irq_chip mtk_msi_bottom_irq_chip = {
+@@ -605,6 +712,7 @@ static struct irq_chip mtk_msi_bottom_ir
  	.irq_mask		= mtk_msi_bottom_irq_mask,
  	.irq_unmask		= mtk_msi_bottom_irq_unmask,
  	.irq_compose_msi_msg	= mtk_compose_msi_msg,
@@ -251,7 +248,7 @@ index 76ad570..5542d59 100644
  	.name			= "MSI",
  };
  
-@@ -687,10 +795,28 @@ static void mtk_intx_eoi(struct irq_data *data)
+@@ -701,10 +809,28 @@ static void mtk_intx_eoi(struct irq_data
  	writel_relaxed(BIT(hwirq), pcie->base + PCIE_INT_STATUS_REG);
  }
  
@@ -280,7 +277,7 @@ index 76ad570..5542d59 100644
  	.name			= "INTx",
  };
  
-@@ -764,7 +890,10 @@ static int mtk_pcie_init_irq_domains(struct mtk_gen3_pcie *pcie)
+@@ -778,7 +904,10 @@ out_put_node:
  
  static void mtk_pcie_irq_teardown(struct mtk_gen3_pcie *pcie)
  {
@@ -292,7 +289,7 @@ index 76ad570..5542d59 100644
  
  	if (pcie->intx_domain)
  		irq_domain_remove(pcie->intx_domain);
-@@ -775,16 +904,26 @@ static void mtk_pcie_irq_teardown(struct mtk_gen3_pcie *pcie)
+@@ -789,16 +918,26 @@ static void mtk_pcie_irq_teardown(struct
  	if (pcie->msi_bottom_domain)
  		irq_domain_remove(pcie->msi_bottom_domain);
  
@@ -322,7 +319,7 @@ index 76ad570..5542d59 100644
  
  	do {
  		msi_status = readl_relaxed(msi_set->base +
-@@ -815,22 +954,90 @@ static void mtk_pcie_irq_handler(struct irq_desc *desc)
+@@ -829,22 +968,90 @@ static void mtk_pcie_irq_handler(struct
  		generic_handle_domain_irq(pcie->intx_domain,
  					  irq_bit - PCIE_INTX_SHIFT);
  
@@ -419,7 +416,7 @@ index 76ad570..5542d59 100644
  
  	err = mtk_pcie_init_irq_domains(pcie);
  	if (err)
-@@ -840,7 +1047,14 @@ static int mtk_pcie_setup_irq(struct mtk_gen3_pcie *pcie)
+@@ -854,7 +1061,14 @@ static int mtk_pcie_setup_irq(struct mtk
  	if (pcie->irq < 0)
  		return pcie->irq;
  
@@ -435,7 +432,7 @@ index 76ad570..5542d59 100644
  
  	return 0;
  }
-@@ -900,6 +1114,12 @@ static int mtk_pcie_parse_port(struct mtk_gen3_pcie *pcie)
+@@ -928,6 +1142,12 @@ static int mtk_pcie_parse_port(struct mt
  	if (pcie->max_link_width < 0)
  		dev_err(dev, "failed to get max link width\n");
  
@@ -448,7 +445,7 @@ index 76ad570..5542d59 100644
  	return 0;
  }
  
-@@ -1140,7 +1360,7 @@ static void mtk_pcie_remove(struct platform_device *pdev)
+@@ -1168,7 +1388,7 @@ static void mtk_pcie_remove(struct platf
  
  static void mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
  {
@@ -457,7 +454,7 @@ index 76ad570..5542d59 100644
  
  	raw_spin_lock(&pcie->irq_lock);
  
-@@ -1149,8 +1369,9 @@ static void mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
+@@ -1177,8 +1397,9 @@ static void mtk_pcie_irq_save(struct mtk
  	for (i = 0; i < PCIE_MSI_SET_NUM; i++) {
  		struct mtk_msi_set *msi_set = &pcie->msi_sets[i];
  
@@ -469,7 +466,7 @@ index 76ad570..5542d59 100644
  	}
  
  	raw_spin_unlock(&pcie->irq_lock);
-@@ -1158,7 +1379,7 @@ static void mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
+@@ -1186,7 +1407,7 @@ static void mtk_pcie_irq_save(struct mtk
  
  static void mtk_pcie_irq_restore(struct mtk_gen3_pcie *pcie)
  {
@@ -478,7 +475,7 @@ index 76ad570..5542d59 100644
  
  	raw_spin_lock(&pcie->irq_lock);
  
-@@ -1167,8 +1388,9 @@ static void mtk_pcie_irq_restore(struct mtk_gen3_pcie *pcie)
+@@ -1195,8 +1416,9 @@ static void mtk_pcie_irq_restore(struct
  	for (i = 0; i < PCIE_MSI_SET_NUM; i++) {
  		struct mtk_msi_set *msi_set = &pcie->msi_sets[i];
  
@@ -490,6 +487,3 @@ index 76ad570..5542d59 100644
  	}
  
  	raw_spin_unlock(&pcie->irq_lock);
--- 
-2.45.2
-

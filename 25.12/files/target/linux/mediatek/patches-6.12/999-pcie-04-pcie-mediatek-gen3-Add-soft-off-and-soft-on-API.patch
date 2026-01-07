@@ -14,8 +14,6 @@ Signed-off-by: Jianguo Zhang <jianguo.zhang@mediatek.com>
  drivers/pci/controller/pcie-mediatek-gen3.c | 103 ++++++++++++++++++++
  1 file changed, 103 insertions(+)
 
-diff --git a/drivers/pci/controller/pcie-mediatek-gen3.c b/drivers/pci/controller/pcie-mediatek-gen3.c
-index b4d3569..108a2b6 100644
 --- a/drivers/pci/controller/pcie-mediatek-gen3.c
 +++ b/drivers/pci/controller/pcie-mediatek-gen3.c
 @@ -135,6 +135,9 @@
@@ -28,7 +26,7 @@ index b4d3569..108a2b6 100644
  struct mtk_gen3_pcie;
  
  /**
-@@ -212,6 +215,7 @@ struct mtk_pcie_irq {
+@@ -213,6 +216,7 @@ struct mtk_pcie_irq {
   * @msi_sets: MSI sets information
   * @msi_group_type: PCIe controller MSI group type
   * @lock: lock protecting IRQ bit map
@@ -36,7 +34,7 @@ index b4d3569..108a2b6 100644
   * @msi_irq_in_use: bit map for assigned MSI IRQ
   * @soc: pointer to SoC-dependent operations
   */
-@@ -240,6 +244,7 @@ struct mtk_gen3_pcie {
+@@ -242,6 +246,7 @@ struct mtk_gen3_pcie {
  	struct mtk_msi_set msi_sets[PCIE_MSI_SET_NUM];
  	enum mtk_msi_group_type msi_group_type;
  	struct mutex lock;
@@ -44,7 +42,7 @@ index b4d3569..108a2b6 100644
  	DECLARE_BITMAP(msi_irq_in_use, PCIE_MSI_IRQS_NUM);
  
  	const struct mtk_gen3_pcie_pdata *soc;
-@@ -311,6 +316,11 @@ static void __iomem *mtk_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
+@@ -313,6 +318,11 @@ static void __iomem *mtk_pcie_map_bus(st
  static int mtk_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
  				int where, int size, u32 *val)
  {
@@ -56,7 +54,7 @@ index b4d3569..108a2b6 100644
  	mtk_pcie_config_tlp_header(bus, devfn, where, size);
  
  	return pci_generic_config_read32(bus, devfn, where, size, val);
-@@ -319,6 +329,11 @@ static int mtk_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
+@@ -321,6 +331,11 @@ static int mtk_pcie_config_read(struct p
  static int mtk_pcie_config_write(struct pci_bus *bus, unsigned int devfn,
  				 int where, int size, u32 val)
  {
@@ -68,7 +66,7 @@ index b4d3569..108a2b6 100644
  	mtk_pcie_config_tlp_header(bus, devfn, where, size);
  
  	if (size <= 2)
-@@ -1440,6 +1455,94 @@ static int mtk_pcie_turn_off_link(struct mtk_gen3_pcie *pcie)
+@@ -1457,6 +1472,94 @@ static int mtk_pcie_turn_off_link(struct
  				   50 * USEC_PER_MSEC);
  }
  
@@ -163,6 +161,3 @@ index b4d3569..108a2b6 100644
  static int mtk_pcie_suspend_noirq(struct device *dev)
  {
  	struct mtk_gen3_pcie *pcie = dev_get_drvdata(dev);
--- 
-2.45.2
-
