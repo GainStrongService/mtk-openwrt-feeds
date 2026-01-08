@@ -12,25 +12,21 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_ppe.h | 4 ++++
  2 files changed, 10 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 053bb30..095d531 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -646,6 +646,12 @@ int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -647,6 +647,12 @@ int mtk_foe_entry_set_queue(struct mtk_e
  		*ib2 |= MTK_FOE_IB2_PSE_QOS;
  	}
  
 +	if (mtk_is_netsys_v3_or_greater(eth)) {
 +		struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 +		l2->tport &= ~MTK_FOE_TPORT_IDX;
-+		l2->tport |= FIELD_PREP(MTK_FOE_TPORT_IDX, 1);
++		l2->tport |= FIELD_PREP(MTK_FOE_TPORT_IDX, TPORT_QDMA);
 +	}
 +
  	return 0;
  }
  
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 2ecf448..94b35fd 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -97,6 +97,8 @@ enum {
@@ -51,6 +47,3 @@ index 2ecf448..94b35fd 100644
  };
  
  /* software-only entry type */
--- 
-2.45.2
-
