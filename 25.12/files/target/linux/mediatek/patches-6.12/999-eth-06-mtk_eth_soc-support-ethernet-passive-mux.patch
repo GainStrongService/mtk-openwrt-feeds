@@ -25,7 +25,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #include <linux/jhash.h>
  #include <linux/bitfield.h>
  #include <net/dsa.h>
-@@ -5114,6 +5115,227 @@ static const struct net_device_ops mtk_n
+@@ -5114,6 +5115,228 @@ static const struct net_device_ops mtk_n
  	.ndo_select_queue	= mtk_select_queue,
  };
  
@@ -225,6 +225,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 +	mux->mac = eth->mac[id];
 +	/* configure active channel to 10G PHY */
 +	mux->active_channel = !mux->sfp_connected_channel;
++	gpiod_set_value_cansleep(mux->chan_sel_gpio, mux->active_channel);
 +
 +	for_each_child_of_node(np, child) {
 +		err = mtk_add_mux_channel(mux, child);
@@ -253,7 +254,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
  {
  	const __be32 *_id = of_get_property(np, "reg", NULL);
-@@ -5413,7 +5635,7 @@ static int mtk_sgmii_init(struct mtk_eth
+@@ -5413,7 +5636,7 @@ static int mtk_sgmii_init(struct mtk_eth
  static int mtk_probe(struct platform_device *pdev)
  {
  	struct resource *res = NULL, *res_sram;
@@ -262,7 +263,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	struct mtk_eth *eth;
  	int err, i;
  
-@@ -5653,6 +5875,26 @@ static int mtk_probe(struct platform_dev
+@@ -5653,6 +5876,26 @@ static int mtk_probe(struct platform_dev
  			goto err_free_dev;
  	}
  
@@ -289,7 +290,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -5712,6 +5954,7 @@ err_unreg_netdev:
+@@ -5712,6 +5955,7 @@ err_unreg_netdev:
  	mtk_unreg_dev(eth);
  err_deinit_ppe:
  	mtk_ppe_deinit(eth);
@@ -297,7 +298,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_mdio_cleanup(eth);
  err_free_dev:
  	mtk_free_dev(eth);
-@@ -5753,6 +5996,7 @@ static void mtk_remove(struct platform_d
+@@ -5753,6 +5997,7 @@ static void mtk_remove(struct platform_d
  	mtk_cleanup(eth);
  	free_netdev(eth->dummy_dev);
  	mtk_mdio_cleanup(eth);

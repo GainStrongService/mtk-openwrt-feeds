@@ -6183,6 +6183,7 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 	mux->mac = eth->mac[id];
 	/* configure active channel to 10G PHY */
 	mux->active_channel = !mux->sfp_connected_channel;
+	gpiod_set_value_cansleep(mux->chan_sel_gpio, mux->active_channel);
 
 	for_each_child_of_node(np, child) {
 		err = mtk_add_mux_channel(mux, child);
