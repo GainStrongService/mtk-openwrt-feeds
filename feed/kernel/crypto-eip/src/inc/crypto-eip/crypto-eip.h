@@ -189,3 +189,7 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *xs);
 int mtk_crypto_register_nf_hooks(void);
 void mtk_crypto_unregister_nf_hooks(void);
 #endif /* _CRYPTO_EIP_H_ */
+
+#if defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+int mtk_crypto_xfrm_get_cdrt(struct xfrm_state *xs);
+#endif /* Flow Block */

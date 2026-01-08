@@ -16,6 +16,8 @@
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
 #include <mtk_hnat/nf_hnat_mtk.h>
+#else
+#include <mtk_tnl.h>
 #endif // HNAT
 
 #include <pce/cdrt.h>
@@ -49,6 +51,16 @@ static inline bool is_hnat_rate_reach(struct sk_buff *skb)
 	return is_magic_tag_valid(skb) && (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH);
 }
 #endif // HNAT
+
+#if defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+int mtk_crypto_xfrm_get_cdrt(struct xfrm_state *xs)
+{
+	struct mtk_xfrm_params *xfrm_params;
+
+	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
+	return xfrm_params->cdrt->idx;
+}
+#endif // Flow_Block
 
 struct xfrm_params_list *mtk_xfrm_params_list_get(void)
 {

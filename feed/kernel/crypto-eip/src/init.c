@@ -21,6 +21,8 @@
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
+#elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+#include <mtk_ppe.h>
 #endif
 
 #include "crypto-eip/crypto-eip.h"
@@ -282,6 +284,8 @@ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = NULL;
+#elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+	mtk_flow_offload_get_cdrt = NULL;
 #endif // HNAT
 
 	for_each_netdev(&init_net, dev)
@@ -297,6 +301,8 @@ static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = mtk_crypto_eip_offloadable;
+#elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+	mtk_flow_offload_get_cdrt = mtk_crypto_xfrm_get_cdrt;
 #endif // HNAT
 }
 
@@ -347,6 +353,7 @@ out:
 
 static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
 {
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	struct device_node *hnat = NULL;
 	u32 val = 0;
 	int ret = 0;
@@ -364,6 +371,9 @@ static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
 		mcrypto.ppe_num = val;
 
 	of_node_put(hnat);
+#elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+	mcrypto.ppe_num = mcrypto.eth->soc->ppe_num;
+#endif
 
 	return 0;
 }
@@ -406,7 +416,6 @@ static int __init mtk_crypto_eip_dts_init(void)
 	ret = mtk_crypto_ppe_num_dts_init(crypto_pdev);
 	if (ret)
 		goto out;
-
 
 #if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
 	ret = mtk_crypto_lookaside_data_init(crypto_pdev);
