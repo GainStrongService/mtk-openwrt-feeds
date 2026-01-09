@@ -6,7 +6,7 @@ Subject: [PATCH] dts: mediatek: add mt7988a mxl86252 rfb support
 
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
-@@ -0,0 +1,568 @@
+@@ -0,0 +1,387 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2022 MediaTek Inc.
@@ -19,6 +19,7 @@ Subject: [PATCH] dts: mediatek: add mt7988a mxl86252 rfb support
 +#include <dt-bindings/gpio/gpio.h>
 +#include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
 +#include "mt7988a.dtsi"
++#include "mt7988a-pinctrl.dtsi"
 +/ {
 +	model = "MediaTek MT7988A Reference Board";
 +	compatible = "mediatek,mt7988a-mxl86252-rfb",
@@ -368,188 +369,6 @@ Subject: [PATCH] dts: mediatek: add mt7988a mxl86252 rfb support
 +
 +&pcie3 {
 +	status = "okay";
-+};
-+
-+&pio {
-+	mdio0_pins: mdio0-pins {
-+		mux {
-+			function = "eth";
-+			groups = "mdc_mdio0";
-+		};
-+
-+		conf {
-+			groups = "mdc_mdio0";
-+			drive-strength = <MTK_DRIVE_8mA>;
-+		};
-+	};
-+
-+	gbe2_led0_pins: gbe2-led0-pins {
-+		mux {
-+			function = "led";
-+			groups = "gbe2_led0";
-+		};
-+	};
-+
-+	gbe3_led0_pins: gbe3-led0-pins {
-+		mux {
-+			function = "led";
-+			groups = "gbe3_led0";
-+		};
-+	};
-+
-+	gbe2_led1_pins: gbe2-led1-pins {
-+		mux {
-+			function = "led";
-+			groups = "gbe2_led1";
-+		};
-+	};
-+
-+	gbe3_led1_pins: gbe3-led1-pins {
-+		mux {
-+			function = "led";
-+			groups = "gbe3_led1";
-+		};
-+	};
-+
-+	i2c0_pins: i2c0-g0-pins {
-+		mux {
-+			function = "i2c";
-+			groups = "i2c0_1";
-+		};
-+	};
-+
-+	i2c1_pins: i2c1-g0-pins {
-+		mux {
-+			function = "i2c";
-+			groups = "i2c1_0";
-+		};
-+	};
-+
-+	i2c1_sfp_pins: i2c1-sfp-g0-pins {
-+		mux {
-+			function = "i2c";
-+			groups = "i2c1_sfp";
-+		};
-+	};
-+
-+	i2c2_pins: i2c2-g0-pins {
-+		mux {
-+			function = "i2c";
-+			groups = "i2c2_0";
-+		};
-+	};
-+
-+	mmc0_pins_emmc_51: mmc0-emmc-51-pins {
-+		mux {
-+			function = "flash";
-+			groups = "emmc_51";
-+		};
-+	};
-+
-+	mmc0_pins_sdcard: mmc0-sdcard-pins {
-+		mux {
-+			function = "flash";
-+			groups = "sdcard";
-+		};
-+	};
-+
-+	spi0_pins: spi0-pins {
-+		mux {
-+			function = "spi";
-+			groups = "spi0";
-+		};
-+	};
-+
-+	spi0_flash_pins: spi0-flash-pins {
-+		mux {
-+			function = "spi";
-+			groups = "spi0", "spi0_wp_hold";
-+		};
-+	};
-+
-+	spi2_pins: spi2-pins {
-+		mux {
-+			function = "spi";
-+			groups = "spi2";
-+		};
-+	};
-+
-+	spi2_flash_pins: spi2-flash-pins {
-+		mux {
-+			function = "spi";
-+			groups = "spi2", "spi2_wp_hold";
-+		};
-+	};
-+
-+	uart0_pins: uart0-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart0";
-+		};
-+	};
-+
-+	uart1_0_pins: uart1-0-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart1_0";
-+		};
-+	};
-+
-+	uart1_1_pins: uart1-1-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart1_1";
-+		};
-+	};
-+
-+	uart1_2_pins: uart1-2-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart1_2";
-+		};
-+	};
-+
-+	uart1_2_lite_pins: uart1-2-lite-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart1_2_lite";
-+		};
-+	};
-+
-+	uart2_pins: uart2-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart2";
-+		};
-+	};
-+
-+	uart2_0_pins: uart2-0-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart2_0";
-+		};
-+	};
-+
-+	uart2_1_pins: uart2-1-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart2_1";
-+		};
-+	};
-+
-+	uart2_2_pins: uart2-2-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart2_2";
-+		};
-+	};
-+
-+	uart2_3_pins: uart2-3-pins {
-+		mux {
-+			function = "uart";
-+			groups =  "uart2_3";
-+		};
-+	};
 +};
 +
 +&ssusb0 {
