@@ -1,0 +1,62 @@
+From 1bb26279ac8a1f8dfe035978b7b40155ad755c4d Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <nbd@nbd.name>
+Date: Tue, 9 Sep 2025 18:04:44 +0200
+Subject: [PATCH 6/7] wifi: mt76: mt7996: decrease timeout for commonly issued
+ MCU commands
+
+This allows faster recovery from firmware issues.
+Based on patch by Chad Monroe and ported from mt7915.
+
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7996/mcu.c | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 5b6868c6e..aaf4309e5 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -258,6 +258,30 @@ mt7996_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+ 	return ret;
+ }
+ 
++static void
++mt7996_mcu_set_timeout(struct mt76_dev *mdev, int cmd)
++{
++	mdev->mcu.timeout = 5 * HZ;
++
++	if (!(cmd & __MCU_CMD_FIELD_UNI))
++		return;
++
++	switch (FIELD_GET(__MCU_CMD_FIELD_ID, cmd)) {
++	case MCU_UNI_CMD_THERMAL:
++	case MCU_UNI_CMD_TWT:
++	case MCU_UNI_CMD_GET_MIB_INFO:
++	case MCU_UNI_CMD_STA_REC_UPDATE:
++	case MCU_UNI_CMD_BSS_INFO_UPDATE:
++		mdev->mcu.timeout = 2 * HZ;
++		return;
++	case MCU_UNI_CMD_EFUSE_CTRL:
++		mdev->mcu.timeout = 20 * HZ;
++		return;
++	default:
++		break;
++	}
++}
++
+ static int
+ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 			int cmd, int *wait_seq)
+@@ -279,7 +303,7 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 		return -EPERM;
+ 	}
+ 
+-	mdev->mcu.timeout = 20 * HZ;
++	mt7996_mcu_set_timeout(mdev, cmd);
+ 
+ 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
+ 	if (!seq)
+-- 
+2.45.2
+

@@ -1,0 +1,180 @@
+From 1df2562f456db59857a3c8b2b00354415c9e6c9d Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 8 Jan 2026 11:06:48 +0800
+Subject: [PATCH 3/7] wifi: mt76: mt7996: Fix edcca threshold was unexpectedly
+ modified by fw
+
+Fix the issue of the EDCCA threshold being unexpectedly modified by the
+firmware after setting the channel. If the user configures the EDCCA
+threshold, it will be saved in user_edcca_threshold. This value should
+be checked after set_channel to decide whether to set the EDCCA
+threshold.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/main.c    | 10 ++++++++++
+ mt7996/mt7996.h  | 19 +++++++++++--------
+ mt7996/mtk_mcu.c | 10 +++-------
+ mt7996/vendor.c  | 18 +++++++++---------
+ 4 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 521b25949..db961dca1 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -78,6 +78,9 @@ int mt7996_run(struct mt7996_phy *phy)
+ 	if (ret)
+ 		return ret;
+ 
++	memset(phy->user_edcca_threshold, MT7996_EDCCA_DEFAULT_THRESHOLD,
++	       EDCCA_MAX_BW_NUM);
++
+ 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+ 
+ 	ieee80211_queue_delayed_work(dev->mphy.hw, &phy->mt76->mac_work,
+@@ -686,6 +689,13 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+ 	mt7996_mac_cca_stats_reset(phy);
+ 
+ 	mt7996_mac_reset_counters(phy);
++#ifdef CONFIG_MTK_VENDOR
++	if (phy->user_edcca_threshold[EDCCA_BW_20] != MT7996_EDCCA_DEFAULT_THRESHOLD ||
++	    phy->user_edcca_threshold[EDCCA_BW_40] != MT7996_EDCCA_DEFAULT_THRESHOLD ||
++	    phy->user_edcca_threshold[EDCCA_BW_80] != MT7996_EDCCA_DEFAULT_THRESHOLD ||
++	    phy->user_edcca_threshold[EDCCA_BW_160] != MT7996_EDCCA_DEFAULT_THRESHOLD)
++		mt7996_mcu_edcca_threshold_ctrl(phy, phy->user_edcca_threshold, true);
++#endif
+ 	phy->noise = 0;
+ 
+ out:
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index a0072185f..9bfb2b61f 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -669,6 +669,16 @@ int mt7996_mcu_set_muru_qos_cfg(struct mt7996_dev *dev, u16 wlan_idx, u8 dir,
+ 				u8 scs_id, u8 req_type, u8 *qos_ie, u8 qos_ie_len);
+ #endif
+ 
++enum edcca_bw_id {
++	EDCCA_BW_20 = 0,
++	EDCCA_BW_40,
++	EDCCA_BW_80,
++	EDCCA_BW_160,
++	EDCCA_MAX_BW_NUM,
++};
++
++#define MT7996_EDCCA_DEFAULT_THRESHOLD 0x7f
++
+ struct mt7996_rro_hif {
+ 	u32 rx_blk_base_l;
+ 	u32 rx_blk_base_h: 4;
+@@ -801,6 +811,7 @@ struct mt7996_phy {
+ 	bool thermal_protection_enable:1;
+ 	bool mru_probe_enable:1;
+ #endif
++	u8 user_edcca_threshold[EDCCA_MAX_BW_NUM];
+ 	/* Index 0 (TxBSS) is not used */
+ 	struct mt7996_vif_link __rcu *mbssid_conf[MT7996_MAX_MBSSID];
+ };
+@@ -1537,14 +1548,6 @@ int mt7996_mcu_set_tpo(struct mt7996_dev *dev, u8 type, u8 val);
+ int mt7996_mcu_set_lp_option(struct mt7996_dev *dev, u8 *arg);
+ int mt7996_mcu_set_pst(struct mt7996_dev *dev, u32 band, u32 cmd, u32 val);
+ 
+-enum edcca_bw_id {
+-	EDCCA_BW_20 = 0,
+-	EDCCA_BW_40,
+-	EDCCA_BW_80,
+-	EDCCA_BW_160,
+-	EDCCA_MAX_BW_NUM,
+-};
+-
+ #ifdef CONFIG_MTK_DEBUG
+ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir);
+ void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir);
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 81d19fdda..10614660c 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -105,7 +105,7 @@ int mt7996_mcu_edcca_threshold_ctrl(struct mt7996_phy *phy, u8 *value, bool set)
+ 
+ 		__le16 tag;
+ 		__le16 len;
+-		u8 threshold[4];
++		u8 threshold[EDCCA_MAX_BW_NUM];
+ 		bool init;
+ 		u8 _rsv2[3];
+ 	} __packed *res, req = {
+@@ -116,10 +116,8 @@ int mt7996_mcu_edcca_threshold_ctrl(struct mt7996_phy *phy, u8 *value, bool set)
+ 	};
+ 	struct sk_buff *skb;
+ 	int ret;
+-	int i;
+ 
+-	for (i = 0; i < EDCCA_MAX_BW_NUM; i++)
+-		req.threshold[i] = value[i];
++	memcpy(req.threshold, value, EDCCA_MAX_BW_NUM);
+ 
+ 	if (set)
+ 		return mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(BAND_CONFIG),
+@@ -133,9 +131,7 @@ int mt7996_mcu_edcca_threshold_ctrl(struct mt7996_phy *phy, u8 *value, bool set)
+ 		return ret;
+ 
+ 	res = (void *)skb->data;
+-
+-	for (i = 0; i < EDCCA_MAX_BW_NUM; i++)
+-		value[i] = res->threshold[i];
++	memcpy(value, res->threshold, EDCCA_MAX_BW_NUM);
+ 
+ 	dev_kfree_skb(skb);
+ 
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 3a0806bc5..bdafa0eba 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -729,8 +729,7 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 	struct mt7996_phy *phy = &dev->phy;
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL];
+ 	int err;
+-	u8 edcca_mode, radio_idx;
+-	u8 edcca_value[EDCCA_MAX_BW_NUM];
++	u8 edcca_mode, edcca_enable, radio_idx;
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_EDCCA_CTRL_MAX, data, data_len,
+ 			edcca_ctrl_policy, NULL);
+@@ -753,9 +752,9 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 		if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL])
+ 			return -EINVAL;
+ 
+-		edcca_value[0] = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
++		edcca_enable = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
+ 
+-		return mt7996_mcu_edcca_enable(phy, !!edcca_value[0]);
++		return mt7996_mcu_edcca_enable(phy, !!edcca_enable);
+ 	case EDCCA_CTRL_SET_THRES:
+ 		if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL] ||
+ 		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC40_VAL] ||
+@@ -763,16 +762,17 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL])
+ 			return -EINVAL;
+ 
+-		edcca_value[EDCCA_BW_20] =
++		phy->user_edcca_threshold[EDCCA_BW_20] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
+-		edcca_value[EDCCA_BW_40] =
++		phy->user_edcca_threshold[EDCCA_BW_40] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC40_VAL]);
+-		edcca_value[EDCCA_BW_80] =
++		phy->user_edcca_threshold[EDCCA_BW_80] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL]);
+-		edcca_value[EDCCA_BW_160] =
++		phy->user_edcca_threshold[EDCCA_BW_160] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL]);
+ 
+-		return mt7996_mcu_edcca_threshold_ctrl(phy, edcca_value, true);
++		return mt7996_mcu_edcca_threshold_ctrl(phy, phy->user_edcca_threshold,
++						       true);
+ 	default:
+ 		return -EINVAL;
+ 	}
+-- 
+2.45.2
+

@@ -1,0 +1,240 @@
+From 0ff21af5603dae057584e11e74f3caec4192737c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 23 Dec 2025 21:29:58 +0800
+Subject: [PATCH 4/7] mtk: mt76: use mt76_wcid_ptr() helper for boundary check
+
+Switch more rcu_dereference of wcid to use mt76_wcid_ptr().
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ agg-rx.c             |  2 +-
+ mac80211.c           | 10 +++++-----
+ mt7996/init.c        |  2 +-
+ mt7996/mac.c         |  4 ++--
+ mt7996/mcu.c         | 14 +++++++-------
+ mt7996/mtk_debugfs.c | 25 ++++++++++++-------------
+ 6 files changed, 28 insertions(+), 29 deletions(-)
+
+diff --git a/agg-rx.c b/agg-rx.c
+index cf9ad7693..c55f22f30 100644
+--- a/agg-rx.c
++++ b/agg-rx.c
+@@ -150,7 +150,7 @@ void mt76_rx_aggr_reorder(struct mt76_dev *dev, struct sk_buff *skb,
+ 			  struct sk_buff_head *frames)
+ {
+ 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+-	struct mt76_wcid *wcid = rcu_dereference(dev->wcid[status->wcid_idx]);
++	struct mt76_wcid *wcid = __mt76_wcid_ptr(dev, status->wcid_idx);
+ 	struct ieee80211_sta *sta;
+ 	struct mt76_rx_tid *tid;
+ 	struct mt76_phy *phy;
+diff --git a/mac80211.c b/mac80211.c
+index 5c251e385..646fdc0f1 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1278,7 +1278,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+ 	memcpy(status->chain_signal, mstat.chain_signal,
+ 	       sizeof(mstat.chain_signal));
+ 
+-	wcid = rcu_dereference(dev->wcid[mstat.wcid_idx]);
++	wcid = __mt76_wcid_ptr(dev, mstat.wcid_idx);
+ 	if (wcid && !wcid->sta_disabled) {
+ 		status->link_valid = wcid->link_valid;
+ 		status->link_id = wcid->link_id;
+@@ -1308,7 +1308,7 @@ mt76_check_ccmp_pn(struct mt76_dev *dev, struct sk_buff *skb)
+ 	if (status->flag & RX_FLAG_ONLY_MONITOR)
+ 		return;
+ 
+-	wcid = rcu_dereference(dev->wcid[status->wcid_idx]);
++	wcid = __mt76_wcid_ptr(dev, status->wcid_idx);
+ 	if (!wcid || !wcid->rx_check_pn)
+ 		return;
+ 
+@@ -1374,7 +1374,7 @@ mt76_airtime_report(struct mt76_dev *dev, struct mt76_rx_status *status,
+ 	dev->cur_cc_bss_rx += airtime;
+ 	spin_unlock(&dev->cc_lock);
+ 
+-	wcid = rcu_dereference(dev->wcid[status->wcid_idx]);
++	wcid = __mt76_wcid_ptr(dev, status->wcid_idx);
+ 	if (!wcid || !wcid->sta)
+ 		return;
+ 
+@@ -1413,7 +1413,7 @@ mt76_airtime_check(struct mt76_dev *dev, struct sk_buff *skb)
+ 	if (!(dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME))
+ 		return;
+ 
+-	wcid = rcu_dereference(dev->wcid[status->wcid_idx]);
++	wcid = __mt76_wcid_ptr(dev, status->wcid_idx);
+ 	if (!wcid || !wcid->sta) {
+ 		struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+ 
+@@ -1452,7 +1452,7 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
+ 	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+ 	struct ieee80211_sta *sta;
+ 	struct ieee80211_hw *hw;
+-	struct mt76_wcid *wcid = rcu_dereference(dev->wcid[status->wcid_idx]);
++	struct mt76_wcid *wcid = __mt76_wcid_ptr(dev, status->wcid_idx);
+ 	u8 tidno = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
+ 	bool ps;
+ 
+diff --git a/mt7996/init.c b/mt7996/init.c
+index c31c3cf54..190c39cdc 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -1355,7 +1355,7 @@ reset:
+ 			struct mt76_wcid *wcid;
+ 
+ 			rcu_read_lock();
+-			wcid = rcu_dereference(dev->mt76.wcid[e->wcid]);
++			wcid = mt76_wcid_ptr(dev, e->wcid);
+ 			sta = wcid_to_sta(wcid);
+ 			if (sta) {
+ 				msta = (struct mt7996_sta *)sta->drv_priv;
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index a6f965027..d5b4aeefd 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1635,7 +1635,7 @@ void mt7996_mac_ba_trigger(struct mt7996_dev *dev, u16 wlan_idx, u8 tid)
+ 	struct mt7996_sta *msta;
+ 	struct mt76_wcid *wcid;
+ 
+-	if (wlan_idx >= mt7996_wtbl_size(dev) || tid >= IEEE80211_NUM_TIDS) {
++	if (tid >= IEEE80211_NUM_TIDS) {
+ 		dev_err(dev->mt76.dev,
+ 			"Invalid ba parameters wlan_idx = %d, tid = %d\n",
+ 			wlan_idx, tid);
+@@ -1643,7 +1643,7 @@ void mt7996_mac_ba_trigger(struct mt7996_dev *dev, u16 wlan_idx, u8 tid)
+ 	}
+ 
+ 	rcu_read_lock();
+-	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++	wcid = mt76_wcid_ptr(dev, wlan_idx);
+ 	sta = wcid_to_sta(wcid);
+ 	if (!sta)
+ 		goto out;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 67635235d..31413980a 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -873,7 +873,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 			break;
+ 		case UNI_ALL_STA_TXRX_AIR_TIME:
+ 			wlan_idx = le16_to_cpu(res->airtime[i].wlan_idx);
+-			wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++			wcid = mt76_wcid_ptr(dev, wlan_idx);
+ 			sta = wcid_to_sta(wcid);
+ 			if (!sta)
+ 				continue;
+@@ -891,7 +891,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 			break;
+ 		case UNI_ALL_STA_RX_MPDU_COUNT:
+ 			wlan_idx = le16_to_cpu(res->rx_mpdu_cnt[i].wlan_idx);
+-			wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++			wcid = mt76_wcid_ptr(dev, wlan_idx);
+ 			if (!wcid)
+ 				break;
+ 
+@@ -901,7 +901,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 			break;
+ 		case UNI_ALL_STA_TX_STAT:
+ 			wlan_idx = le16_to_cpu(res->tx_mpdu_stat[i].wlan_idx);
+-			wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++			wcid = mt76_wcid_ptr(dev, wlan_idx);
+ 			if (!wcid)
+ 				break;
+ 
+@@ -911,7 +911,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 		/* Multiple retries of a single MPDU only increase the counter by 1 */
+ 		case UNI_ALL_STA_DATA_TX_RETRY_COUNT:
+ 			wlan_idx = le16_to_cpu(res->tx_mpdu_retry_cnt[i].wlan_idx);
+-			wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++			wcid = mt76_wcid_ptr(dev, wlan_idx);
+ 			if (!wcid)
+ 				break;
+ 
+@@ -7405,7 +7405,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 			u16 rx_mask;
+ 
+ 			wlan_idx = le16_to_cpu(rssi->wlan_idx);
+-			wcid = rcu_dereference(dev->wcid[wlan_idx]);
++			wcid = __mt76_wcid_ptr(dev, wlan_idx);
+ 			msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+ 			if (!msta_link)
+ 				continue;
+@@ -7430,7 +7430,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 	case UNI_PER_STA_SNR:
+ 		for (i = 0; i < sta_num; ++i) {
+ 			wlan_idx = le16_to_cpu(res->snr[i].wlan_idx);
+-			wcid = rcu_dereference(dev->wcid[wlan_idx]);
++			wcid = __mt76_wcid_ptr(dev, wlan_idx);
+ 			msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+ 			if (msta_link)
+ 				memcpy(msta_link->chain_ack_snr, res->snr[i].val,
+@@ -7440,7 +7440,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 	case UNI_PER_STA_PKT_CNT:
+ 		for (i = 0; i < sta_num; ++i) {
+ 			wlan_idx = le16_to_cpu(res->msdu_cnt[i].wlan_idx);
+-			wcid = rcu_dereference(dev->wcid[wlan_idx]);
++			wcid = __mt76_wcid_ptr(dev, wlan_idx);
+ 			if (wcid) {
+ 				u32 retries = le32_to_cpu(res->msdu_cnt[i].tx_retries),
+ 				    drops = le32_to_cpu(res->msdu_cnt[i].tx_drops);
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 9f4b449f3..d05283aae 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -3402,7 +3402,7 @@ mt7996_reset_counter(void *data, u64 val)
+ 
+ 	/* Reset counters in MT76. */
+ 	rcu_read_lock();
+-	wcid = rcu_dereference(dev->mt76.wcid[dev->wlan_idx]);
++	wcid = mt76_wcid_ptr(dev, dev->wlan_idx);
+ 	if (wcid)
+ 		memset(&wcid->stats, 0, sizeof(struct mt76_sta_stats));
+ 	else
+@@ -4247,24 +4247,22 @@ mt7996_show_sta_acq_info(struct seq_file *s, unsigned long *ple_stat,
+ 				struct mt76_wcid *wcid;
+ 				size_t idx;
+ 
+-				if (wlan_idx >= MT76_N_WCIDS) {
+-					seq_printf(s, "Error: WCID %hu exceeded threshold.\n", wlan_idx);
+-					continue;
+-				}
+-				wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
+-				if (!wcid) {
+-					seq_printf(s, "Error: STA %hu does not exist.\n", wlan_idx);
+-					continue;
+-				}
+-				msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+-				wmmidx = msta_link->sta->vif->deflink.mt76.wmm_idx;
+-
+ 				seq_printf(s, "\tSTA%hu AC%hhu: ", wlan_idx, acq_idx);
+ 				mt7996_get_ple_queue_info(dev, ENUM_UMAC_LMAC_PORT_2, acq_idx,
+ 							  0, wlan_idx, &hfid, &tfid, &pktcnt);
+ 				seq_printf(s, "tail/head fid = 0x%04x/0x%04x, pkt cnt = 0x%04x",
+ 					   tfid, hfid, pktcnt);
+ 
++				rcu_read_lock();
++				wcid = mt76_wcid_ptr(dev, wlan_idx);
++				if (!wcid) {
++					seq_printf(s, ", Error: STA %hu does not exist.\n", wlan_idx);
++					rcu_read_unlock();
++					continue;
++				}
++				msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
++				wmmidx = msta_link->sta->vif->deflink.mt76.wmm_idx;
++
+ 				idx = wcid->phy_idx * cr_num_of_all_ac + j;
+ 				if (sta_pause[idx] & BIT(i))
+ 					ctrl = 2;
+@@ -4275,6 +4273,7 @@ mt7996_show_sta_acq_info(struct seq_file *s, unsigned long *ple_stat,
+ 
+ 				seq_printf(s, ", ctrl = %s (wmmidx=%hhu, band=%hhu)\n",
+ 					   sta_ctrl_reg[ctrl], wmmidx, wcid->phy_idx);
++				rcu_read_unlock();
+ 			}
+ 		}
+ 	}
+-- 
+2.45.2
+
