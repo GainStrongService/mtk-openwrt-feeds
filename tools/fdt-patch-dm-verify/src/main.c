@@ -550,7 +550,7 @@ int main(int argc, char *argv[])
 	struct kvpair dmpairs[2];
 	uint32_t datablocks_num;
 	char *dmstr, *nfdt;
-	size_t nlen;
+	size_t nlen = 0;
 
 	if (argc < 4) {
 		printf("Usage: <summary> <fdt-in> <fdt-out> [override-root]\n");
@@ -576,8 +576,10 @@ int main(int argc, char *argv[])
 	}
 
 	bootargs = fdt_getprop(fdt, nodeoffset, "bootargs", &len);
-	if (!bootargs)
+	if (!bootargs) {
 		bootargs = "";
+		nlen += sizeof(struct fdt_property) + strlen("bootargs") + 1;
+	}
 
 	parse_bootargs(bootargs);
 
@@ -647,7 +649,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Resize dtb buffer */
-	nlen = strlen(bootargs) + 1;
+	nlen += strlen(bootargs) + 1;
 	nfdt = realloc(fdt, fdt_len + nlen);
 	if (!nfdt) {
 		fprintf(stderr, "Failed to extend fdt buffer\n");
@@ -665,7 +667,7 @@ int main(int argc, char *argv[])
 		return 11;
 	}
 
-	ret = fdt_setprop(fdt, nodeoffset, "bootargs", bootargs, nlen);
+	ret = fdt_setprop(fdt, nodeoffset, "bootargs", bootargs, strlen(bootargs) + 1);
 	if (ret < 0) {
 		fprintf(stderr, "Failed to set new `bootargs'\n");
 		return 12;
