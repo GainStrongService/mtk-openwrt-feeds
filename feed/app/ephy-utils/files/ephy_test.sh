@@ -315,7 +315,7 @@ dsa_match_port() {
 	for ifs in ${interfaces}
 	do
 		port_dump=`ethtool ${ifs} | grep -E -o "PHYAD: [0-9a-fA-F]+" | sed 's/PHYAD: //g'`
-		if [[ ! "$kernel_ver" = "5.4"* ]]
+		if [[ "$kernel_ver" = "6.6"* ]]
 		then
 			port_dump=`printf "%d" 0x$port_dump`
 		fi
@@ -364,11 +364,11 @@ mii_match_port() {
 		#########################################################
 
 		# For kernel-6.6, ethtool will show port number as hex.
-		# For kernel-5.4, ethtool will show port number as decimal.
+		# For kernel-5.4/kernel-6.12, ethtool will show port number as decimal.
 		# However, it seems that this depends on your dts settings. So
 		# we transform it here if it's hex.
 		port_dump=`ethtool ${ifs} | grep -E -o "PHYAD: [0-9a-fA-F]+" | sed 's/PHYAD: //g'`
-		if [[ ! "$kernel_ver" = "5.4"* ]]
+		if [[ "$kernel_ver" = "6.6"* ]]
 		then
 			port_dump=`printf "%d" 0x$port_dump`
 		fi
