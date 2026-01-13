@@ -3,10 +3,7 @@ list_add_after $(hooks autobuild_prepare) filogic_change_kernel_config change_ke
 list_append $(hooks autobuild_prepare) airoha_firmware_install
 list_add_after $(hooks autobuild_prepare) airoha_firmware_install copy_phy_firmware
 
-# remove crypto packages to prevent warning caused by package dependency
-if [ -z ${internal_build} ]; then
-	list_prepend $(hooks autobuild_prepare) remove_crypto_package
-else
+if [ -n "${internal_build}" ]; then
 	. "${ab_root}/global-dev/internal.sh"
 fi
 
@@ -152,8 +149,4 @@ copy_phy_firmware() {
 		linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
 		copy_files "${linux_firmware_path}/airoha" "${firmware_dir}/airoha"
 	fi
-}
-
-remove_crypto_package () {
-	exec_log "${openwrt_root}/scripts/feeds uninstall crypto-eip pce tops-tool"
 }
