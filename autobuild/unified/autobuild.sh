@@ -377,7 +377,7 @@ add_global_patch_file_group_hooks global "${ab_global}"
 
 [ -d "${ab_global}-dev" -o -L "${ab_global}-dev" ] && {
 	add_global_patch_file_group_hooks global_dev "${ab_global}-dev"
-	[ -f "${ab_global}-dev/${openwrt_branch}/rules" ] && . "${ab_global}-dev/${openwrt_branch}/rules"
+	[ -f "${ab_global}-dev/rules" ] && . "${ab_global}-dev/rules"
 }
 
 [ -n "${ab_platform_dir}" ] && {
