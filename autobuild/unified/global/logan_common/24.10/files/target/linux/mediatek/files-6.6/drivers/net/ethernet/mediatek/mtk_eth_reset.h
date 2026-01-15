@@ -26,7 +26,6 @@ extern struct completion wait_ser_done;
 extern struct completion wait_ack_done;
 extern struct completion wait_tops_done;
 extern int mtk_wifi_num;
-extern u32 mtk_reset_flag;
 extern bool mtk_stop_fail;
 
 int mtk_eth_netdevice_event_init(struct mtk_eth *eth);

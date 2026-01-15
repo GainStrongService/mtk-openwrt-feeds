@@ -12,7 +12,6 @@ struct mtk_eth *g_eth;
 
 static int mtk_rest_cnt;
 int mtk_wifi_num;
-u32 mtk_reset_flag = MTK_FE_START_RESET;
 bool mtk_stop_fail;
 
 DECLARE_COMPLETION(wait_ack_done);
@@ -64,7 +63,7 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 		break;
 	case MTK_FE_STOP_TRAFFIC_DONE_FAIL:
 		mtk_stop_fail = true;
-		mtk_reset_flag = MTK_FE_START_RESET;
+		eth->reset.event = MTK_FE_START_RESET;
 		pr_info("%s rcv done event:%lx\n", __func__, event);
 		complete(&wait_ser_done);
 		mtk_rest_cnt = mtk_wifi_num;
@@ -72,7 +71,7 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 	case MTK_FE_START_RESET_INIT:
 		pr_info("%s rcv fe start reset init event:%lx\n", __func__, event);
 		if (!test_bit(MTK_RESETTING, &eth->state)) {
-			mtk_reset_flag = MTK_FE_START_RESET;
+			eth->reset.event = MTK_FE_START_RESET;
 			schedule_work(&eth->pending_work);
 		}
 		break;
