@@ -159,6 +159,10 @@ static inline struct xfrm_params_list *mtk_xfrm_params_list_get(void)
 }
 #endif /* defined(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) */
 
+#if defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+int mtk_crypto_xfrm_get_cdrt(struct xfrm_state *xs);
+#endif /* Flow Block */
+
 extern void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
 extern void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
 extern void mtk_update_cdrt_idx(struct mtk_cdrt_idx_param *cdrt_idx_params_p);
@@ -189,7 +193,3 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *xs);
 int mtk_crypto_register_nf_hooks(void);
 void mtk_crypto_unregister_nf_hooks(void);
 #endif /* _CRYPTO_EIP_H_ */
-
-#if defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
-int mtk_crypto_xfrm_get_cdrt(struct xfrm_state *xs);
-#endif /* Flow Block */

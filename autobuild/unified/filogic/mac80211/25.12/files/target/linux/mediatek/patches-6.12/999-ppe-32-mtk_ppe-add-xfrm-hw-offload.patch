@@ -75,7 +75,7 @@
  static int
  mtk_flow_set_ipv4_addr(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		       struct mtk_flow_data *data, bool egress)
-@@ -508,6 +514,12 @@ mtk_flow_offload_replace(struct mtk_eth
+@@ -508,6 +514,14 @@ mtk_flow_offload_replace(struct mtk_eth
  			data.pppoe.sid = act->pppoe.sid;
  			data.pppoe.num++;
  			break;
@@ -84,11 +84,13 @@
 +				return -EOPNOTSUPP;
 +
 +			data.ipsec.cdrt_id = mtk_flow_offload_get_cdrt(&act->ipsec.xs);
++			if (data.ipsec.cdrt_id == 0)
++				return -EOPNOTSUPP;
 +			break;
  		default:
  			return -EOPNOTSUPP;
  		}
-@@ -606,6 +618,11 @@ mtk_flow_offload_replace(struct mtk_eth
+@@ -606,6 +620,11 @@ mtk_flow_offload_replace(struct mtk_eth
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
  

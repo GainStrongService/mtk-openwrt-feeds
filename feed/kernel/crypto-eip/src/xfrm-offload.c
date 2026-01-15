@@ -56,9 +56,23 @@ static inline bool is_hnat_rate_reach(struct sk_buff *skb)
 int mtk_crypto_xfrm_get_cdrt(struct xfrm_state *xs)
 {
 	struct mtk_xfrm_params *xfrm_params;
+	struct mtk_xfrm_params *temp;
 
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
-	return xfrm_params->cdrt->idx;
+
+	if (!xfrm_params)
+		return 0;
+
+	spin_lock_bh(&xfrm_params_list.lock);
+	list_for_each_entry(temp, &xfrm_params_list.list, node) {
+		if (xfrm_params == temp) {
+			spin_unlock_bh(&xfrm_params_list.lock);
+			return xfrm_params->cdrt->idx;
+		}
+	}
+	spin_unlock_bh(&xfrm_params_list.lock);
+
+	return 0;
 }
 #endif // Flow_Block
 
