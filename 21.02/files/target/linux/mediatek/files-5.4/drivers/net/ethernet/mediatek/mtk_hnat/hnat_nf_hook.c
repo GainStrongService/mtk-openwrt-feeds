@@ -604,7 +604,10 @@ int nf_hnat_netevent_handler(struct notifier_block *unused, unsigned long event,
 			goto unlock_out;
 
 		memcpy(entry->ha, neigh->ha, ETH_ALEN);
-		memcpy(&entry->dip, neigh->primary_key, neigh->tbl->key_len);
+		if (neigh->tbl->family == AF_INET)
+			memcpy(&entry->dip, neigh->primary_key, neigh->tbl->key_len);
+		else
+			memcpy(&entry->dip6, neigh->primary_key, neigh->tbl->key_len);
 		entry->nud_state = neigh->nud_state;
 		entry->tbl_family = neigh->tbl->family;
 
