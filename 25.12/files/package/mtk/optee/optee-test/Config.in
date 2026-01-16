@@ -1,0 +1,19 @@
+menu "OP-TEE Test Configuration"
+	depends on PACKAGE_optee-test
+	config OPTEE_MTK_TEST
+		bool "Enable MTK Testsuite"
+		select OPTEE_TEST
+		select OPTEE_MTK_SECURE_STORAGE
+		select OPTEE_MTK_RNG
+		default n
+
+	config OPTEE_MTK_TEE_FUZZER
+		bool "Enable MTK TEE FUZZER"
+		default n
+		depends on OPTEE_MTK_TEST
+
+	config OPTEE_MTK_TEST_FIPS
+		bool "Enable MTK FIPS test interface"
+		default n
+		depends on OPTEE_MTK_TEST
+endmenu

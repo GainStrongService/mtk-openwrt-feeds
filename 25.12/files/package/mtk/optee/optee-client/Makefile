@@ -1,0 +1,113 @@
+#
+# Copyright (C) 2026 MediaTek Inc. All rights reserved.
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=optee_client
+PKG_VERSION:=4.7.0
+
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL_FILE:=$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://github.com/OP-TEE/optee_client/archive/refs/tags/
+PKG_HASH:=e6c6b93e2be417df57ceb05a2eb6505744e3fbdd3b2ae5e5bf79bf6028b6f84d
+PKG_INSTALL:=1
+
+include $(INCLUDE_DIR)/package.mk
+
+define Package/optee-client
+  SECTION:=boot
+  CATEGORY:=Boot Loaders
+  TITLE:=OP-TEE Client API
+  URL:=https://optee.readthedocs.io
+  DEPENDS:=+libuuid
+  KCONFIG:= \
+	CONFIG_RTC_DRV_OPTEE=n \
+	CONFIG_HW_RANDOM_OPTEE=n \
+	CONFIG_OPTEE=y \
+	CONFIG_OPTEE_INSECURE_LOAD_IMAGE=n \
+	CONFIG_OPTEE_SHM_NUM_PRIV_PAGES=1 \
+	CONFIG_TEE=y
+endef
+
+define Package/optee-client/description
+  The non-secure side implementation of the OP-TEE project making up
+  the client library and tee-supplicant.
+endef
+
+define Package/optee-client/config
+	source "$(SOURCE)/Config.in"
+endef
+
+PKG_CONFIG_DEPENDS += \
+	CONFIG_OPTEE_FS_PARENT_PATH \
+	CONFIG_OPTEE_TA_TEST_PATH \
+	CONFIG_OPTEE_RPMB_EMU \
+	CONFIG_OPTEE_CLIENT_LOG_LEVEL_NONE \
+	CONFIG_OPTEE_CLIENT_LOG_LEVEL_ERROR \
+	CONFIG_OPTEE_CLIENT_LOG_LEVEL_INFO \
+	CONFIG_OPTEE_CLIENT_LOG_LEVEL_DEBUG \
+	CONFIG_OPTEE_CLIENT_LOG_LEVEL_FLOW \
+	CONFIG_OPTEE_SUPP_LOG_LEVEL_NONE \
+	CONFIG_OPTEE_SUPP_LOG_LEVEL_ERROR \
+	CONFIG_OPTEE_SUPP_LOG_LEVEL_INFO \
+	CONFIG_OPTEE_SUPP_LOG_LEVEL_DEBUG \
+	CONFIG_OPTEE_SUPP_LOG_LEVEL_FLOW
+
+OPTEE_CLIENT_CONFIGS := \
+	CFG_TEE_FS_PARENT_PATH=$(CONFIG_OPTEE_FS_PARENT_PATH) \
+	CFG_TA_TEST_PATH=$(CONFIG_OPTEE_TA_TEST_PATH) \
+	RPMB_EMU=$(CONFIG_OPTEE_RPMB_EMU)
+
+ifeq ($(CONFIG_OPTEE_CLIENT_LOG_LEVEL_NONE),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_CLIENT_LOG_LEVEL=0
+else ifeq ($(CONFIG_OPTEE_CLIENT_LOG_LEVEL_ERROR),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_CLIENT_LOG_LEVEL=1
+else ifeq ($(CONFIG_OPTEE_CLIENT_LOG_LEVEL_INFO),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_CLIENT_LOG_LEVEL=2
+else ifeq ($(CONFIG_OPTEE_CLIENT_LOG_LEVEL_DEBUG),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_CLIENT_LOG_LEVEL=3
+else ifeq ($(CONFIG_OPTEE_CLIENT_LOG_LEVEL_FLOW),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_CLIENT_LOG_LEVEL=4
+endif
+
+ifeq ($(CONFIG_OPTEE_SUPP_LOG_LEVEL_NONE),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_SUPP_LOG_LEVEL=0
+else ifeq ($(CONFIG_OPTEE_SUPP_LOG_LEVEL_ERROR),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_SUPP_LOG_LEVEL=1
+else ifeq ($(CONFIG_OPTEE_SUPP_LOG_LEVEL_INFO),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_SUPP_LOG_LEVEL=2
+else ifeq ($(CONFIG_OPTEE_SUPP_LOG_LEVEL_DEBUG),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_SUPP_LOG_LEVEL=3
+else ifeq ($(CONFIG_OPTEE_SUPP_LOG_LEVEL_FLOW),y)
+OPTEE_CLIENT_CONFIGS += CFG_TEE_SUPP_LOG_LEVEL=4
+endif
+
+export GCC_HONOUR_COPTS=s
+
+MAKE_VARS := CROSS_COMPILE="$(TARGET_CROSS)"
+
+MAKE_FLAGS += \
+	O=$(PKG_BUILD_DIR)/out \
+	$(OPTEE_CLIENT_CONFIGS)
+
+define Build/InstallDev
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/lib
+	$(INSTALL_DIR) $(STAGING_DIR)/usr/include
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/* $(STAGING_DIR)/usr/lib
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/* $(STAGING_DIR)/usr/include
+endef
+
+define Package/optee-client/install
+	$(INSTALL_DIR) $(1)/usr/lib
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib
+	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/tee-supplicant $(1)/usr/sbin
+	$(CP) ./files/optee.init $(1)/etc/init.d/optee
+endef
+
+$(eval $(call BuildPackage,optee-client))

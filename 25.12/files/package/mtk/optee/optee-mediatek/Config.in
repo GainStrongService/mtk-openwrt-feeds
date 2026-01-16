@@ -1,5 +1,5 @@
 menu "OP-TEE OS Configuration"
-	depends on PACKAGE_optee-mediatek
+	depends on PACKAGE_optee-ta-devkit
 	menu "OP-TEE OS Debug Configuration"
 		config OPTEE_DEBUG_INFO
 			bool "OP-TEE Core Debug Info"
@@ -96,7 +96,7 @@ menu "OP-TEE OS Configuration"
 			string "BL32 load offset"
 			default "0x1000"
 
-		config OPTEE_CORE_DYN_SHMEM
+		config OPTEE_CORE_DYN_SHM
 			bool "OP-TEE Core Dynamic Shared Memory"
 			default y
 			help
@@ -105,12 +105,12 @@ menu "OP-TEE OS Configuration"
 		config OPTEE_DRAM_BASE
 			string "OP-TEE Non-secure DRAM BASE"
 			default "0x40000000"
-			depends on OPTEE_CORE_DYN_SHMEM
+			depends on OPTEE_CORE_DYN_SHM
 
 		config OPTEE_DRAM_SIZE
 			string "OP-TEE Non-secure DRAM SIZE"
 			default "0x40000000"
-			depends on OPTEE_CORE_DYN_SHMEM
+			depends on OPTEE_CORE_DYN_SHM
 	endmenu
 
 	menu "OP-TEE Secure Storage Configuration"
@@ -168,13 +168,13 @@ menu "OP-TEE OS Configuration"
 		bool "OP-TEE Core Enable Embedded Tests"
 		default n
 
-	config OPTEE_FW_ENC_EARLY_TA
-		bool "OPTEE Firmware Encryption early TA"
-		default n
+	config OPTEE_KEY_DIR
+		string "OP-TEE key directory"
+		default "../../keys"
 
 	config OPTEE_TA_SIGN_KEY
 		string "OP-TEE TA_SIGN_KEY"
-		default "keys/default_ta.pem"
+		default "default_ta.pem"
 		help
 		  Determine signing key for OP-TEE TA's.
 		  If OPTEE_OFFLINE_SIGN enable, this key is real key for
