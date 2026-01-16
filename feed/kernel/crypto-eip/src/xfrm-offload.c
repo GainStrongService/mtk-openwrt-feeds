@@ -16,8 +16,6 @@
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
 #include <mtk_hnat/nf_hnat_mtk.h>
-#else
-#include <mtk_tnl.h>
 #endif // HNAT
 
 #include <pce/cdrt.h>

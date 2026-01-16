@@ -1,15 +1,6 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -39,6 +39,8 @@
- #include "mtk_eth_dbg.h"
- #include "mtk_wed.h"
- 
-+#include "mtk_tnl.h"
-+
- static int mtk_msg_level = -1;
- module_param_named(msg_level, mtk_msg_level, int, 0);
- MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -1816,6 +1818,9 @@ static void mtk_tx_set_dma_desc_v2(struc
+@@ -1816,6 +1816,9 @@ static void mtk_tx_set_dma_desc_v2(struc
  	}
  
  	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
@@ -19,7 +10,7 @@
  	WRITE_ONCE(desc->txd4, data);
  
  	data = 0;
-@@ -1836,7 +1841,11 @@ static void mtk_tx_set_dma_desc_v2(struc
+@@ -1836,7 +1839,11 @@ static void mtk_tx_set_dma_desc_v2(struc
  	WRITE_ONCE(desc->txd6, data);
  
  	WRITE_ONCE(desc->txd7, 0);
@@ -32,7 +23,7 @@
  }
  
  static void mtk_tx_set_dma_desc(struct net_device *dev, void *txd,
-@@ -1969,12 +1978,23 @@ next:
+@@ -1969,12 +1976,23 @@ next:
  	txd_info = (struct mtk_tx_dma_desc_info){
  		.gso = gso,
  		.qid = queue,
@@ -58,7 +49,15 @@
  
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -448,6 +448,10 @@
+@@ -23,6 +23,7 @@
+ #include <net/page_pool/types.h>
+ #include <linux/bpf_trace.h>
+ #include "mtk_ppe.h"
++#include "mtk_tnl.h"
+ 
+ #define MTK_MAX_DSA_PORTS	7
+ #define MTK_DSA_PORT_MASK	GENMASK(2, 0)
+@@ -448,6 +449,10 @@
  
  #define MTK_TX_DMA_BUF_SHIFT	8
  
@@ -69,7 +68,7 @@
  /* QDMA V2 descriptor txd6 */
  #define TX_DMA_INS_VLAN_V2	BIT(16)
  /* QDMA V2 descriptor txd5 */
-@@ -457,6 +461,10 @@
+@@ -457,6 +462,10 @@
  #define TX_DMA_SPTAG_V3         BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -80,7 +79,7 @@
  #define TX_DMA_FPORT_SHIFT_V2	8
  #define TX_DMA_FPORT_MASK_V2	0xf
  #define TX_DMA_SWC_V2		BIT(30)
-@@ -539,6 +547,10 @@
+@@ -539,6 +548,10 @@
  /* PDMA V2 descriptor rxd6 */
  #define RX_DMA_GET_FLUSH_RSN_V2	GENMASK(2, 0)
  #define RX_DMA_GET_AGG_CNT_V2	GENMASK(23, 16)
@@ -91,7 +90,7 @@
  
  /* PHY Polling and SMI Master Control registers */
  #define MTK_PPSC		0x10000
-@@ -1497,6 +1509,9 @@ struct mtk_tx_dma_desc_info {
+@@ -1497,6 +1510,9 @@ struct mtk_tx_dma_desc_info {
  	u32		size;
  	u16		vlan_tci;
  	u16		qid;
