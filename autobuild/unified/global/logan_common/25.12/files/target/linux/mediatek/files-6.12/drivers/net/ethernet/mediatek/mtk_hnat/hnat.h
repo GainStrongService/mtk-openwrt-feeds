@@ -218,6 +218,41 @@
 /* PPE Cache Debug status Mask */
 #define CAH_DBG_BUSY (0xf << 0)
 
+/* If user wants to change default FOE entry number, both DEF_ETRY_NUM and
+ * DEF_ETRY_NUM_CFG need to be modified.
+ */
+#define DEF_ETRY_NUM		8192
+/* feasible values : 32768, 16384, 8192, 4096, 2048, 1024 */
+#define DEF_ETRY_NUM_CFG	TABLE_8K
+/* corresponding values : TABLE_32K, TABLE_16K, TABLE_8K, TABLE_4K, TABLE_2K,
+ * TABLE_1K
+ */
+#define MAX_EXT_DEVS		(0x3fU)
+#define MAX_IF_NUM		64
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MAX_PPE_NUM		3
+#define PPE_ENTRY_SIZE		(128)
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+#define MAX_PPE_NUM		2
+#define PPE_ENTRY_SIZE		(96)
+#else
+#define MAX_PPE_NUM		1
+#define PPE_ENTRY_SIZE		(80)
+#endif
+#define CFG_PPE_NUM		(hnat_priv->ppe_num)
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MAX_PPE_CACHE_NUM	(128)
+#else
+#define MAX_PPE_CACHE_NUM	(32)
+#endif
+
+/* If the user wants to set skb->mark to prevent hardware acceleration
+ * for the packet flow.
+ */
+#define HNAT_EXCEPTION_TAG	0x99
+
 /*--------------------------------------------------------------------------*/
 /* Descriptor Structure */
 /*--------------------------------------------------------------------------*/
@@ -851,43 +886,10 @@ struct foe_entry {
 		struct hnat_ipv6_5t_route ipv6_5t_route;
 		struct hnat_ipv6_6rd ipv6_6rd;
 		struct hnat_ipv6_hnapt ipv6_hnapt;
-		u32 data[31];
+		/* entry size would be vary according to the NETSYS version */
+		u32 data[PPE_ENTRY_SIZE / 4 - 1];
 	};
 };
-
-/* If user wants to change default FOE entry number, both DEF_ETRY_NUM and
- * DEF_ETRY_NUM_CFG need to be modified.
- */
-#define DEF_ETRY_NUM		8192
-/* feasible values : 32768, 16384, 8192, 4096, 2048, 1024 */
-#define DEF_ETRY_NUM_CFG	TABLE_8K
-/* corresponding values : TABLE_32K, TABLE_16K, TABLE_8K, TABLE_4K, TABLE_2K,
- * TABLE_1K
- */
-#define MAX_EXT_DEVS		(0x3fU)
-#define MAX_IF_NUM		64
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MAX_PPE_NUM		3
-#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
-#define MAX_PPE_NUM		2
-#else
-#define MAX_PPE_NUM		1
-#endif
-#define CFG_PPE_NUM		(hnat_priv->ppe_num)
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MAX_PPE_CACHE_NUM	(128)
-#else
-#define MAX_PPE_CACHE_NUM	(32)
-#endif
-
-#define PPE_ENTRY_SIZE		(128)
-
-/* If the user wants to set skb->mark to prevent hardware acceleration
- * for the packet flow.
- */
-#define HNAT_EXCEPTION_TAG	0x99
 
 struct mib_entry {
 	u32 byt_cnt_l;
