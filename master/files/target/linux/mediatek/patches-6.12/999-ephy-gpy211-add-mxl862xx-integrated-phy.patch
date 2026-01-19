@@ -8,8 +8,6 @@ MaxLinear MXL862xx switches which are mostly identical with the GPY211
 family of PHYs. Most notable differences are the internal MAC-side
 interface as well as the different encoding of the PHY temperature.
 
-diff --git a/drivers/net/phy/mxl-gpy.c b/drivers/net/phy/mxl-gpy.c
-index 48fe924..4443929 100644
 --- a/drivers/net/phy/mxl-gpy.c
 +++ b/drivers/net/phy/mxl-gpy.c
 @@ -18,6 +18,7 @@
@@ -20,15 +18,15 @@ index 48fe924..4443929 100644
  #define PHY_ID_GPY2xx		0x67C9DC00
  #define PHY_ID_GPY115B		0x67C9DF00
  #define PHY_ID_GPY115C		0x67C9DF10
-@@ -30,6 +31,7 @@
- #define PHY_ID_GPY241B		0x67C9DE40
+@@ -31,6 +32,7 @@
  #define PHY_ID_GPY241BM		0x67C9DE80
  #define PHY_ID_GPY245B		0x67C9DEC0
+ #define PHY_ID_MXL86211C	0xC1335400
 +#define PHY_ID_MXL862XX		0xC1335500
  
  #define PHY_CTL1		0x13
  #define PHY_CTL1_MDICD		BIT(3)
-@@ -199,6 +201,29 @@ static int gpy_hwmon_read(struct device *dev,
+@@ -200,6 +202,29 @@ static int gpy_hwmon_read(struct device
  	return 0;
  }
  
@@ -58,7 +56,7 @@ index 48fe924..4443929 100644
  static umode_t gpy_hwmon_is_visible(const void *data,
  				    enum hwmon_sensor_types type,
  				    u32 attr, int channel)
-@@ -216,14 +241,25 @@ static const struct hwmon_ops gpy_hwmon_hwmon_ops = {
+@@ -217,14 +242,25 @@ static const struct hwmon_ops gpy_hwmon_
  	.read		= gpy_hwmon_read,
  };
  
@@ -84,7 +82,7 @@ index 48fe924..4443929 100644
  	struct device *hwmon_dev;
  	char *hwmon_name;
  
-@@ -231,6 +267,11 @@ static int gpy_hwmon_register(struct phy_device *phydev)
+@@ -232,6 +268,11 @@ static int gpy_hwmon_register(struct phy
  	if (IS_ERR(hwmon_name))
  		return PTR_ERR(hwmon_name);
  
@@ -96,9 +94,9 @@ index 48fe924..4443929 100644
  	hwmon_dev = devm_hwmon_device_register_with_info(dev, hwmon_name,
  							 phydev,
  							 &gpy_hwmon_chip_info,
-@@ -1284,6 +1325,29 @@ static struct phy_driver gpy_drivers[] = {
- 		.get_wol	= gpy_get_wol,
- 		.set_loopback	= gpy_loopback,
+@@ -1331,6 +1372,29 @@ static struct phy_driver gpy_drivers[] =
+ 		.led_hw_control_set = gpy_led_hw_control_set,
+ 		.led_polarity_set = gpy_led_polarity_set,
  	},
 +	{
 +		.phy_id		= PHY_ID_MXL862XX,
@@ -126,14 +124,11 @@ index 48fe924..4443929 100644
  };
  module_phy_driver(gpy_drivers);
  
-@@ -1300,6 +1364,7 @@ static const struct mdio_device_id __maybe_unused gpy_tbl[] = {
- 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY241B)},
+@@ -1348,6 +1412,7 @@ static const struct mdio_device_id __may
  	{PHY_ID_MATCH_MODEL(PHY_ID_GPY241BM)},
  	{PHY_ID_MATCH_MODEL(PHY_ID_GPY245B)},
+ 	{PHY_ID_MATCH_MODEL(PHY_ID_MXL86211C)},
 +	{PHY_ID_MXL862XX, PHY_ID_MXL862XX_MASK},
  	{ }
  };
  MODULE_DEVICE_TABLE(mdio, gpy_tbl);
--- 
-2.45.2
-
