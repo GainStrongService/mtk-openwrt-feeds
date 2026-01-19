@@ -11,6 +11,12 @@
 
 #define BITS(m, n)	 (~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))
 
+
+#define UNUF					0x102000b4
+#define UNMF					0x102000b8
+#define BCF						0x102000bc
+#define UNIPMF					0x102000dc
+
 /* Values of Egress TAG Control */
 #define ETAG_CTRL_UNTAG			0
 #define ETAG_CTRL_TAG			2
@@ -55,6 +61,10 @@
 #define PVID(p)					PORT_CTRL_REG(p, 0x48)
 
 #define GRP_PORT_VID_M			0xfff
+
+/* Register for port security control */
+#define PSC_P(p)				(0x1020800c + ((p) * 0x200))
+#define	 SA_DIS					BIT(4)
 
 /* Values of PORT_VLAN */
 #define PORT_MATRIX_MODE		0
@@ -192,6 +202,23 @@
 #define CKG_LNKDN_GLB_STOP	0x01
 #define CKG_LNKDN_PORT_STOP	0x02
 
+#define AGC					0x1020000c
+#define	 MAC_OLDEST_REPLACE	BIT(23)
+
 #define PKG_SEL				0x10000094
 #define PAG_SEL_AN8855H		0x2
+
+/* Register for LPDET */
+#define LPDETCR                  	(0x10213F08)
+#define LPDETCR_OVER_RXPAUSE     	(1 << 11)
+#define LPDETCR_PERIOD_1S        	(1 << 7)
+#define LPDET_SA_MSB             	(0x10213F20)
+#define LPDET_SA_LSB             	(0x10213F24)
+#define LPDET_FRAME_TYPE_MASK    	(0xFFFF0000)
+#define LPDET_FRAME_TYPE_OFFT    	(16)
+#define LPDET_FRAME_TYPE_DEFAULT	(0x88B6)
+
+/* fields of global mac control */
+#define SMACCR0                     (0x10213E10)
+#define SMACCR1                     (0x10213E14)
 #endif /* _AN8855_REGS_H_ */

@@ -182,9 +182,10 @@
 /* Unique fields of PMCR for AN8855 */
 #define FORCE_TX_FC		BIT(4)
 #define FORCE_RX_FC		BIT(5)
-#define FORCE_EEE100		BIT(6)
+#define FORCE_EEE100	BIT(6)
 #define FORCE_EEE1G		BIT(7)
-#define FORCE_EEE2P5G		BIT(8)
+#define FORCE_EEE2P5G	BIT(8)
+#define FORCE_EEE5G		BIT(9)
 #define FORCE_DPX		BIT(25)
 #define FORCE_SPD		BITS(28, 30)
 #define FORCE_LNK		BIT(24)
@@ -949,9 +950,8 @@ static int an8855_mac_port_setup(struct gsw_an8855 *gsw, u32 port,
 				 phy_modes(port_cfg->phy_mode), port);
 		}
 
-		/* disable eee on cpu port */
-		pmcr &= ~(FORCE_EEE100 | FORCE_EEE1G | FORCE_EEE2P5G);
-
+		pmcr &= ~(FORCE_EEE100 | FORCE_EEE1G
+			| FORCE_EEE2P5G | FORCE_EEE5G);
 		if (port_cfg->force_link)
 			an8855_reg_write(gsw, PMCR(port), pmcr);
 	}
@@ -1002,7 +1002,7 @@ static void an8855_phy_setting(struct gsw_an8855 *gsw)
 		gsw->mii_write(gsw, i, MII_ADVERTISE, val);
 	}
 
-	if (gsw->extSurge) {
+	if (gsw->ext_surge) {
 		for (i = 0; i < AN8855_NUM_PHYS; i++) {
 			/* Read data */
 			for (j = 0; j < AN8855_WORD_SIZE; j++) {
@@ -1257,6 +1257,7 @@ static int an8855_sw_init(struct gsw_an8855 *gsw)
 	int i, ret = 0;
 	u32 val, led_count = ARRAY_SIZE(led_cfg);
 	int id;
+	u8  mac[6] = {0};
 
 	gsw->phy_base = gsw->smi_addr & AN8855_SMI_ADDR_MASK;
 
@@ -1349,6 +1350,48 @@ static int an8855_sw_init(struct gsw_an8855 *gsw)
 	val &= ~(CKG_LNKDN_GLB_STOP | CKG_LNKDN_PORT_STOP);
 	an8855_reg_write(gsw, CKGCR, val);
 
+	val = an8855_reg_read(gsw, AGC);
+	val |= MAC_OLDEST_REPLACE;
+	an8855_reg_write(gsw, AGC, val);
+
+	/* Disable learning by default on cpu port */
+	val = an8855_reg_read(gsw, PSC_P(AN8855_DFL_CPU_PORT));
+	val |= SA_DIS;
+	an8855_reg_write(gsw, PSC_P(AN8855_DFL_CPU_PORT), val);
+
+	/* set ldf ether type */
+	val = an8855_reg_read(gsw, LPDET_SA_MSB);
+	val &= ~(LPDET_FRAME_TYPE_MASK);
+	val |= (LPDET_FRAME_TYPE_DEFAULT << LPDET_FRAME_TYPE_OFFT);
+	an8855_reg_write(gsw, LPDET_SA_MSB, val);
+
+	/* set ldf source mac */
+	dev_info(gsw->dev, "an8855 set ldf source mac\n");
+	val = an8855_reg_read(gsw, SMACCR1);
+	for (i = 0; i < 2; i++)
+		mac[i] = (val >> ((1 - i) * 8)) & 0xFF;
+
+	val = an8855_reg_read(gsw, SMACCR0);
+	for (i = 2; i < 6; i++)
+		mac[i] = (val >> ((5 - i) * 8)) & 0xFF;
+
+	val = an8855_reg_read(gsw, LPDET_SA_MSB);
+	val &= ~0xFFFF;
+	val |= mac[0] << 8;
+	val |= mac[1];
+	an8855_reg_write(gsw, LPDET_SA_MSB, val);
+
+	val = mac[2] << 24;
+	val |= mac[3] << 16;
+	val |= mac[4] << 8;
+	val |= mac[5];
+	an8855_reg_write(gsw, LPDET_SA_LSB, val);
+
+	/* set over_rxpause = 1, rate_1s = 1 */
+	val = an8855_reg_read(gsw, LPDETCR);
+	val |= (LPDETCR_OVER_RXPAUSE | LPDETCR_PERIOD_1S);
+	an8855_reg_write(gsw, LPDETCR, val);
+
 	return 0;
 }
 
@@ -1369,8 +1412,12 @@ static int an8855_sw_post_init(struct gsw_an8855 *gsw)
 		an8855_eee_setting(gsw, i);
 
 	/* PHY restart AN*/
-	for (i = 0; i < AN8855_NUM_PHYS; i++)
-		gsw->mii_write(gsw, i, MII_BMCR, 0x1240);
+	for (i = 0; i < AN8855_NUM_PHYS; i++) {
+		val = gsw->mii_read(gsw, i, MII_BMCR);
+		val &= ~BIT(11);
+		val |= BIT(9);
+		gsw->mii_write(gsw, i, MII_BMCR, val);
+	}
 
 	return 0;
 }

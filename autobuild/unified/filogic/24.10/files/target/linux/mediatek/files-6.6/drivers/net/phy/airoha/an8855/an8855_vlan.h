@@ -35,6 +35,7 @@ extern struct an8855_mapping an8855_defaults[];
 
 void an8855_vlan_ctrl(struct gsw_an8855 *gsw, u32 cmd, u32 val);
 void an8855_apply_vlan_config(struct gsw_an8855 *gsw);
+void an8855_clear_all_vlan(struct gsw_an8855 *gsw);
 struct an8855_mapping *an8855_find_mapping(struct device_node *np);
 void an8855_apply_mapping(struct gsw_an8855 *gsw, struct an8855_mapping *map);
 #endif /* _AN8855_VLAN_H_ */

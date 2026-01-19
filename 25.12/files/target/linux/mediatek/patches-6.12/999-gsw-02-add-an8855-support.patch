@@ -4,8 +4,6 @@ Date: Tue, 21 Oct 2025 15:08:33 +0800
 Subject: [PATCH] net: phy: airoha: add an8855 gsw driver support
 
 
-diff --git a/drivers/net/phy/Kconfig b/drivers/net/phy/Kconfig
-index 6df7daa..1b0f312 100644
 --- a/drivers/net/phy/Kconfig
 +++ b/drivers/net/phy/Kconfig
 @@ -153,6 +153,8 @@ endif # RTL8366_SMI
@@ -17,18 +15,13 @@ index 6df7daa..1b0f312 100644
  comment "MII PHY device drivers"
  
  config AS21XXX_PHY
-diff --git a/drivers/net/phy/Makefile b/drivers/net/phy/Makefile
-index 80af0e8..192cb34 100644
 --- a/drivers/net/phy/Makefile
 +++ b/drivers/net/phy/Makefile
-@@ -123,3 +123,4 @@ obj-$(CONFIG_TERANETICS_PHY)	+= teranetics.o
+@@ -125,3 +125,4 @@ obj-$(CONFIG_TERANETICS_PHY)	+= teraneti
  obj-$(CONFIG_VITESSE_PHY)	+= vitesse.o
  obj-$(CONFIG_XILINX_GMII2RGMII) += xilinx_gmii2rgmii.o
  obj-$(CONFIG_MT753X_GSW)        += mtk/mt753x/
 +obj-$(CONFIG_AN8855_GSW)        += airoha/an8855/
-diff --git a/drivers/net/phy/airoha/an8855/Kconfig b/drivers/net/phy/airoha/an8855/Kconfig
-new file mode 100644
-index 0000000..654aa37
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/Kconfig
 @@ -0,0 +1,8 @@
@@ -40,9 +33,6 @@ index 0000000..654aa37
 +	  Provide swconfig command for basic switch operation.
 +	  AN8855 support 2.5G speed and managed by SMI interface.
 +	  To compile this driver as a module, choose M here.
-diff --git a/drivers/net/phy/airoha/an8855/Makefile b/drivers/net/phy/airoha/an8855/Makefile
-new file mode 100644
-index 0000000..5c24bda
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/Makefile
 @@ -0,0 +1,10 @@
@@ -56,12 +46,9 @@ index 0000000..5c24bda
 +
 +an8855-y			+= an8855_mdio.o an8855.o \
 +					an8855_common.o an8855_vlan.o an8855_nl.o
-diff --git a/drivers/net/phy/airoha/an8855/an8855.c b/drivers/net/phy/airoha/an8855/an8855.c
-new file mode 100644
-index 0000000..c6f5eee
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855.c
-@@ -0,0 +1,1387 @@
+@@ -0,0 +1,1434 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -246,9 +233,10 @@ index 0000000..c6f5eee
 +/* Unique fields of PMCR for AN8855 */
 +#define FORCE_TX_FC		BIT(4)
 +#define FORCE_RX_FC		BIT(5)
-+#define FORCE_EEE100		BIT(6)
++#define FORCE_EEE100	BIT(6)
 +#define FORCE_EEE1G		BIT(7)
-+#define FORCE_EEE2P5G		BIT(8)
++#define FORCE_EEE2P5G	BIT(8)
++#define FORCE_EEE5G		BIT(9)
 +#define FORCE_DPX		BIT(25)
 +#define FORCE_SPD		BITS(28, 30)
 +#define FORCE_LNK		BIT(24)
@@ -1013,9 +1001,8 @@ index 0000000..c6f5eee
 +				 phy_modes(port_cfg->phy_mode), port);
 +		}
 +
-+		/* disable eee on cpu port */
-+		pmcr &= ~(FORCE_EEE100 | FORCE_EEE1G | FORCE_EEE2P5G);
-+
++		pmcr &= ~(FORCE_EEE100 | FORCE_EEE1G
++			| FORCE_EEE2P5G | FORCE_EEE5G);
 +		if (port_cfg->force_link)
 +			an8855_reg_write(gsw, PMCR(port), pmcr);
 +	}
@@ -1066,7 +1053,7 @@ index 0000000..c6f5eee
 +		gsw->mii_write(gsw, i, MII_ADVERTISE, val);
 +	}
 +
-+	if (gsw->extSurge) {
++	if (gsw->ext_surge) {
 +		for (i = 0; i < AN8855_NUM_PHYS; i++) {
 +			/* Read data */
 +			for (j = 0; j < AN8855_WORD_SIZE; j++) {
@@ -1321,6 +1308,7 @@ index 0000000..c6f5eee
 +	int i, ret = 0;
 +	u32 val, led_count = ARRAY_SIZE(led_cfg);
 +	int id;
++	u8  mac[6] = {0};
 +
 +	gsw->phy_base = gsw->smi_addr & AN8855_SMI_ADDR_MASK;
 +
@@ -1413,6 +1401,48 @@ index 0000000..c6f5eee
 +	val &= ~(CKG_LNKDN_GLB_STOP | CKG_LNKDN_PORT_STOP);
 +	an8855_reg_write(gsw, CKGCR, val);
 +
++	val = an8855_reg_read(gsw, AGC);
++	val |= MAC_OLDEST_REPLACE;
++	an8855_reg_write(gsw, AGC, val);
++
++	/* Disable learning by default on cpu port */
++	val = an8855_reg_read(gsw, PSC_P(AN8855_DFL_CPU_PORT));
++	val |= SA_DIS;
++	an8855_reg_write(gsw, PSC_P(AN8855_DFL_CPU_PORT), val);
++
++	/* set ldf ether type */
++	val = an8855_reg_read(gsw, LPDET_SA_MSB);
++	val &= ~(LPDET_FRAME_TYPE_MASK);
++	val |= (LPDET_FRAME_TYPE_DEFAULT << LPDET_FRAME_TYPE_OFFT);
++	an8855_reg_write(gsw, LPDET_SA_MSB, val);
++
++	/* set ldf source mac */
++	dev_info(gsw->dev, "an8855 set ldf source mac\n");
++	val = an8855_reg_read(gsw, SMACCR1);
++	for (i = 0; i < 2; i++)
++		mac[i] = (val >> ((1 - i) * 8)) & 0xFF;
++
++	val = an8855_reg_read(gsw, SMACCR0);
++	for (i = 2; i < 6; i++)
++		mac[i] = (val >> ((5 - i) * 8)) & 0xFF;
++
++	val = an8855_reg_read(gsw, LPDET_SA_MSB);
++	val &= ~0xFFFF;
++	val |= mac[0] << 8;
++	val |= mac[1];
++	an8855_reg_write(gsw, LPDET_SA_MSB, val);
++
++	val = mac[2] << 24;
++	val |= mac[3] << 16;
++	val |= mac[4] << 8;
++	val |= mac[5];
++	an8855_reg_write(gsw, LPDET_SA_LSB, val);
++
++	/* set over_rxpause = 1, rate_1s = 1 */
++	val = an8855_reg_read(gsw, LPDETCR);
++	val |= (LPDETCR_OVER_RXPAUSE | LPDETCR_PERIOD_1S);
++	an8855_reg_write(gsw, LPDETCR, val);
++
 +	return 0;
 +}
 +
@@ -1433,8 +1463,12 @@ index 0000000..c6f5eee
 +		an8855_eee_setting(gsw, i);
 +
 +	/* PHY restart AN*/
-+	for (i = 0; i < AN8855_NUM_PHYS; i++)
-+		gsw->mii_write(gsw, i, MII_BMCR, 0x1240);
++	for (i = 0; i < AN8855_NUM_PHYS; i++) {
++		val = gsw->mii_read(gsw, i, MII_BMCR);
++		val &= ~BIT(11);
++		val |= BIT(9);
++		gsw->mii_write(gsw, i, MII_BMCR, val);
++	}
 +
 +	return 0;
 +}
@@ -1449,9 +1483,6 @@ index 0000000..c6f5eee
 +MODULE_LICENSE("GPL");
 +MODULE_AUTHOR("Min Yao <min.yao@airoha.com>");
 +MODULE_DESCRIPTION("Driver for Airoha AN8855 Gigabit Switch");
-diff --git a/drivers/net/phy/airoha/an8855/an8855.h b/drivers/net/phy/airoha/an8855/an8855.h
-new file mode 100644
-index 0000000..5f84ee5
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855.h
 @@ -0,0 +1,194 @@
@@ -1583,7 +1614,7 @@ index 0000000..5f84ee5
 +	u32 new_smi_addr;
 +	u32 phy_base;
 +	u32 intr_pin;
-+	u32 extSurge;
++	u32 ext_surge;
 +
 +	enum an8855_model model;
 +	const char *name;
@@ -1649,9 +1680,6 @@ index 0000000..5f84ee5
 +void an8855_irq_enable(struct gsw_an8855 *gsw);
 +
 +#endif /* _AN8855_H_ */
-diff --git a/drivers/net/phy/airoha/an8855/an8855_common.c b/drivers/net/phy/airoha/an8855/an8855_common.c
-new file mode 100644
-index 0000000..c01b5c4
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_common.c
 @@ -0,0 +1,96 @@
@@ -1751,12 +1779,9 @@ index 0000000..c01b5c4
 +
 +	enable_irq(gsw->irq);
 +}
-diff --git a/drivers/net/phy/airoha/an8855/an8855_mdio.c b/drivers/net/phy/airoha/an8855/an8855_mdio.c
-new file mode 100644
-index 0000000..65633b0
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_mdio.c
-@@ -0,0 +1,565 @@
+@@ -0,0 +1,575 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -1788,7 +1813,7 @@ index 0000000..65633b0
 +#include "an8855_nl.h"
 +
 +/* AN8855 driver version */
-+#define ARHT_AN8855_SWCFG_DRIVER_VER	"1.0.6"
++#define ARHT_AN8855_SWCFG_DRIVER_VER	"1.0.11"
 +#define ARHT_CHIP_NAME                  "an8855"
 +#define ARHT_PROC_DIR                   "air_sw"
 +#define ARHT_PROC_NODE_DEVICE           "device"
@@ -2017,18 +2042,18 @@ index 0000000..65633b0
 +	mutex_unlock(&an8855_devs_lock);
 +}
 +
++/* an8855_get_gsw()/an8855_get_first_gsw() are only used for netlink access.
++ * To protect the flow, the mutex_lock/unlock should be applied
++ * in an8855_nl_response
++ */
 +struct gsw_an8855 *an8855_get_gsw(u32 id)
 +{
 +	struct gsw_an8855 *dev;
-+
-+	mutex_lock(&an8855_devs_lock);
 +
 +	list_for_each_entry(dev, &an8855_devs, list) {
 +		if (dev->id == id)
 +			return dev;
 +	}
-+
-+	mutex_unlock(&an8855_devs_lock);
 +
 +	return NULL;
 +}
@@ -2037,12 +2062,8 @@ index 0000000..65633b0
 +{
 +	struct gsw_an8855 *dev;
 +
-+	mutex_lock(&an8855_devs_lock);
-+
 +	list_for_each_entry(dev, &an8855_devs, list)
 +		return dev;
-+
-+	mutex_unlock(&an8855_devs_lock);
 +
 +	return NULL;
 +}
@@ -2186,8 +2207,8 @@ index 0000000..65633b0
 +		gsw->intr_pin = AN8855_DFL_INTR_ID;
 +
 +	/* AN8855 surge enhancement */
-+	if (of_property_read_u32(np, "airoha,extSurge", &gsw->extSurge))
-+		gsw->extSurge = AN8855_DFL_EXT_SURGE;
++	if (of_property_read_u32(np, "airoha,ext-surge", &gsw->ext_surge))
++		gsw->ext_surge = AN8855_DFL_EXT_SURGE;
 +
 +	/* Get LAN/WAN port mapping */
 +	map = an8855_find_mapping(np);
@@ -2263,12 +2284,22 @@ index 0000000..65633b0
 +	return ret;
 +}
 +
++#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
++static int an8855_remove(struct platform_device *pdev)
++#else
 +static void an8855_remove(struct platform_device *pdev)
++#endif
 +{
 +	struct gsw_an8855 *gsw = platform_get_drvdata(pdev);
 +
 +	if (gsw->irq >= 0)
 +		cancel_work_sync(&gsw->irq_worker);
++
++#if (KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE)
++	/* Get rid of devm_gpio_gpio after kernel 6.0 */
++	if (gsw->reset_pin >= 0)
++		devm_gpio_free(&pdev->dev, gsw->reset_pin);
++#endif
 +
 +#ifdef CONFIG_SWCONFIG
 +	an8855_swconfig_destroy(gsw);
@@ -2281,6 +2312,10 @@ index 0000000..65633b0
 +	an8855_remove_gsw(gsw);
 +
 +	platform_set_drvdata(pdev, NULL);
++
++#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
++	return 0;
++#endif
 +}
 +
 +static const struct of_device_id an8855_ids[] = {
@@ -2322,12 +2357,9 @@ index 0000000..65633b0
 +MODULE_AUTHOR("Min Yao <min.yao@airoha.com>");
 +MODULE_VERSION(ARHT_AN8855_SWCFG_DRIVER_VER);
 +MODULE_DESCRIPTION("Driver for Airoha AN8855 Gigabit Switch");
-diff --git a/drivers/net/phy/airoha/an8855/an8855_nl.c b/drivers/net/phy/airoha/an8855/an8855_nl.c
-new file mode 100644
-index 0000000..88b808e
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_nl.c
-@@ -0,0 +1,382 @@
+@@ -0,0 +1,381 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -2391,6 +2423,7 @@ index 0000000..88b808e
 +	.policy =	an8855_nl_cmd_policy,
 +};
 +
++/* The access to an8855_devs is protected with mutex in an8855_nl_response() */
 +static int an8855_nl_list_devs(char *buff, int size)
 +{
 +	struct gsw_an8855 *gsw;
@@ -2398,8 +2431,6 @@ index 0000000..88b808e
 +	char buf[80];
 +
 +	memset(buff, 0, size);
-+
-+	an8855_lock_gsw();
 +
 +	list_for_each_entry(gsw, &an8855_devs, list) {
 +		len = snprintf(buf, sizeof(buf),
@@ -2411,8 +2442,6 @@ index 0000000..88b808e
 +			total += len;
 +		}
 +	}
-+
-+	an8855_put_gsw();
 +
 +	return total;
 +}
@@ -2678,16 +2707,18 @@ index 0000000..88b808e
 +		return -EINVAL;
 +	}
 +
++	an8855_lock_gsw();
 +	if (cmditem->require_dev) {
 +		gsw = an8855_nl_parse_find_gsw(info);
-+		if (!gsw) {
++		if (gsw != NULL)
++			ret = cmditem->process(info, gsw);
++		else {
 +			pr_info("an8855-nl: failed to find switch dev\n");
-+			return -EINVAL;
++			ret = -EINVAL;
 +		}
-+	}
++	} else
++		ret = cmditem->process(info, gsw);
 +
-+	an8855_lock_gsw();
-+	ret = cmditem->process(info, gsw);
 +	an8855_put_gsw();
 +
 +	return ret;
@@ -2710,9 +2741,6 @@ index 0000000..88b808e
 +{
 +	genl_unregister_family(&an8855_nl_family);
 +}
-diff --git a/drivers/net/phy/airoha/an8855/an8855_nl.h b/drivers/net/phy/airoha/an8855/an8855_nl.h
-new file mode 100644
-index 0000000..b00df75
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_nl.h
 @@ -0,0 +1,43 @@
@@ -2759,12 +2787,9 @@ index 0000000..b00df75
 +#endif /* __KERNEL__ */
 +
 +#endif /* _AN8855_NL_H_ */
-diff --git a/drivers/net/phy/airoha/an8855/an8855_regs.h b/drivers/net/phy/airoha/an8855/an8855_regs.h
-new file mode 100644
-index 0000000..32790a1
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_regs.h
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,224 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -2777,6 +2802,12 @@ index 0000000..32790a1
 +#include <linux/bitops.h>
 +
 +#define BITS(m, n)	 (~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))
++
++
++#define UNUF					0x102000b4
++#define UNMF					0x102000b8
++#define BCF						0x102000bc
++#define UNIPMF					0x102000dc
 +
 +/* Values of Egress TAG Control */
 +#define ETAG_CTRL_UNTAG			0
@@ -2822,6 +2853,10 @@ index 0000000..32790a1
 +#define PVID(p)					PORT_CTRL_REG(p, 0x48)
 +
 +#define GRP_PORT_VID_M			0xfff
++
++/* Register for port security control */
++#define PSC_P(p)				(0x1020800c + ((p) * 0x200))
++#define	 SA_DIS					BIT(4)
 +
 +/* Values of PORT_VLAN */
 +#define PORT_MATRIX_MODE		0
@@ -2959,15 +2994,29 @@ index 0000000..32790a1
 +#define CKG_LNKDN_GLB_STOP	0x01
 +#define CKG_LNKDN_PORT_STOP	0x02
 +
++#define AGC					0x1020000c
++#define	 MAC_OLDEST_REPLACE	BIT(23)
++
 +#define PKG_SEL				0x10000094
 +#define PAG_SEL_AN8855H		0x2
++
++/* Register for LPDET */
++#define LPDETCR                  	(0x10213F08)
++#define LPDETCR_OVER_RXPAUSE     	(1 << 11)
++#define LPDETCR_PERIOD_1S        	(1 << 7)
++#define LPDET_SA_MSB             	(0x10213F20)
++#define LPDET_SA_LSB             	(0x10213F24)
++#define LPDET_FRAME_TYPE_MASK    	(0xFFFF0000)
++#define LPDET_FRAME_TYPE_OFFT    	(16)
++#define LPDET_FRAME_TYPE_DEFAULT	(0x88B6)
++
++/* fields of global mac control */
++#define SMACCR0                     (0x10213E10)
++#define SMACCR1                     (0x10213E14)
 +#endif /* _AN8855_REGS_H_ */
-diff --git a/drivers/net/phy/airoha/an8855/an8855_swconfig.c b/drivers/net/phy/airoha/an8855/an8855_swconfig.c
-new file mode 100644
-index 0000000..2dd2ffd
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_swconfig.c
-@@ -0,0 +1,529 @@
+@@ -0,0 +1,532 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -2993,6 +3042,7 @@ index 0000000..2dd2ffd
 +#include "an8855.h"
 +#include "an8855_swconfig.h"
 +#include "an8855_regs.h"
++#include "an8855_vlan.h"
 +
 +#define AN8855_PORT_MIB_TXB_ID	19	/* TxByte */
 +#define AN8855_PORT_MIB_RXB_ID	40	/* RxByte */
@@ -3381,6 +3431,8 @@ index 0000000..2dd2ffd
 +	for (i = 0; i < AN8855_NUM_VLANS; i++)
 +		gsw->vlan_entries[i].vid = i;
 +
++	an8855_clear_all_vlan(gsw);
++
 +	return 0;
 +}
 +
@@ -3497,9 +3549,6 @@ index 0000000..2dd2ffd
 +{
 +	unregister_switch(&gsw->swdev);
 +}
-diff --git a/drivers/net/phy/airoha/an8855/an8855_swconfig.h b/drivers/net/phy/airoha/an8855/an8855_swconfig.h
-new file mode 100644
-index 0000000..4c8f2bf
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_swconfig.h
 @@ -0,0 +1,29 @@
@@ -3532,12 +3581,9 @@ index 0000000..4c8f2bf
 +#endif
 +
 +#endif /* _AN8855_SWCONFIG_H_ */
-diff --git a/drivers/net/phy/airoha/an8855/an8855_vlan.c b/drivers/net/phy/airoha/an8855/an8855_vlan.c
-new file mode 100644
-index 0000000..1a1d751
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_vlan.c
-@@ -0,0 +1,200 @@
+@@ -0,0 +1,205 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -3588,7 +3634,7 @@ index 0000000..1a1d751
 +		if ((val & VTCR_BUSY) == 0)
 +			break;
 +
-+		usleep_range(1000, 1100);
++		usleep_range(500, 600);
 +	}
 +
 +	if (i == 300)
@@ -3677,10 +3723,6 @@ index 0000000..1a1d751
 +		an8855_reg_write(gsw, PVC(i), pvc_mode);
 +	}
 +
-+	/* first clear the switch vlan table */
-+	for (i = 0; i < AN8855_NUM_VLANS; i++)
-+		an8855_write_vlan_entry(gsw, i, i, 0, 0);
-+
 +	/* now program only vlans with members to avoid
 +	 * clobbering remapped entries in later iterations
 +	 */
@@ -3738,12 +3780,19 @@ index 0000000..1a1d751
 +		gsw->vlan_entries[i].vid = map->vids[i];
 +	}
 +}
-diff --git a/drivers/net/phy/airoha/an8855/an8855_vlan.h b/drivers/net/phy/airoha/an8855/an8855_vlan.h
-new file mode 100644
-index 0000000..d2cd68a
++
++void an8855_clear_all_vlan(struct gsw_an8855 *gsw)
++{
++	int i = 0;
++
++	/* Clear the switch vlan table */
++	for (i = 0; i < AN8855_NUM_VLANS; i++)
++		an8855_write_vlan_entry(gsw, i, i, 0, 0);
++}
+\ No newline at end of file
 --- /dev/null
 +++ b/drivers/net/phy/airoha/an8855/an8855_vlan.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,41 @@
 +/* SPDX-License-Identifier: GPL-2.0-only */
 +/*
 + * Copyright (c) 2023 Airoha Inc.
@@ -3781,9 +3830,7 @@ index 0000000..d2cd68a
 +
 +void an8855_vlan_ctrl(struct gsw_an8855 *gsw, u32 cmd, u32 val);
 +void an8855_apply_vlan_config(struct gsw_an8855 *gsw);
++void an8855_clear_all_vlan(struct gsw_an8855 *gsw);
 +struct an8855_mapping *an8855_find_mapping(struct device_node *np);
 +void an8855_apply_mapping(struct gsw_an8855 *gsw, struct an8855_mapping *map);
 +#endif /* _AN8855_VLAN_H_ */
--- 
-2.45.2
-

@@ -48,7 +48,7 @@ void an8855_vlan_ctrl(struct gsw_an8855 *gsw, u32 cmd, u32 val)
 		if ((val & VTCR_BUSY) == 0)
 			break;
 
-		usleep_range(1000, 1100);
+		usleep_range(500, 600);
 	}
 
 	if (i == 300)
@@ -137,10 +137,6 @@ void an8855_apply_vlan_config(struct gsw_an8855 *gsw)
 		an8855_reg_write(gsw, PVC(i), pvc_mode);
 	}
 
-	/* first clear the switch vlan table */
-	for (i = 0; i < AN8855_NUM_VLANS; i++)
-		an8855_write_vlan_entry(gsw, i, i, 0, 0);
-
 	/* now program only vlans with members to avoid
 	 * clobbering remapped entries in later iterations
 	 */
@@ -197,4 +193,13 @@ void an8855_apply_mapping(struct gsw_an8855 *gsw, struct an8855_mapping *map)
 		gsw->vlan_entries[i].etags = map->etags[i];
 		gsw->vlan_entries[i].vid = map->vids[i];
 	}
+}
+
+void an8855_clear_all_vlan(struct gsw_an8855 *gsw)
+{
+	int i = 0;
+
+	/* Clear the switch vlan table */
+	for (i = 0; i < AN8855_NUM_VLANS; i++)
+		an8855_write_vlan_entry(gsw, i, i, 0, 0);
 }

@@ -61,6 +61,7 @@ static struct genl_family an8855_nl_family = {
 	.policy =	an8855_nl_cmd_policy,
 };
 
+/* The access to an8855_devs is protected with mutex in an8855_nl_response() */
 static int an8855_nl_list_devs(char *buff, int size)
 {
 	struct gsw_an8855 *gsw;
@@ -68,8 +69,6 @@ static int an8855_nl_list_devs(char *buff, int size)
 	char buf[80];
 
 	memset(buff, 0, size);
-
-	an8855_lock_gsw();
 
 	list_for_each_entry(gsw, &an8855_devs, list) {
 		len = snprintf(buf, sizeof(buf),
@@ -81,8 +80,6 @@ static int an8855_nl_list_devs(char *buff, int size)
 			total += len;
 		}
 	}
-
-	an8855_put_gsw();
 
 	return total;
 }
@@ -348,15 +345,17 @@ static int an8855_nl_response(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	an8855_lock_gsw();
 	if (cmditem->require_dev) {
 		gsw = an8855_nl_parse_find_gsw(info);
-		if (!gsw) {
+		if (gsw != NULL)
+			ret = cmditem->process(info, gsw);
+		else {
 			pr_info("an8855-nl: failed to find switch dev\n");
-			return -EINVAL;
+			ret = -EINVAL;
 		}
-	}
-
-	ret = cmditem->process(info, gsw);
+	} else
+		ret = cmditem->process(info, gsw);
 
 	an8855_put_gsw();
 

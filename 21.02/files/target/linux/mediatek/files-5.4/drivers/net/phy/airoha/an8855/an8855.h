@@ -126,7 +126,7 @@ struct gsw_an8855 {
 	u32 new_smi_addr;
 	u32 phy_base;
 	u32 intr_pin;
-	u32 extSurge;
+	u32 ext_surge;
 
 	enum an8855_model model;
 	const char *name;

@@ -21,6 +21,7 @@
 #include <linux/version.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/platform_device.h>
 
 #include "an8855.h"
 #include "an8855_swconfig.h"
@@ -28,7 +29,7 @@
 #include "an8855_nl.h"
 
 /* AN8855 driver version */
-#define ARHT_AN8855_SWCFG_DRIVER_VER	"1.0.6"
+#define ARHT_AN8855_SWCFG_DRIVER_VER	"1.0.11"
 #define ARHT_CHIP_NAME                  "an8855"
 #define ARHT_PROC_DIR                   "air_sw"
 #define ARHT_PROC_NODE_DEVICE           "device"
@@ -257,18 +258,18 @@ static void an8855_remove_gsw(struct gsw_an8855 *gsw)
 	mutex_unlock(&an8855_devs_lock);
 }
 
+/* an8855_get_gsw()/an8855_get_first_gsw() are only used for netlink access.
+ * To protect the flow, the mutex_lock/unlock should be applied
+ * in an8855_nl_response
+ */
 struct gsw_an8855 *an8855_get_gsw(u32 id)
 {
 	struct gsw_an8855 *dev;
-
-	mutex_lock(&an8855_devs_lock);
 
 	list_for_each_entry(dev, &an8855_devs, list) {
 		if (dev->id == id)
 			return dev;
 	}
-
-	mutex_unlock(&an8855_devs_lock);
 
 	return NULL;
 }
@@ -277,12 +278,8 @@ struct gsw_an8855 *an8855_get_first_gsw(void)
 {
 	struct gsw_an8855 *dev;
 
-	mutex_lock(&an8855_devs_lock);
-
 	list_for_each_entry(dev, &an8855_devs, list)
 		return dev;
-
-	mutex_unlock(&an8855_devs_lock);
 
 	return NULL;
 }
@@ -426,8 +423,8 @@ static int an8855_probe(struct platform_device *pdev)
 		gsw->intr_pin = AN8855_DFL_INTR_ID;
 
 	/* AN8855 surge enhancement */
-	if (of_property_read_u32(np, "airoha,extSurge", &gsw->extSurge))
-		gsw->extSurge = AN8855_DFL_EXT_SURGE;
+	if (of_property_read_u32(np, "airoha,ext-surge", &gsw->ext_surge))
+		gsw->ext_surge = AN8855_DFL_EXT_SURGE;
 
 	/* Get LAN/WAN port mapping */
 	map = an8855_find_mapping(np);
@@ -503,12 +500,22 @@ fail:
 	return ret;
 }
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 static int an8855_remove(struct platform_device *pdev)
+#else
+static void an8855_remove(struct platform_device *pdev)
+#endif
 {
 	struct gsw_an8855 *gsw = platform_get_drvdata(pdev);
 
 	if (gsw->irq >= 0)
 		cancel_work_sync(&gsw->irq_worker);
+
+#if (KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE)
+	/* Get rid of devm_gpio_gpio after kernel 6.0 */
+	if (gsw->reset_pin >= 0)
+		devm_gpio_free(&pdev->dev, gsw->reset_pin);
+#endif
 
 #ifdef CONFIG_SWCONFIG
 	an8855_swconfig_destroy(gsw);
@@ -522,7 +529,9 @@ static int an8855_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
+#if (KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE)
 	return 0;
+#endif
 }
 
 static const struct of_device_id an8855_ids[] = {
