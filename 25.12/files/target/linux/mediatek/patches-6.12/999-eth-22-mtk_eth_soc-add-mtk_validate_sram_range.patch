@@ -1,6 +1,6 @@
-From 9348dfaf4fad8fcd0d77d2c8c4ec1916fed58a67 Mon Sep 17 00:00:00 2001
+From 7fb965b100f4b5f70ea1ac7e0d05dfb8b0a78931 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Thu, 6 Nov 2025 17:08:25 +0800
+Date: Mon, 19 Jan 2026 16:41:44 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtk_validate_sram_range to
  MTK_SRAM feature
 
@@ -12,9 +12,9 @@ allocate for all TX/RX/FQ rings, they can still enable MTK_SRAM feature.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 92 +++++++++++++--------
- drivers/net/ethernet/mediatek/mtk_eth_soc.h | 23 ++++--
- 2 files changed, 75 insertions(+), 40 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 93 +++++++++++++--------
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h | 24 +++--
+ 2 files changed, 77 insertions(+), 40 deletions(-)
 
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -26,8 +26,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 +{
 +	u64 start, end;
 +
-+	start = (u64)eth->sram_base;
-+	end = (u64)eth->sram_base + eth->sram_size - 1;
++	start = (u64)eth->phy_sram_base;
++	end = (u64)eth->phy_sram_base + eth->sram_size - 1;
 +	if ((offset >= start) && (offset + size - 1 <= end))
 +		return true;
 +
@@ -37,7 +37,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  /* the qdma core needs scratch memory to be setup */
  static int mtk_init_fq_dma(struct mtk_eth *eth)
  {
-@@ -1421,28 +1433,31 @@ static int mtk_init_fq_dma(struct mtk_et
+@@ -1421,28 +1433,32 @@ static int mtk_init_fq_dma(struct mtk_et
  	dma_addr_t dma_addr;
  	int i, j, len;
  
@@ -49,8 +49,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 -						       &eth->phy_scratch_ring,
 -						       GFP_KERNEL);
 +	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM) &&
-+	    mtk_validate_sram_range(eth, (u64)eth->sram_base,
++	    mtk_validate_sram_range(eth, (u64)eth->phy_sram_base,
 +				    TX_DESC_OFS(eth, cnt))) {
++		eth->fq_ring.phy_scratch_ring = eth->phy_sram_base;
 +		eth->fq_ring.scratch_ring = eth->sram_base;
 +		eth->fq_ring.in_sram = true;
 +	} else
@@ -81,7 +82,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  					  DMA_FROM_DEVICE);
  
  		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
-@@ -1451,10 +1466,10 @@ static int mtk_init_fq_dma(struct mtk_et
+@@ -1451,10 +1467,10 @@ static int mtk_init_fq_dma(struct mtk_et
  		for (i = 0; i < len; i++) {
  			struct mtk_tx_dma_v2 *txd;
  
@@ -94,7 +95,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  					    TX_DESC_OFS(eth, j * MTK_FQ_DMA_LENGTH + i + 1);
  
  			txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE);
-@@ -1471,7 +1486,7 @@ static int mtk_init_fq_dma(struct mtk_et
+@@ -1471,7 +1487,7 @@ static int mtk_init_fq_dma(struct mtk_et
  		}
  	}
  
@@ -103,22 +104,22 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_w32(eth, phy_ring_tail, soc->reg_map->qdma.fq_tail);
  	mtk_w32(eth, (cnt << 16) | cnt, soc->reg_map->qdma.fq_count);
  	mtk_w32(eth, MTK_QDMA_PAGE_SIZE << 16, soc->reg_map->qdma.fq_blen);
-@@ -2910,9 +2925,12 @@ static int mtk_tx_alloc(struct mtk_eth *
+@@ -2910,9 +2926,12 @@ static int mtk_tx_alloc(struct mtk_eth *
  	if (!ring->buf)
  		goto no_tx_mem;
  
 -	if (MTK_HAS_CAPS(soc->caps, MTK_SRAM)) {
 +	if (MTK_HAS_CAPS(soc->caps, MTK_SRAM) &&
-+	    mtk_validate_sram_range(eth, (u64)eth->sram_base + soc->tx.fq_dma_size * sz,
++	    mtk_validate_sram_range(eth, (u64)eth->phy_sram_base + soc->tx.fq_dma_size * sz,
 +				    ring_size * sz)) {
  		ring->dma = eth->sram_base + soc->tx.fq_dma_size * sz;
 -		ring->phys = eth->phy_scratch_ring + soc->tx.fq_dma_size * (dma_addr_t)sz;
-+		ring->phys = eth->fq_ring.phy_scratch_ring + soc->tx.fq_dma_size * (dma_addr_t)sz;
++		ring->phys = eth->phy_sram_base + soc->tx.fq_dma_size * sz;
 +		ring->in_sram = true;
  	} else {
  		ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
  					       &ring->phys, GFP_KERNEL);
-@@ -3012,7 +3030,6 @@ no_tx_mem:
+@@ -3012,7 +3031,6 @@ static int mtk_tx_alloc(struct mtk_eth *
  
  static void mtk_tx_clean(struct mtk_eth *eth)
  {
@@ -126,7 +127,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	struct mtk_tx_ring *ring = &eth->tx_ring;
  	int i;
  
-@@ -3022,7 +3039,7 @@ static void mtk_tx_clean(struct mtk_eth
+@@ -3022,7 +3040,7 @@ static void mtk_tx_clean(struct mtk_eth
  		kfree(ring->buf);
  		ring->buf = NULL;
  	}
@@ -135,7 +136,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		dma_free_coherent(eth->dma_dev,
  				  TX_DESC_OFS(eth, ring->dma_size),
  				  ring->dma, ring->phys);
-@@ -3041,6 +3058,7 @@ static int mtk_rx_alloc(struct mtk_eth *
+@@ -3041,6 +3059,7 @@ static int mtk_rx_alloc(struct mtk_eth *
  {
  	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
  	const struct mtk_soc_data *soc = eth->soc;
@@ -143,7 +144,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	struct mtk_rx_ring *ring;
  	dma_addr_t offset;
  	int rx_data_len, rx_dma_size, tx_ring_size;
-@@ -3082,16 +3100,17 @@ static int mtk_rx_alloc(struct mtk_eth *
+@@ -3082,16 +3101,17 @@ static int mtk_rx_alloc(struct mtk_eth *
  		ring->page_pool = pp;
  	}
  
@@ -153,7 +154,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SRAM) ||
 -	    rx_flag != MTK_RX_FLAGS_NORMAL) {
 +	    rx_flag != MTK_RX_FLAGS_NORMAL ||
-+	    !mtk_validate_sram_range(eth, (u64)tx_ring->dma + offset,
++	    !mtk_validate_sram_range(eth, (u64)tx_ring->phys + offset,
 +				     RX_DESC_OFS(eth, rx_dma_size))) {
  		ring->dma = dma_alloc_coherent(eth->dma_dev,
  				RX_DESC_OFS(eth, rx_dma_size),
@@ -166,7 +167,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		ring->dma = tx_ring->dma + offset;
  		ring->phys = tx_ring->phys + offset;
  		ring->in_sram = true;
-@@ -3934,15 +3953,15 @@ static void mtk_dma_free(struct mtk_eth
+@@ -3934,15 +3954,15 @@ static void mtk_dma_free(struct mtk_eth
  			netdev_tx_reset_subqueue(eth->netdev[i], j);
  	}
  
@@ -187,7 +188,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_rx_clean(eth, &eth->rx_ring_qdma, false);
  
  	if (eth->hwlro) {
-@@ -3959,8 +3978,8 @@ static void mtk_dma_free(struct mtk_eth
+@@ -3959,8 +3979,8 @@ static void mtk_dma_free(struct mtk_eth
  	}
  
  	for (i = 0; i < DIV_ROUND_UP(soc->tx.fq_dma_size, MTK_FQ_DMA_LENGTH); i++) {
@@ -198,7 +199,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	}
  }
  
-@@ -6478,11 +6497,18 @@ static int mtk_probe(struct platform_dev
+@@ -6479,11 +6499,18 @@ static int mtk_probe(struct platform_dev
  		 * functions to read from or write to SRAM.
  		 */
  		if (mtk_is_netsys_v3_or_greater(eth)) {
@@ -217,21 +218,21 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		}
  	}
  
-@@ -6569,9 +6595,9 @@ static int mtk_probe(struct platform_dev
+@@ -6570,9 +6597,9 @@ static int mtk_probe(struct platform_dev
  					err = -EINVAL;
  					goto err_destroy_sgmii;
  				}
 -				eth->phy_scratch_ring = res_sram->start;
-+				eth->fq_ring.phy_scratch_ring = res_sram->start;
++				eth->phy_sram_base = res_sram->start;
  			} else {
 -				eth->phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
-+				eth->fq_ring.phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
++				eth->phy_sram_base = res->start + MTK_ETH_SRAM_OFFSET;
  			}
  		}
  	}
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1145,6 +1145,19 @@ struct mtk_rx_ring {
+@@ -1108,6 +1108,19 @@ struct mtk_rx_ring {
  	struct xdp_rxq_info xdp_q;
  };
  
@@ -251,7 +252,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  /* struct mtk_rss_params -	This is the structure holding parameters
  				for the RSS ring
   * @hash_key			The element is used to record the
-@@ -1372,7 +1385,7 @@ enum mkt_eth_capabilities {
+@@ -1335,7 +1348,7 @@ enum mkt_eth_capabilities {
  #define MT7987_CAPS  (MTK_36BIT_DMA | MTK_GMAC1_SGMII | \
  		      MTK_GMAC2_2P5GPHY_V2 | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
  		      MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX_GMAC2_TO_2P5GPHY | \
@@ -260,7 +261,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		      MTK_QDMA | MTK_PDMA_INT | MTK_RSS | MTK_HWLRO | \
  		      MTK_GLO_MEM_ACCESS | MTK_RSTCTRL_PPE1)
  
-@@ -1550,9 +1563,6 @@ struct mtk_soc_data {
+@@ -1513,9 +1526,6 @@ struct mtk_soc_data {
   * @tx_packets:		Net DIM TX packet counter
   * @tx_bytes:		Net DIM TX byte counter
   * @tx_dim:		Net DIM TX context
@@ -270,15 +271,16 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
   * @clks:		clock array for all clocks required
   * @mii_bus:		If there is a bus we need to create an instance for it
   * @pending_work:	The workqueue used to reset the dma ring
-@@ -1566,6 +1576,7 @@ struct mtk_eth {
+@@ -1529,6 +1539,8 @@ struct mtk_eth {
  	void __iomem			*base;
  	void __iomem			*esw_base;
  	void				*sram_base;
 +	u64				sram_size;
++	dma_addr_t			phy_sram_base;
  	spinlock_t			page_lock;
  	spinlock_t			tx_irq_lock;
  	spinlock_t			rx_irq_lock;
-@@ -1587,13 +1598,11 @@ struct mtk_eth {
+@@ -1550,13 +1561,11 @@ struct mtk_eth {
  	struct mtk_tx_ring		tx_ring;
  	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
  	struct mtk_rx_ring		rx_ring_qdma;
