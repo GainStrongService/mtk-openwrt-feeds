@@ -103,6 +103,13 @@ openwrt_get_package_install_dir() {
 		__PACKAGE_DIR="${1}" V=s 2>/dev/null
 }
 
+# Get OpenWrt standard style package version of a git repo
+# $1:	git repo directory
+openwrt_get_git_repo_package_version() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_tarball_ver.mk" get-git-repo-package-ver \
+		PKG_SRC_DIR="${1}" 2>/dev/null
+}
+
 # Check if a path is OpenWrt's root directory
 # $1:	Path to be checked
 is_openwrt_build_root() {
