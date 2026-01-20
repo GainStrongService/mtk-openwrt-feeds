@@ -1,0 +1,32 @@
+From 208b32d523fc6874ae5cd8612652905187797c1c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 16 Jan 2026 17:23:20 +0800
+Subject: [PATCH] sync patches/build to fix build for for 6.12.64
+
+Change-Id: I336cdc265e9b28dce4f00a9c829eb63a24c837ea
+---
+ backport-include/linux/hrtimer.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/backport-include/linux/hrtimer.h b/backport-include/linux/hrtimer.h
+index 3c351922..855fdd0a 100644
+--- a/backport-include/linux/hrtimer.h
++++ b/backport-include/linux/hrtimer.h
+@@ -17,12 +17,14 @@ static inline enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
+ 	return HRTIMER_NORESTART;
+ }
+ 
++#if LINUX_VERSION_IS_LESS(6,12,64)
+ static inline void
+ hrtimer_update_function(struct hrtimer *timer,
+ 			enum hrtimer_restart (*function)(struct hrtimer *))
+ {
+ 	timer->function = function;
+ }
++#endif /* < 6.12.64 */
+ 
+ static inline void
+ hrtimer_setup(struct hrtimer *timer, enum hrtimer_restart (*function)(struct hrtimer *),
+-- 
+2.51.0
+
