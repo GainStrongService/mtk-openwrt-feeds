@@ -1,0 +1,53 @@
+From d005dc05dc891033609b014e9c96708e3d8308c2 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 20 Jan 2026 19:50:47 +0800
+Subject: [PATCH] net: mdio: handle bus level gpio post reset
+
+---
+ drivers/net/phy/mdio_bus.c | 2 ++
+ drivers/of/of_mdio.c       | 2 ++
+ include/linux/phy.h        | 2 ++
+ 3 files changed, 6 insertions(+)
+
+diff --git a/drivers/net/phy/mdio_bus.c b/drivers/net/phy/mdio_bus.c
+index 8ffa783..52168bf 100644
+--- a/drivers/net/phy/mdio_bus.c
++++ b/drivers/net/phy/mdio_bus.c
+@@ -419,6 +419,8 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
+ 		gpiod_set_value_cansleep(gpiod, 1);
+ 		udelay(bus->reset_delay_us);
+ 		gpiod_set_value_cansleep(gpiod, 0);
++		if (bus->reset_post_delay_us > 0)
++			udelay(bus->reset_post_delay_us);
+ 	}
+ 
+ 	if (bus->reset)
+diff --git a/drivers/of/of_mdio.c b/drivers/of/of_mdio.c
+index 7a3de2b..55178ef 100644
+--- a/drivers/of/of_mdio.c
++++ b/drivers/of/of_mdio.c
+@@ -219,6 +219,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
+ 	/* Get bus level PHY reset GPIO details */
+ 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
+ 	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
++	mdio->reset_post_delay_us = 0;
++	of_property_read_u32(np, "reset-post-delay-us", &mdio->reset_post_delay_us);
+ 
+ 	/* Register the MDIO bus */
+ 	rc = mdiobus_register(mdio);
+diff --git a/include/linux/phy.h b/include/linux/phy.h
+index a9c2842..6eaf519 100644
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -281,6 +281,8 @@ struct mii_bus {
+ 
+ 	/* GPIO reset pulse width in microseconds */
+ 	int reset_delay_us;
++	/** @reset_post_delay_us: GPIO reset deassert delay in microseconds */
++	int reset_post_delay_us;
+ 	/* RESET GPIO descriptor pointer */
+ 	struct gpio_desc *reset_gpiod;
+ 
+-- 
+2.45.2
+
