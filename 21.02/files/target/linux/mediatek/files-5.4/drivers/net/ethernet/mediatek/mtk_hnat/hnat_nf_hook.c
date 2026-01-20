@@ -511,7 +511,9 @@ void hnat_neigh_update_init(void)
 	INIT_LIST_HEAD(&hnat_priv->neigh_update.head);
 	spin_lock_init(&hnat_priv->neigh_update.lock);
 
+	spin_lock_bh(&hnat_priv->neigh_update.lock);
 	hnat_priv->neigh_update.pending_cnt = 0;
+	spin_unlock_bh(&hnat_priv->neigh_update.lock);
 }
 
 void hnat_neigh_update_cleanup(void)
