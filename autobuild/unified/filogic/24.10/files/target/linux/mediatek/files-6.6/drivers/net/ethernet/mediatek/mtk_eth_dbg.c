@@ -1121,7 +1121,7 @@ int mtk_hwtx_ring_show(struct seq_file *m, void *v)
 	struct mtk_tx_dma_v2 *hwtx_ring;
 	int i = 0;
 
-	for (i = 0; i < MTK_QDMA_RING_SIZE; i++) {
+	for (i = 0; i < eth->soc->tx.fq_dma_size; i++) {
 		dma_addr_t addr = eth->fq_ring.phy_scratch_ring +
 				  i * (dma_addr_t)eth->soc->tx.desc_size;
 
