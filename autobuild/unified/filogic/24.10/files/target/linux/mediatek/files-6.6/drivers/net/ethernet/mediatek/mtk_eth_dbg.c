@@ -1172,7 +1172,7 @@ int mtk_rx_ring_show(struct seq_file *m, void *v)
 			   NEXT_DESP_IDX(ring->calc_idx, eth->soc->rx.dma_size));
 		for (i = 0; i < ring->dma_size; i++) {
 			dma_addr_t addr = ring->phys +
-				 i * (dma_addr_t)eth->soc->tx.desc_size;
+				 i * (dma_addr_t)eth->soc->rx.desc_size;
 
 			rx_ring = ring->dma + i * eth->soc->rx.desc_size;
 
