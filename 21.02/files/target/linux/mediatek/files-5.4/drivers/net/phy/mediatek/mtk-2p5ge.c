@@ -410,10 +410,12 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 		goto release_fw;
 	}
 
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+
 	/* Force 2.5Gphy back to AN state */
-	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+	__phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
 	usleep_range(5000, 6000);
-	phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
+	__phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
 
 	reg = readw(apb_base + SW_RESET);
 	writew(reg & ~MD32_RESTART_EN_CLEAR, apb_base + SW_RESET);
@@ -454,17 +456,17 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 		dev_err(dev, "Fail to enable 2.5Gbps module clock: %d\n", ret);
 
 	/* Disable AN */
-	phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE);
+	__phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE);
 
 	/* Force to run at 2.5G speed */
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_AN_FORCE_SPEED_REG,
-		       MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK,
-		       MTK_PHY_MASTER_FORCE_SPEED_SEL_EN |
-		       FIELD_PREP(MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK, 0x1b));
+	__phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_AN_FORCE_SPEED_REG,
+			 MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK,
+			 MTK_PHY_MASTER_FORCE_SPEED_SEL_EN |
+			 FIELD_PREP(MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK, 0x1b));
 
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LINK_STATUS_RELATED,
-			 MTK_PHY_BYPASS_LINK_STATUS_OK |
-			 MTK_PHY_FORCE_LINK_STATUS_HCD);
+	__phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LINK_STATUS_RELATED,
+			   MTK_PHY_BYPASS_LINK_STATUS_OK |
+			   MTK_PHY_FORCE_LINK_STATUS_HCD);
 
 	/* Set xbz, pma and rx as "do not reset" in order to input DSP code. */
 	reg_set_bits(priv, MTK_2P5GPHY_PMD_REG + DO_NOT_RESET,
@@ -532,9 +534,11 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 
 	reg = reg_readw(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG);
 	reg_writew(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG, reg | MD32_EN);
-	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+	__phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
 	/* We need a delay here to stabilize initialization of MCU */
 	usleep_range(7000, 8000);
+
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
 release_fw:
 	release_firmware(fw);
@@ -564,16 +568,18 @@ static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
 		goto release_fw;
 	}
 
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+
 	reg = reg_readw(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG);
 	if (reg & MD32_EN) {
-		phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+		__phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
 		usleep_range(10000, 11000);
 	}
-	phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
+	__phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
 
 	/* Write magic number to safely stall MCU */
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD1, 0x1100);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD2, 0x00df);
+	__phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD1, 0x1100);
+	__phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD2, 0x00df);
 
 	for (i = 0; i < MT7988_2P5GE_PMB_FW_SIZE - 1; i += 4)
 		reg_writel(priv, MTK_2P5GPHY_PMB_FW + i,
@@ -581,9 +587,11 @@ static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
 
 	reg_writew(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG, reg & ~MD32_EN);
 	reg_writew(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG, reg | MD32_EN);
-	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+	__phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
 	/* We need a delay here to stabilize initialization of MCU */
 	usleep_range(7000, 8000);
+
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
 	mtk_2p5ge_fw_info(dev, priv, fw, MT7988_2P5GE_PMB_FW_SIZE);
 
