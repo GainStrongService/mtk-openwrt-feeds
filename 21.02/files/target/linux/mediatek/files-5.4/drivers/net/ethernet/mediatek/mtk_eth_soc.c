@@ -4419,6 +4419,8 @@ static int mtk_start_dma(struct mtk_eth *eth)
 		val = mtk_r32(eth, reg_map->qdma.glo_cfg);
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 		    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			u32 pkt_rx_wdone = of_property_read_bool(eth->dev->of_node,
+					   "qdma,pkt-rx-wdone") ? MTK_PKT_RX_WDONE : 0;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4))
 				mtk_m32(eth, MTK_QDMA_FQ_FASTPATH_EN,
 					MTK_QDMA_FQ_FASTPATH_EN,
@@ -4429,7 +4431,7 @@ static int mtk_start_dma(struct mtk_eth *eth)
 				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
 				MTK_DMA_SIZE_32DWORDS | MTK_TX_WB_DDONE |
 				MTK_NDP_CO_PRO | MTK_MUTLI_CNT |
-				MTK_RESV_BUF | MTK_WCOMP_EN |
+				MTK_RESV_BUF | MTK_WCOMP_EN | pkt_rx_wdone |
 				MTK_DMAD_WR_WDONE | MTK_CHK_DDONE_EN |
 				MTK_RX_2B_OFFSET, reg_map->qdma.glo_cfg);
 		} else

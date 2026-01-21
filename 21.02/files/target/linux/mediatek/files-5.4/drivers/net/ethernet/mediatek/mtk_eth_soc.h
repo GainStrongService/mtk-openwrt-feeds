@@ -521,6 +521,7 @@
 
 /* QDMA V2 Global Configuration Register */
 #define MTK_CHK_DDONE_EN	BIT(28)
+#define MTK_PKT_RX_WDONE	BIT(27)
 #define MTK_DMAD_WR_WDONE	BIT(26)
 #define MTK_WCOMP_EN		BIT(24)
 #define MTK_RESV_BUF		(0x80 << 16)
