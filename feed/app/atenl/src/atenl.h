@@ -290,7 +290,7 @@ enum {
 	MT_EE_BAND_SEL_5G_6G,
 };
 
-/* for connac 3 */
+/* for connac 3 & 5 */
 enum {
 	MT_EE_CONNAC3_BAND_SEL_DEFAULT,
 	MT_EE_CONNAC3_BAND_SEL_2GHZ,
@@ -307,6 +307,11 @@ enum {
 #define MT_EE_WIFI_CONNAC3_CONF_BAND0_SEL	GENMASK(2, 0)
 #define MT_EE_WIFI_CONNAC3_CONF_BAND1_SEL	GENMASK(5, 3)
 #define MT_EE_WIFI_CONNAC3_CONF_BAND2_SEL	GENMASK(2, 0)
+
+#define MT_EE_WIFI_CONNAC5_CONF(_band)		(0x170 + (_band) * 0x10)
+#define MT_EE_WIFI_CONNAC5_CONF_BAND_SEL	GENMASK(2, 0)
+#define MT_EE_WIFI_CONNAC5_CONF_TX_PATH		GENMASK(2, 0)
+#define MT_EE_WIFI_CONNAC5_CONF_RX_PATH		GENMASK(5, 3)
 
 #define MT_EE_DO_RX_GAIN_CAL			0x1a1
 #define MT_EE_RX_GAIN_CAL			0x1830
@@ -428,6 +433,10 @@ enum prek_ops {
 #define MT7990_DEVICE_ID		0x7993
 #define MT7990_DEVICE_ID_2		0x799b
 
+/* Wi-Fi8 device id */
+#define MT7999_DEVICE_ID		0x80F2
+#define MT7999_DEVICE_ID_2		0x80F3
+
 static inline bool is_mt7915(struct atenl *an)
 {
 	return an->chip_id == MT7915_DEVICE_ID;
@@ -471,6 +480,16 @@ static inline bool is_mt7990(struct atenl *an)
 static inline bool is_connac3(struct atenl *an)
 {
 	return is_mt7996(an) || is_mt7992(an) || is_mt7990(an);
+}
+
+static inline bool is_mt7999(struct atenl *an)
+{
+	return an->chip_id == MT7999_DEVICE_ID;
+}
+
+static inline bool is_connac5(struct atenl *an)
+{
+	return is_mt7999(an);
 }
 
 int atenl_eth_init(struct atenl *an);
