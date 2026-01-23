@@ -1,0 +1,99 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -19,6 +19,7 @@ ADD_LIBRARY(fstools SHARED
+ 		libfstools/mtd.c
+ 		libfstools/mount.c
+ 		libfstools/ubi.c
++		libfstools/dm.c
+ 		libfstools/rootdisk.c
+ 		libfstools/partname.c
+ 		libfstools/find.c)
+--- /dev/null
++++ b/libfstools/dm.c
+@@ -0,0 +1,42 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++/*
++ * Copyright (C) 2025, MediaTek Inc. All rights reserved.
++ */
++
++#include <stdio.h>
++#include <string.h>
++#include <sys/stat.h>
++#include "dm.h"
++
++#define BUFLEN	128
++#define DEVPATHSTR_SIZE 16
++
++static const char *const dm_dir_name = "/sys/block/dm-";
++static char dm_device[10];
++
++const char *find_device_mapper(char *name) {
++	int num = 0;
++	struct stat buf;
++	char devdir[BUFLEN];
++
++	memset(devdir, 0, BUFLEN);
++
++	while (1) {
++		snprintf(devdir, sizeof(devdir), "%s%d", dm_dir_name, num);
++
++		if (stat(devdir, &buf))
++			break;
++
++		snprintf(devdir, sizeof(devdir), "%s%d/slaves/%s", dm_dir_name,
++			 num, name);
++
++		if (!stat(devdir, &buf)) {
++			snprintf(dm_device, sizeof(dm_device), "/dev/dm-%d", num);
++			return (const char *) dm_device;
++		}
++
++		num++;
++	}
++
++	return NULL;
++}
+--- /dev/null
++++ b/libfstools/dm.h
+@@ -0,0 +1,11 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++/*
++ * Copyright (C) 2025, MediaTek Inc. All rights reserved.
++ */
++
++#ifndef _DM_H_
++#define _DM_H_
++
++const char *find_device_mapper(char *name);
++
++#endif
+--- a/libfstools/fit.c
++++ b/libfstools/fit.c
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ #include "common.h"
++#include "dm.h"
+ 
+ #define BUFLEN 64
+ #define DEVPATHSTR_SIZE 15
+@@ -65,12 +66,15 @@ static struct volume *fit_volume_find(ch
+ 	const char *fname;
+ 	int ret;
+ 
+-	if (!strcmp(name, "rootfs"))
++	if (!strcmp(name, "rootfs")) {
+ 		fname = fit0;
+-	else if (!strcmp(name, "rootfs_data"))
+-		fname = fitrw;
+-	else
++	} else if (!strcmp(name, "rootfs_data")) {
++		fname = find_device_mapper("fitrw");
++		if (!fname)
++			fname = fitrw;
++	} else {
+ 		return NULL;
++	}
+ 
+ 	ret = stat(fname, &buf);
+ 	if (ret)
