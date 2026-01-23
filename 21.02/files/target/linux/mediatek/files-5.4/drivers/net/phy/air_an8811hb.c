@@ -22,7 +22,7 @@
 #define AN8811HB_MD32_DM		"airoha/an8811hb/EthMD32_CRC.DM.bin"
 #define AN8811HB_MD32_DSP		"airoha/an8811hb/EthMD32_CRC.DSP.bin"
 
-#define AN8811HB_DRIVER_VERSION		"v0.0.8"
+#define AN8811HB_DRIVER_VERSION		"v0.0.9"
 
 #define AIR_FW_ADDR_DM	0x00000000
 #define AIR_FW_ADDR_DSP	0x00100000
@@ -110,6 +110,7 @@
 
 /* Registers on BUCKPBUS */
 #define AIR_PHY_CONTROL			0x3a9c
+#define   AIR_PHY_CONTROL_SURGE_5R		BIT(3)
 #define   AIR_PHY_CONTROL_INTERNAL		BIT(11)
 
 #define AIR_PHY_MD32FW_VERSION		0x3b3c
@@ -151,9 +152,9 @@
 
 #define AN8811HB_CLK_DRV		0x5cf9e4
 #define AN8811HB_CLK_DRV_CKO_MASK		GENMASK(14, 12)
-#define   AN8811HB_CLK_DRV_CKOPWD		BIT(12)
-#define   AN8811HB_CLK_DRV_CKO_LDPWD		BIT(13)
-#define   AN8811HB_CLK_DRV_CKO_LPPWD		BIT(14)
+#define   AN8811HB_CLK_DRV_CKOPWD1		BIT(12)
+#define   AN8811HB_CLK_DRV_CKOPWD2		BIT(13)
+#define   AN8811HB_CLK_DRV_CKOPWD3		BIT(14)
 
 #define AIR_PHY_FW_CTRL_1		0x0f0018
 #define   AIR_PHY_FW_CTRL_1_START		0x0
@@ -278,8 +279,10 @@ enum air_led_trigger_netdev_modes {
 };
 
 enum air_port_mode {
-	AIR_PORT_MODE_FORCE_10,
-	AIR_PORT_MODE_FORCE_100,
+	AIR_PORT_MODE_FORCE_10_HALF,
+	AIR_PORT_MODE_FORCE_10_FULL,
+	AIR_PORT_MODE_FORCE_100_HALF,
+	AIR_PORT_MODE_FORCE_100_FULL,
 	AIR_PORT_MODE_FORCE_1000,
 	AIR_PORT_MODE_FORCE_2500,
 	AIR_PORT_MODE_AUTONEGO,
@@ -849,19 +852,21 @@ static int an8811hb_surge_protect_cfg(struct phy_device *phydev)
 	struct device *dev = phydev_dev(phydev);
 	int ret = 0;
 
-	if (device_property_read_bool(dev, "airoha,surge-5r")) {
-		priv->surge = 1;
-		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_1, 0x0);
-		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_2, 0x0);
-		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_3, 0x1100);
-		ret |= phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_4, 0x00b0);
-		if (ret < 0)
-			return ret;
-		phydev_info(phydev, "surge protection mode - 5R\n");
-	} else {
+	if (!device_property_read_bool(dev, "airoha,surge-5r")) {
 		priv->surge = 0;
 		phydev_info(phydev, "surge protection mode - 0R\n");
+		return 0;
 	}
+
+	priv->surge = 1;
+	ret = air_buckpbus_reg_modify(phydev, AIR_PHY_CONTROL,
+				      AIR_PHY_CONTROL_SURGE_5R,
+				      AIR_PHY_CONTROL_SURGE_5R);
+	if (ret < 0)
+		return ret;
+
+	phydev_info(phydev, "surge protection mode - 5R\n");
+
 	return ret;
 }
 
@@ -984,6 +989,7 @@ static int an8811hb_set_zero(struct phy_device *phydev)
 	int ret;
 
 	phydev_info(phydev, "%s: start\n", __func__);
+
 	mutex_lock(&mbus->mdio_lock);
 
 	ret = __air_pbus_reg_write(phydev, 0x5cf9f8, 0x10000);
@@ -993,6 +999,7 @@ static int an8811hb_set_zero(struct phy_device *phydev)
 	ret = __air_pbus_reg_write(phydev, 0x5cf9fc, 0x0);
 
 	msleep(50);
+
 unlock:
 	mutex_unlock(&mbus->mdio_lock);
 	return ret;
@@ -1004,6 +1011,7 @@ static int an8811hb_set_one(struct phy_device *phydev)
 	int ret;
 
 	phydev_info(phydev, "%s: start\n", __func__);
+
 	mutex_lock(&mbus->mdio_lock);
 
 	ret = __air_pbus_reg_write(phydev, 0x5cf9fc, 0x10000);
@@ -1015,6 +1023,7 @@ static int an8811hb_set_one(struct phy_device *phydev)
 		goto unlock;
 
 	msleep(50);
+
 unlock:
 	mutex_unlock(&mbus->mdio_lock);
 	return ret;
@@ -1084,6 +1093,13 @@ static int an8811hb_load_firmware(struct phy_device *phydev)
 	if (ret < 0)
 		goto an8811hb_load_firmware_out;
 
+	ret = an8811hb_surge_protect_cfg(phydev);
+	if (ret < 0) {
+		phydev_err(phydev,
+			   "an8811hb_surge_protect_cfg fail. (ret=%d)\n", ret);
+		return ret;
+	}
+
 	retry = 10;
 	do {
 		msleep(300);
@@ -1132,9 +1148,9 @@ static int an8811hb_cko_cfg(struct phy_device *phydev)
 		priv->cko_en = 0;
 		ret = air_buckpbus_reg_modify(phydev, AN8811HB_CLK_DRV,
 					      AN8811HB_CLK_DRV_CKO_MASK,
-					      AN8811HB_CLK_DRV_CKOPWD    |
-					      AN8811HB_CLK_DRV_CKO_LDPWD |
-					      AN8811HB_CLK_DRV_CKO_LPPWD);
+					      AN8811HB_CLK_DRV_CKOPWD1  |
+					      AN8811HB_CLK_DRV_CKOPWD2  |
+					      AN8811HB_CLK_DRV_CKOPWD3);
 		if (ret < 0)
 			return ret;
 
@@ -1419,13 +1435,6 @@ static int an8811hb_config(struct phy_device *phydev)
 		return ret;
 	}
 
-	ret = an8811hb_surge_protect_cfg(phydev);
-	if (ret < 0) {
-		phydev_err(phydev,
-			   "an8811hb_surge_protect_cfg fail. (ret=%d)\n", ret);
-		return ret;
-	}
-
 	/* Co-Clock Output */
 	ret = an8811hb_cko_cfg(phydev);
 	if (ret)
@@ -1586,9 +1595,13 @@ static int an8811hb_config_aneg(struct phy_device *phydev)
 
 static int an8811hb_update_duplex(struct phy_device *phydev)
 {
-	int lpa, bmcr;
+	int lpa = 0, bmcr = 0, adv = 0;
 
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		adv = phy_read(phydev, MII_ADVERTISE);
+		if (adv < 0)
+			return adv;
+
 		lpa = phy_read(phydev, MII_LPA);
 		if (lpa < 0)
 			return lpa;
@@ -1599,11 +1612,11 @@ static int an8811hb_update_duplex(struct phy_device *phydev)
 			phydev->duplex = DUPLEX_FULL;
 			break;
 		case SPEED_100:
-			phydev->duplex = (lpa & LPA_100FULL) ?
+			phydev->duplex = (adv & lpa & LPA_100FULL) ?
 					  DUPLEX_FULL : DUPLEX_HALF;
 			break;
 		case SPEED_10:
-			phydev->duplex = (lpa & LPA_10FULL) ?
+			phydev->duplex = (adv & lpa & LPA_10FULL) ?
 					  DUPLEX_FULL : DUPLEX_HALF;
 			break;
 		}
@@ -1638,9 +1651,9 @@ static int an8811hb_read_status(struct phy_device *phydev)
 	phydev->duplex = DUPLEX_UNKNOWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
-#if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
+//#if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
 	phydev->rate_matching = RATE_MATCH_PAUSE;
-#endif
+//#endif
 
 #if (KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE)
 	ret = genphy_read_master_slave(phydev);
@@ -1857,8 +1870,8 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 	struct an8811hb_priv *priv = phydev->priv;
 
 	switch (dbg_mode) {
-	case AIR_PORT_MODE_FORCE_10:
-		pr_notice("\nForce 10M\n");
+	case AIR_PORT_MODE_FORCE_10_FULL:
+		pr_notice("\nForce 10M Full-Duplex\n");
 		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), BIT(6) | BIT(5));
 		if (ret < 0)
 			break;
@@ -1876,8 +1889,8 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 			break;
 		priv->need_an = 1;
 		break;
-	case AIR_PORT_MODE_FORCE_100:
-		pr_notice("\nForce 100M\n");
+	case AIR_PORT_MODE_FORCE_100_FULL:
+		pr_notice("\nForce 100M Full-Duplex\n");
 		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), 0);
 		if (ret < 0)
 			break;
@@ -1933,6 +1946,44 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 			break;
 		priv->need_an = 1;
 		break;
+	case AIR_PORT_MODE_FORCE_10_HALF:
+		pr_notice("\nForce 10M Half-Duplex\n");
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), BIT(5));
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_mmd_reg_modify(phydev, 0x7, 0x20, BIT(7), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_BMCR, BMCR_ANRESTART, BMCR_ANRESTART);
+		if (ret < 0)
+			break;
+		priv->need_an = 1;
+		break;
+	case AIR_PORT_MODE_FORCE_100_HALF:
+		pr_notice("\nForce 100M Half-Duplex\n");
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(8) | BIT(7), BIT(7));
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_CTRL1000, BIT(9), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_mmd_reg_modify(phydev, 0x7, 0x20, BIT(7), 0);
+		if (ret < 0)
+			break;
+		ret = air_phy_reg_modify(phydev, MII_BMCR, BMCR_ANRESTART, BMCR_ANRESTART);
+		if (ret < 0)
+			break;
+		priv->need_an = 1;
+		break;
 	case AIR_PORT_MODE_AUTONEGO:
 		pr_notice("\nAutonego mode\n");
 		ret = air_phy_reg_modify(phydev, MII_ADVERTISE, BIT(6) | BIT(5), BIT(6) | BIT(5));
@@ -1962,7 +2013,6 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		pr_notice("\nPower Down\n");
 		ret = air_phy_reg_modify(phydev, MII_BMCR, 0, BIT(11));
 		break;
-
 	case AIR_PORT_MODE_POWER_UP:
 		pr_notice("\nPower Up\n");
 		ret = air_phy_reg_modify(phydev, MII_BMCR, BIT(11), 0);
@@ -2403,7 +2453,7 @@ static int air_get_autonego(struct phy_device *phydev, int *an)
 
 static int air_ref_clk_speed(struct phy_device *phydev, int para)
 {
-	int ret, lpa, bmcr;
+	int ret, lpa, bmcr, adv;
 	struct an8811hb_priv *priv = phydev->priv;
 	int saved_page;
 	struct device *dev = phydev_dev(phydev);
@@ -2426,10 +2476,6 @@ static int air_ref_clk_speed(struct phy_device *phydev, int para)
 	if (ret < 0)
 		return ret;
 
-	lpa = __phy_read(phydev, MII_LPA);
-	if (lpa < 0)
-		return lpa;
-
 	switch (ret & AIR_AUX_CTRL_STATUS_SPEED_MASK) {
 	case AIR_AUX_CTRL_STATUS_SPEED_2500:
 		priv->speed = SPEED_2500;
@@ -2451,6 +2497,10 @@ static int air_ref_clk_speed(struct phy_device *phydev, int para)
 	}
 
 	if (priv->an == AUTONEG_ENABLE) {
+		adv = __phy_read(phydev, MII_ADVERTISE);
+		if (adv < 0)
+			return adv;
+
 		lpa = __phy_read(phydev, MII_LPA);
 		if (lpa < 0)
 			return lpa;
@@ -2461,11 +2511,11 @@ static int air_ref_clk_speed(struct phy_device *phydev, int para)
 			priv->duplex = DUPLEX_FULL;
 			break;
 		case SPEED_100:
-			priv->duplex = (lpa & LPA_100FULL) ?
+			priv->duplex = (adv & lpa & LPA_100FULL) ?
 					DUPLEX_FULL : DUPLEX_HALF;
 			break;
 		case SPEED_10:
-			priv->duplex = (lpa & LPA_10FULL) ?
+			priv->duplex = (adv & lpa & LPA_10FULL) ?
 					DUPLEX_FULL : DUPLEX_HALF;
 			break;
 		}
@@ -2584,7 +2634,7 @@ static ssize_t airphy_polarity_write(struct file *file, const char __user *ptr,
 		return -EINVAL;
 	if (copy_from_user(buf, ptr, len))
 		return -EFAULT;
-	if (sscanf(buf, "%12s %12s", param1, param2) == -1)
+	if (sscanf(buf, "%12s %12s", param1, param2) != 2)
 		return -EFAULT;
 
 	if (!strncmp("tx_normal", param1, strlen("tx_normal"))) {
@@ -2630,7 +2680,9 @@ static void airphy_port_mode_help(void)
 		  "echo 2500 > /[debugfs]/port_mode\n"
 		  "echo 1000 > /[debugfs]/port_mode\n"
 		  "echo 100 > /[debugfs]/port_mode\n"
+		  "echo 100_half > /[debugfs]/port_mode\n"
 		  "echo 10 > /[debugfs]/port_mode\n"
+		  "echo 10_half > /[debugfs]/port_mode\n"
 		  "echo power up/down >  /[debugfs]/port_mode\n");
 }
 
@@ -2661,10 +2713,14 @@ static ssize_t airphy_port_mode(struct file *file, const char __user *ptr,
 		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_2500);
 	} else if (!strncmp("1000", cmd, strlen("1000"))) {
 		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_1000);
+	} else if (!strncmp("100_half", cmd, strlen("100_half"))) {
+		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_100_HALF);
 	} else if (!strncmp("100", cmd, strlen("100"))) {
-		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_100);
+		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_100_FULL);
+	} else if (!strncmp("10_half", cmd, strlen("10_half"))) {
+		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_10_HALF);
 	} else if (!strncmp("10", cmd, strlen("10"))) {
-		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_10);
+		ret = air_set_mode(phydev, AIR_PORT_MODE_FORCE_10_FULL);
 	} else if (!strncmp("re-an", cmd, strlen("re-an"))) {
 		val = phy_read(phydev, MII_BMCR) | BIT(9);
 		ret = phy_write(phydev, MII_BMCR, val);
@@ -2709,7 +2765,7 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) != 2)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -2723,14 +2779,14 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %15x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) != 1)
 			return -EFAULT;
 
 		air_buckpbus_reg_read(phydev, reg, &val);
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 		phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'x') {
-		if (sscanf(buf, "x %15x %6d", &reg, &num) == -1)
+		if (sscanf(buf, "x %15x %6d", &reg, &num) != 2)
 			return -EFAULT;
 		if (num > 0x1000 || num == 0) {
 			pr_notice("\nphy%d: number(0x%x) is invalid number\n",
@@ -2775,7 +2831,7 @@ static ssize_t airphy_debugfs_pbus(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) != 2)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -2793,7 +2849,7 @@ static ssize_t airphy_debugfs_pbus(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %15x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) != 1)
 			return -EFAULT;
 
 		ret = air_pbus_reg_read(phydev, reg, &val);
@@ -2804,7 +2860,7 @@ static ssize_t airphy_debugfs_pbus(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 		phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'x') {
-		if (sscanf(buf, "x %15x %6d", &reg, &num) == -1)
+		if (sscanf(buf, "x %15x %6d", &reg, &num) != 2)
 			return -EFAULT;
 		if (num > 0x1000 || num == 0) {
 			pr_notice("\nphy%d: number(0x%x) is invalid number\n",
@@ -2997,7 +3053,7 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) != 2)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -3011,7 +3067,7 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			  phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %15x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) != 1)
 			return -EFAULT;
 
 		val = phy_read(phydev, reg);
@@ -3049,7 +3105,7 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %15x %15x %15x", &devnum, &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x %15x", &devnum, &reg, &val) != 3)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x\n",
@@ -3063,7 +3119,7 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x confirm..\n",
 			  phydev_addr(phydev), devnum, reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %15x %15x", &devnum, &reg) == -1)
+		if (sscanf(buf, "r %15x %15x", &devnum, &reg) != 2)
 			return -EFAULT;
 
 		val = phy_read_mmd(phydev, devnum, reg);
@@ -3144,7 +3200,7 @@ static int airphy_cal_cable_length(struct phy_device *phydev, unsigned int pair,
 				   unsigned int *length)
 {
 	struct an8811hb_priv *priv = phydev->priv;
-	unsigned int val;
+	int val;
 
 	if (pair >= ARRAY_SIZE(cable_coeffs))
 		return -EINVAL;
@@ -3169,11 +3225,18 @@ static int airphy_trigger_cable_diag_pair(struct phy_device *phydev, unsigned in
 	static const char * const pair_str[] = {"A", "B", "C", "D"};
 	int ret;
 
+	if (pair > 3) {
+		phydev_err(phydev, "Invalid cable pair value: %u!!\n",
+			   pair);
+		return -EINVAL;
+	}
+
 	phydev_dbg(phydev, "Pair%s Cable Test: trigger test\n", pair_str[pair]);
 	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_3,
 			    AIR_PHY_MCU_CMD_3_DOCMD);
 	if (ret < 0)
 		return ret;
+
 	switch (pair) {
 	case AIR_CABLE_PAIR_A:
 		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_4,
@@ -3464,13 +3527,14 @@ int airphy_debugfs_init(struct phy_device *phydev)
 {
 	int ret = 0;
 	struct an8811hb_priv *priv = phydev->priv;
-	struct dentry *dir = priv->debugfs_root;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir(dev_name(phydev_dev(phydev)), NULL);
 	if (!dir) {
 		dev_err(phydev_dev(phydev), "%s:err at %d\n",
 					 __func__, __LINE__);
 		ret = -ENOMEM;
+		return ret;
 	}
 
 	debugfs_create_file(DEBUGFS_DRIVER_INFO, S_IFREG | 0444,
