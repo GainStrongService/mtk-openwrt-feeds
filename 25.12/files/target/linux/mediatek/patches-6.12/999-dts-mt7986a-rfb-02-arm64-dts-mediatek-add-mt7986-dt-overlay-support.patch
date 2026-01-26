@@ -1,5 +1,14 @@
 --- a/arch/arm64/boot/dts/mediatek/mt7986a-rfb.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7986a-rfb.dts
+@@ -8,7 +8,7 @@
+ #include <dt-bindings/pinctrl/mt65xx.h>
+ 
+ #include "mt7986a.dtsi"
+-
++#include "mt7986-pinctrl.dtsi"
+ / {
+ 	model = "MediaTek MT7986a RFB";
+ 	chassis-type = "embedded";
 @@ -18,8 +18,9 @@
  		serial0 = &uart0;
  	};
@@ -55,20 +64,7 @@
  &mdio {
  	switch: switch@0 {
  		compatible = "mediatek,mt7531";
-@@ -242,21 +273,20 @@
- 			drive-strength = <4>;
- 		};
- 	};
-+
-+	i2c_pins: i2c-pins-3-4 {
-+		mux {
-+			function = "i2c";
-+			groups = "i2c";
-+		};
-+	};
- };
- 
- &spi0 {
+@@ -248,15 +279,7 @@
  	pinctrl-names = "default";
  	pinctrl-0 = <&spi_flash_pins>;
  	cs-gpios = <0>, <0>;
