@@ -172,7 +172,7 @@ void mtk_crypto_disable_ipsec_dev_features(struct net_device *dev);
 
 /* Netsys */
 void crypto_eth_write(u32 reg, u32 val);
-u32 mtk_crypto_ppe_get_num(void);
+u32 mtk_crypto_ppe_get_num(struct net_device *dev);
 
 /* xfrm callback functions */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)

@@ -16,11 +16,13 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
+#include <net/dsa.h>
 
 #include <mtk_eth_soc.h>
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
+#include <net/netfilter/nf_flow_table.h>
 #elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
 #include <mtk_ppe.h>
 #endif
@@ -34,6 +36,8 @@
 
 #include "crypto-eip/internal.h"
 #include "crypto-eip/debugfs.h"
+
+#include <pce/netsys.h>
 
 #define DRIVER_AUTHOR	"Ren-Ting Wang <ren-ting.wang@mediatek.com, " \
 			"Chris.Chou <chris.chou@mediatek.com"
@@ -233,9 +237,48 @@ static bool mtk_crypto_eip_offloadable(struct sk_buff *skb)
 }
 #endif // HNAT
 
-u32 mtk_crypto_ppe_get_num(void)
+u32 mtk_crypto_ppe_get_num(struct net_device *dev)
 {
-	return mcrypto.ppe_num;
+	struct mtk_mac *mac;
+	struct dsa_port *dp;
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
+	struct flow_offload_hw_path hw_path = { .dev = (struct net_device *) dev,
+						.virt_dev = (struct net_device *) dev };
+
+	if (dev->netdev_ops->ndo_flow_offload_check) {
+		dev->netdev_ops->ndo_flow_offload_check(&hw_path);
+		dev = hw_path.dev;
+	}
+#endif // HNAT
+
+	if (mcrypto.ppe_num == 1)
+		return PSE_PORT_PPE0;
+
+#if KERNEL_VERSION(6, 7, 0) <= LINUX_VERSION_CODE
+	if (dsa_user_dev_check(dev)) {
+		dp = dsa_port_from_netdev(dev);
+		if (IS_ERR(dp))
+			return PSE_PORT_PPE0;
+
+		dev = dp->cpu_dp->conduit;
+	}
+#else
+	if (dsa_slave_dev_check(dev)) {
+		dp = dsa_port_from_netdev(dev);
+		if (IS_ERR(dp))
+			return PSE_PORT_PPE0;
+
+		dev = dp->cpu_dp->master;
+	}
+#endif
+
+	mac = netdev_priv(dev);
+	if (mac->id == MTK_GMAC2_ID)
+		return PSE_PORT_PPE1;
+	else if (mac->id == MTK_GMAC3_ID)
+		return PSE_PORT_PPE2;
+	else
+		return PSE_PORT_PPE0;
 }
 
 static const struct xfrmdev_ops mtk_xfrmdev_ops = {
