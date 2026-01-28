@@ -790,23 +790,43 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 				atenl_info("Efuse / Default bin mode\n");
 		} else if (!strncmp(s, "set", 3)) {
 			u32 offset, val;
+			char *token;
+			int count;
 
 			s = strchr(s, ' ');
 			if (!s)
 				return;
 			s++;
 
-			if (!sscanf(s, "%x=%x", &offset, &val) ||
-			    offset > EEPROM_PART_SIZE)
+			count = sscanf(s, "%x=", &offset);
+			if (count <= 0 || offset >= an->eeprom_size)
 				return;
 
-			if (offset == 0 || offset == 1) {
-				atenl_info("Modifying chip id is NOT allowed\n");
+			s = strchr(s, '=');
+			if (!s)
 				return;
+			s++;
+
+			token = strtok(s, ",");
+			for (count = 0; token; offset++, count++) {
+				if (offset >= an->eeprom_size) {
+					offset--;
+					count--;
+					break;
+				}
+
+				val = strtoul(token, NULL, 0);
+				if (offset != 0 && offset != 1)
+					an->eeprom_data[offset] = val;
+				token = strtok(NULL, ",");
+				if (!token)
+					break;
 			}
-
-			an->eeprom_data[offset] = val;
-			atenl_info("set offset 0x%x to 0x%x\n", offset, val);
+			if (count)
+				atenl_info("set offsets from 0x%x to 0x%x\n",
+					   offset - count, offset);
+			else
+				atenl_info("set offset 0x%x to 0x%x\n", offset, val);
 		} else if (!strncmp(s, "update buffermode", 17)) {
 			atenl_eeprom_sync_to_driver(an);
 			atenl_nl_update_buffer_mode(an);
