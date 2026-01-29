@@ -7,6 +7,12 @@
 #define MT76_TM_TIMEOUT			10
 #define MT76_TM_EEPROM_BLOCK_SIZE	16
 
+#define MT76_TM_MIN_IPG			34
+#define MT76_TM_MAX_IPG			591981
+#define MT76_TM_MAX_MU_AID		0xf100
+
+#define MT76_TM_NO_PUNCTURED		0xffff
+
 /**
  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
  *
@@ -33,7 +39,7 @@
  *
  * @MT76_TM_ATTR_TX_ANTENNA: tx antenna mask (u8)
  * @MT76_TM_ATTR_TX_POWER_CONTROL: enable tx power control (u8)
- * @MT76_TM_ATTR_TX_POWER: per-antenna tx power array (nested, u8 attrs)
+ * @MT76_TM_ATTR_TX_POWER: per-antenna tx power array (nested, s8 attrs)
  *
  * @MT76_TM_ATTR_TX_PKT_BW: per-packet data bandwidth (u8)
  * @MT76_TM_ATTR_TX_PRI_SEL: primary channel selection index (u8)
@@ -44,9 +50,8 @@
  *
  * @MT76_TM_ATTR_PRECAL: pre-cal data (u8)
  * @MT76_TM_ATTR_PRECAL_INFO: group size, dpd size, dpd_info, transmit size,
- *                            eeprom cal indicator (u32),
- *                            dpd_info = [dpd_per_chan_size, chan_num_2g,
- *                                        chan_num_5g, chan_num_6g]
+ *	eeprom cal indicator (u32), dpd_info = [dpd_per_chan_size, chan_num_2g,
+ *	chan_num_5g, chan_num_6g]
  * @MT76_TM_ATTR_TX_SPE_IDX: tx spatial extension index (u8)
  *
  * @MT76_TM_ATTR_TX_DUTY_CYCLE: packet tx duty cycle (u8)
@@ -57,6 +62,7 @@
  *
  * @MT76_TM_ATTR_MAC_ADDRS: array of nested MAC addresses (nested)
  * @MT76_TM_ATTR_AID: association index for wtbl (u8)
+ * @MT76_TM_ATTR_MU_AID: multi-user association index for wtbl (u16)
  * @MT76_TM_ATTR_RU_ALLOC: resource unit allocation subfield (u8)
  * @MT76_TM_ATTR_RU_IDX: resource unit index (u8)
  *
@@ -77,9 +83,9 @@
  *
  * @MT76_TM_ATTR_IPI_THRESHOLD: config the IPI index you want to read (u8)
  * @MT76_TM_ATTR_IPI_PERIOD: config the time period for reading
- *			     the histogram of specific IPI index (u8)
+ *	the histogram of specific IPI index (u8)
  * @MT76_TM_ATTR_IPI_ANTENNA_INDEX: config the antenna index for reading
- *				    the histogram of specific IPI index (u8)
+ *	the histogram of specific IPI index (u8)
  * @MT76_TM_ATTR_IPI_RESET: reset the IPI counter
  *
  * @MT76_TM_ATTR_LM_ACT: list mode setting actions (u8)
@@ -100,14 +106,39 @@
  * @MT76_TM_ATTR_PAYLOAD_RULE: payload generating rule
  *	(u8, see &enum mt76_testmode_payload_rule)
  * @MT76_TM_ATTR_PAYLOAD: payload content for repeat mode (u8)
+ * @MT76_TM_ATTR_MAX_PKT_EXT: max packet extension (u8)
  *
  * @MT76_TM_ATTR_RU_STA_NUM: the number of RU STAs (u8)
  * @MT76_TM_ATTR_RU_STA_IDX: the RU STA index to be configured (u8)
  * @MT76_TM_ATTR_RU_SEG_IDX: indicate the bandwidth segment that a STA is located in (u8)
  * @MT76_TM_ATTR_RU_SS_IDX: the starting spatial stream index for a RU STA (u8)
+ * @MT76_TM_ATTR_MU_NSS: the number of spatial streams for MU (u8)
  * @MT76_TM_ATTR_TB_INFO: trigger-based PPDU info for decoding
  *	(nested, see &enum mt76_testmode_tb_info_attr)
  *
+ * @MT76_TM_ATTR_RX_FILTER: config the packet length for RX filtering,
+ *	where 0 disables RX filtering (u32)
+ *
+ * @MT76_TM_ATTR_ICAP_RING: enable ring buffer capture (u8)
+ * @MT76_TM_ATTR_ICAP_EVENT: config the icap trigger event (u32)
+ * @MT76_TM_ATTR_ICAP_NODE: config the icap node (u32)
+ * @MT76_TM_ATTR_ICAP_LEN: config the capture length (u32)
+ * @MT76_TM_ATTR_ICAP_CYCLE: config the capture stop cycle based on clock cycles (u32)
+ * @MT76_TM_ATTR_ICAP_BANDWIDTH: config the capture bandwidth, which can be different
+ *	from system bandwidth (u8)
+ * @MT76_TM_ATTR_ICAP_SRC: config the capture source of icap (u8)
+ * @MT76_TM_ATTR_ICAP_IQ_TYPE: config the I/Q data type of icap (u8)
+ * @MT76_TM_ATTR_ICAP_PATH: config the path for icap (u8)
+ * @MT76_TM_ATTR_ICAP_STATS: icap statistic
+ *	(nested, see &enum mt76_testmode_icap_stats_attr)
+ *
+ * @MT76_TM_ATTR_TX_TONE_TYPE: config the TX tone to be single or dual (u8)
+ * @MT76_TM_ATTR_TX_TONE_BW: config the tone bandwidth (u8)
+ * @MT76_TM_ATTR_TX_TONE_DC_OFFSET: config the DC offset of the tone
+ *	including in-phase and quadrature data (nested, u16 attrs)
+ *
+ * @MT76_TM_ATTR_TX_PP_BITMAP: config the TX preamble puncture bitmap, where 0
+ *	means the sub-channel is punctured and 1 means it is not (u16)
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -154,6 +185,7 @@ enum mt76_testmode_attr {
 
 	MT76_TM_ATTR_MAC_ADDRS,
 	MT76_TM_ATTR_AID,
+	MT76_TM_ATTR_MU_AID,
 	MT76_TM_ATTR_RU_ALLOC,
 	MT76_TM_ATTR_RU_IDX,
 
@@ -191,12 +223,33 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_SEQ_IDX,
 	MT76_TM_ATTR_PAYLOAD_RULE,
 	MT76_TM_ATTR_PAYLOAD,
+	MT76_TM_ATTR_MAX_PKT_EXT,
 
 	MT76_TM_ATTR_RU_STA_NUM,
 	MT76_TM_ATTR_RU_STA_IDX,
 	MT76_TM_ATTR_RU_SEG_IDX,
 	MT76_TM_ATTR_RU_SS_IDX,
+	MT76_TM_ATTR_MU_NSS,
 	MT76_TM_ATTR_TB_INFO,
+
+	MT76_TM_ATTR_RX_FILTER,
+
+	MT76_TM_ATTR_ICAP_RING,
+	MT76_TM_ATTR_ICAP_EVENT,
+	MT76_TM_ATTR_ICAP_NODE,
+	MT76_TM_ATTR_ICAP_LEN,
+	MT76_TM_ATTR_ICAP_CYCLE,
+	MT76_TM_ATTR_ICAP_BANDWIDTH,
+	MT76_TM_ATTR_ICAP_SRC,
+	MT76_TM_ATTR_ICAP_IQ_TYPE,
+	MT76_TM_ATTR_ICAP_PATH,
+	MT76_TM_ATTR_ICAP_STATS,
+
+	MT76_TM_ATTR_TX_TONE_TYPE,
+	MT76_TM_ATTR_TX_TONE_BW,
+	MT76_TM_ATTR_TX_TONE_DC_OFFSET,
+
+	MT76_TM_ATTR_TX_PP_BITMAP,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,
@@ -238,7 +291,6 @@ enum mt76_testmode_stats_attr {
 	MT76_TM_STATS_ATTR_MAX = NUM_MT76_TM_STATS_ATTRS - 1,
 };
 
-
 /**
  * enum mt76_testmode_rx_attr - packet rx information
  *
@@ -273,16 +325,16 @@ enum mt76_testmode_rx_attr {
  * @MT76_TM_STATE_RX_FRAMES: receive packets and keep statistics
  * @MT76_TM_STATE_TX_CONT: waveform tx without time gap
  * @MT76_TM_STATE_GROUP_PREK: start group pre-calibration
- * @MT76_TM_STATE_GROUP_PREK_DUMP: dump the data of group pre-calibration
  * @MT76_TM_STATE_GROUP_PREK_CLEAN: clear the data group pre-calibration
  * @MT76_TM_STATE_DPD_2G: start 2G DPD pre-calibration
  * @MT76_TM_STATE_DPD_5G: start 5G DPD pre-calibration
  * @MT76_TM_STATE_DPD_6G: start 6G DPD pre-calibration
- * @MT76_TM_STATE_DPD_DUMP: dump the data of DPD pre-calibration
  * @MT76_TM_STATE_DPD_CLEAN: clear the data of DPD pre-calibration
  * @MT76_TM_STATE_RX_GAIN_CAL: start RX gain calibration
  * @MT76_TM_STATE_RX_GAIN_CAL_DUMP: dump the data of RX gain calibration
  * @MT76_TM_STATE_RX_GAIN_CAL_CLEAN: clear the data of RX gain calibration
+ * @MT76_TM_STATE_ICAP: start internal data capture
+ * @MT76_TM_STATE_TX_TONE: start transmitting single tone
  * @MT76_TM_STATE_ON: test mode enabled used in offload firmware
  */
 enum mt76_testmode_state {
@@ -292,16 +344,16 @@ enum mt76_testmode_state {
 	MT76_TM_STATE_RX_FRAMES,
 	MT76_TM_STATE_TX_CONT,
 	MT76_TM_STATE_GROUP_PREK,
-	MT76_TM_STATE_GROUP_PREK_DUMP,
 	MT76_TM_STATE_GROUP_PREK_CLEAN,
 	MT76_TM_STATE_DPD_2G,
 	MT76_TM_STATE_DPD_5G,
 	MT76_TM_STATE_DPD_6G,
-	MT76_TM_STATE_DPD_DUMP,
 	MT76_TM_STATE_DPD_CLEAN,
 	MT76_TM_STATE_RX_GAIN_CAL,
 	MT76_TM_STATE_RX_GAIN_CAL_DUMP,
 	MT76_TM_STATE_RX_GAIN_CAL_CLEAN,
+	MT76_TM_STATE_ICAP,
+	MT76_TM_STATE_TX_TONE,
 	MT76_TM_STATE_ON,
 
 	/* keep last */
@@ -360,6 +412,46 @@ enum mt76_testmode_eeprom_action {
 	/* keep last */
 	NUM_MT76_TM_EEPROM_ACTION,
 	MT76_TM_EEPROM_ACTION_MAX = NUM_MT76_TM_EEPROM_ACTION - 1,
+};
+
+/**
+ * enum mt76_testmode_cfg - testmode cfg attributes
+ *
+ * @MT76_TM_CFG_ATTR_TYPE: config cfg type
+ * @MT76_TM_CFG_ATTR_ENABLE: config cfg on or off
+ */
+enum mt76_testmode_cfg {
+	MT76_TM_CFG_ATTR_TYPE,
+	MT76_TM_CFG_ATTR_ENABLE,
+
+	/* keep last */
+	NUM_MT76_TM_CFG_ATTRS,
+	MT76_TM_CFG_ATTR_MAX = NUM_MT76_TM_CFG_ATTRS - 1,
+};
+
+/**
+ * enum mt76_testmode_cfg_type - testmode configuration type
+ *
+ * @MT76_TM_CFG_TYPE_TSSI: config TSSI on or off
+ * @MT76_TM_CFG_TYPE_DPD: config DPD on or off
+ * @MT76_TM_CFG_TYPE_RATE_POWER_OFFSET: config rate power offset on or off
+ * @MT76_TM_CFG_TYPE_THERMAL_COMP: config thermal compensation on or off
+ * @MT76_TM_CFG_TYPE_BAND_POWER: config band power on or off
+ * @MT76_TM_CFG_TYPE_TMAC: config MAC TX on or off
+ * @MT76_TM_CFG_TYPE_RMAC: config MAC RX on or off
+ */
+enum mt76_testmode_cfg_type {
+	MT76_TM_CFG_TYPE_TSSI,
+	MT76_TM_CFG_TYPE_DPD,
+	MT76_TM_CFG_TYPE_RATE_POWER_OFFSET,
+	MT76_TM_CFG_TYPE_THERMAL_COMP,
+	MT76_TM_CFG_TYPE_BAND_POWER,
+	MT76_TM_CFG_TYPE_TMAC,
+	MT76_TM_CFG_TYPE_RMAC,
+
+	/* keep last */
+	NUM_MT76_TM_CFG_TYPE,
+	MT76_TM_CFG_TYPE_MAX = NUM_MT76_TM_CFG_TYPE - 1,
 };
 
 /**
@@ -487,6 +579,29 @@ enum mt76_testmode_payload_rule {
 };
 
 /**
+ * enum mt76_testmode_max_pkt_ext - maximum packet extension duration
+ *
+ * @MT76_TM_MAX_PKT_EXT_0US: no extended packet duration is allowed
+ * @MT76_TM_MAX_PKT_EXT_4US: packet duration can be extended by up to 4 microseconds
+ * @MT76_TM_MAX_PKT_EXT_8US: packet duration can be extended by up to 8 microseconds
+ * @MT76_TM_MAX_PKT_EXT_12US: packet duration can be extended by up to 12 microseconds
+ * @MT76_TM_MAX_PKT_EXT_16US: packet duration can be extended by up to 16 microseconds
+ * @MT76_TM_MAX_PKT_EXT_20US: packet duration can be extended by up to 20 microseconds
+ */
+enum mt76_testmode_max_pkt_ext {
+	MT76_TM_MAX_PKT_EXT_0US,
+	MT76_TM_MAX_PKT_EXT_4US,
+	MT76_TM_MAX_PKT_EXT_8US,
+	MT76_TM_MAX_PKT_EXT_12US,
+	MT76_TM_MAX_PKT_EXT_16US,
+	MT76_TM_MAX_PKT_EXT_20US,
+
+	/* keep last */
+	NUM_MT76_TM_MAX_PKT_EXT,
+	MT76_TM_MAX_PKT_EXT_MAX = NUM_MT76_TM_MAX_PKT_EXT - 1,
+};
+
+/**
  * enum mt76_testmode_tb_info_attr - Trigger-based PPDU attributes
  *
  * @MT76_TM_TB_INFO_ATTR_A_FACTOR_INIT: Initial A-factor value for LDPC
@@ -510,4 +625,55 @@ enum mt76_testmode_tb_info_attr {
 	MT76_TM_TB_INFO_ATTR_MAX = NUM_MT76_TM_TB_INFO_ATTRS - 1,
 };
 
+/**
+ * enum mt76_testmode_icap_stats_attr - icap statistic attributes
+ *
+ * @MT76_TM_ICAP_STATS_ATTR_STATUS: icap capture status (string)
+ * @MT76_TM_ICAP_STATS_ATTR_DATA: icap data (array, u32)
+ */
+enum mt76_testmode_icap_stats_attr {
+	MT76_TM_ICAP_STATS_ATTR_UNSPEC,
+	MT76_TM_ICAP_STATS_ATTR_STATUS,
+	MT76_TM_ICAP_STATS_ATTR_DATA,
+
+	/* keep last */
+	NUM_MT76_TM_ICAP_STATS_ATTRS,
+	MT76_TM_ICAP_STATS_ATTR_MAX = NUM_MT76_TM_ICAP_STATS_ATTRS - 1,
+};
+
+/**
+ * enum mt76_testmode_tx_tone_type - tx tone type
+ *
+ * @MT76_TM_TX_TONE_TYPE_SINGLE: single tone
+ * @MT76_TM_TX_TONE_TYPE_DUAL: dual tone
+ */
+enum mt76_testmode_tx_tone_type {
+	MT76_TM_TX_TONE_TYPE_SINGLE,
+	MT76_TM_TX_TONE_TYPE_DUAL,
+
+	/* keep last */
+	NUM_MT76_TM_TX_TONE_TYPE,
+	MT76_TM_TX_TONE_TYPE_MAX = NUM_MT76_TM_TX_TONE_TYPE - 1,
+};
+
+/**
+ * enum mt76_testmode_tx_tone_bw - tx tone bandwidth
+ *
+ * @MT76_TM_TX_TONE_BW_DC: DC tone
+ * @MT76_TM_TX_TONE_BW_5: 5 MHz tone
+ * @MT76_TM_TX_TONE_BW_10: 10 MHz tone
+ * @MT76_TM_TX_TONE_BW_20: 20 MHz tone
+ * @MT76_TM_TX_TONE_BW_40: 40 MHz tone
+ */
+enum mt76_testmode_tx_tone_bw {
+	MT76_TM_TX_TONE_BW_DC,
+	MT76_TM_TX_TONE_BW_5,
+	MT76_TM_TX_TONE_BW_10,
+	MT76_TM_TX_TONE_BW_20,
+	MT76_TM_TX_TONE_BW_40,
+
+	/* keep last */
+	NUM_MT76_TM_TX_TONE_BW,
+	MT76_TM_TX_TONE_BW_MAX = NUM_MT76_TM_TX_TONE_BW - 1,
+};
 #endif
