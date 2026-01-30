@@ -1,6 +1,6 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1816,6 +1816,9 @@ static void mtk_tx_set_dma_desc_v2(struc
+@@ -1821,6 +1821,9 @@ static void mtk_tx_set_dma_desc_v2(struc
  	}
  
  	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
@@ -10,7 +10,7 @@
  	WRITE_ONCE(desc->txd4, data);
  
  	data = 0;
-@@ -1836,7 +1839,11 @@ static void mtk_tx_set_dma_desc_v2(struc
+@@ -1841,7 +1844,11 @@ static void mtk_tx_set_dma_desc_v2(struc
  	WRITE_ONCE(desc->txd6, data);
  
  	WRITE_ONCE(desc->txd7, 0);
@@ -23,7 +23,7 @@
  }
  
  static void mtk_tx_set_dma_desc(struct net_device *dev, void *txd,
-@@ -1969,12 +1976,23 @@ next:
+@@ -1974,12 +1981,22 @@ next:
  	txd_info = (struct mtk_tx_dma_desc_info){
  		.gso = gso,
  		.qid = queue,
@@ -40,13 +40,27 @@
 +	    unlikely(skb->inner_protocol == IPPROTO_ESP &&
 +	    skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
 +		txd_info.cdrt = skb_tnl_cdrt(skb);
-+		skb_tnl_magic_tag(skb) = 0;
 +		txd_info.tport = TPORT_EIP197;
 +	}
 +
  	if (cur_skb != skb) {
  		struct tcphdr *th, *th2;
  
+@@ -2054,6 +2071,14 @@ next_frag:
+ 		memset(&txd_info, 0, sizeof(struct mtk_tx_dma_desc_info));
+ 		txd_info.qid = queue;
+ 		offset = 0;
++
++		if (mtk_is_netsys_v3_or_greater(eth) &&
++		    unlikely(skb->inner_protocol == IPPROTO_ESP &&
++		    skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
++			txd_info.cdrt = skb_tnl_cdrt(skb);
++			txd_info.tport = TPORT_EIP197;
++		}
++
+ 		while (frag_size) {
+ 			txd_info.size = min_t(unsigned int, frag_size,
+ 					      soc->tx.dma_max_len);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -23,6 +23,7 @@
@@ -57,7 +71,7 @@
  
  #define MTK_MAX_DSA_PORTS	7
  #define MTK_DSA_PORT_MASK	GENMASK(2, 0)
-@@ -448,6 +449,10 @@
+@@ -451,6 +452,10 @@
  
  #define MTK_TX_DMA_BUF_SHIFT	8
  
@@ -68,7 +82,7 @@
  /* QDMA V2 descriptor txd6 */
  #define TX_DMA_INS_VLAN_V2	BIT(16)
  /* QDMA V2 descriptor txd5 */
-@@ -457,6 +462,10 @@
+@@ -460,6 +465,10 @@
  #define TX_DMA_SPTAG_V3         BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -79,7 +93,7 @@
  #define TX_DMA_FPORT_SHIFT_V2	8
  #define TX_DMA_FPORT_MASK_V2	0xf
  #define TX_DMA_SWC_V2		BIT(30)
-@@ -539,6 +548,10 @@
+@@ -542,6 +551,10 @@
  /* PDMA V2 descriptor rxd6 */
  #define RX_DMA_GET_FLUSH_RSN_V2	GENMASK(2, 0)
  #define RX_DMA_GET_AGG_CNT_V2	GENMASK(23, 16)
@@ -90,7 +104,7 @@
  
  /* PHY Polling and SMI Master Control registers */
  #define MTK_PPSC		0x10000
-@@ -1497,6 +1510,9 @@ struct mtk_tx_dma_desc_info {
+@@ -1500,6 +1513,9 @@ struct mtk_tx_dma_desc_info {
  	u32		size;
  	u16		vlan_tci;
  	u16		qid;
