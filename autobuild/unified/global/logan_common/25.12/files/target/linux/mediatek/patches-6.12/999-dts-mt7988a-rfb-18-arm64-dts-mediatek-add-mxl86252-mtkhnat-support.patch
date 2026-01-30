@@ -1,32 +1,45 @@
-From f037e51da0083402fdef49dc2854963326eb36f0 Mon Sep 17 00:00:00 2001
-From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
-Date: Tue, 2 Dec 2025 14:58:09 +0800
-Subject: [PATCH] arm64: dts: mt7988a-rfb-mxl86252: add mtkhnat driver support
+From db4b235279688cce78939316bbdf054304370de8 Mon Sep 17 00:00:00 2001
+From: "neal.yen" <neal.yen@mediatek.com>
+Date: Fri, 30 Jan 2026 10:14:03 +0800
+Subject: [PATCH] arm64: dts: add mtkhnat driver support
 
 ---
- arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ .../dts/mediatek/mt7988a-rfb-eth2-mxl86252-an8831x.dtso    | 7 +++++++
+ .../boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-aqr.dtso   | 7 +++++++
+ 2 files changed, 14 insertions(+)
 
-diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
-index f92039d..f553b9e 100644
---- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
-+++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
-@@ -283,6 +283,15 @@ &gsw_port3 {
- 	label = "lan3";
- };
- 
-+&hnat {
-+	mtketh-wan = "eth1";
-+	mtketh-lan = "lan";
-+	mtketh-lan2 = "mxl";
-+	mtketh-max-gmac = <3>;
-+	mtketh-ppe-num = <3>;
-+	status = "okay";
-+};
+diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-an8831x.dtso b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-an8831x.dtso
+index 33e74b3..4b17863 100644
+--- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-an8831x.dtso
++++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-an8831x.dtso
+@@ -165,4 +165,11 @@ __overlay__ {
+ 			dsa,member = <1 0>;
+ 		};
+ 	};
 +
- &i2c0 {
- 	pinctrl-names = "default";
- 	pinctrl-0 = <&i2c0_pins>;
++	fragment@4 {
++		target = <&hnat>;
++		__overlay__ {
++			mtketh-lan2 = "mxl_lan";
++		};
++	};
+ };
+diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-aqr.dtso b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-aqr.dtso
+index 6250e31..122450a 100644
+--- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-aqr.dtso
++++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-eth2-mxl86252-aqr.dtso
+@@ -145,4 +145,11 @@ __overlay__ {
+ 			dsa,member = <1 0>;
+ 		};
+ 	};
++
++	fragment@4 {
++		target = <&hnat>;
++		__overlay__ {
++			mtketh-lan2 = "mxl_lan";
++		};
++	};
+ };
 -- 
 2.45.2
 
