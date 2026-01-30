@@ -1,10 +1,11 @@
 --- a/net/xfrm/xfrm_device.c
 +++ b/net/xfrm/xfrm_device.c
-@@ -427,6 +427,11 @@ bool xfrm_dev_offload_ok(struct sk_buff
+@@ -427,6 +427,12 @@ bool xfrm_dev_offload_ok(struct sk_buff
  			goto ok;
  	}
  
 +	if (x->props.family == AF_INET && x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
++		skb_gso_reset(skb);
 +		IPCB(skb)->frag_max_size = mtu;
 +		if (!ip_do_fragment(dev_net(skb_dst(skb)->dev), skb->sk, skb, xfrm4_output))
 +			return true;
