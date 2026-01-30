@@ -5083,11 +5083,6 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 			/* enable CDMW0 l3_len_ov_drop */
 			mtk_m32(eth, MTK_CDMW0_L3_LEN_OV_DROP,
 				MTK_CDMW0_L3_LEN_OV_DROP, MTK_CDMW0_IG_CTRL);
-			/* disable GDM page_num_mismatch_det */
-			for (i = 0; i < 3; i++) {
-				mtk_m32(eth, GDM_PAGE_MISMATCH_DET, 0,
-					FE_GDM_DBG_CTRL(i));
-			}
 
 			/* PSE should not drop p8 packets */
 			mtk_w32(eth, 0x00000100, PSE_NO_DROP_CFG);
