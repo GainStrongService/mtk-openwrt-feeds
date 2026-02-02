@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7986-pinctrl.dtsi
-@@ -0,0 +1,201 @@
+@@ -0,0 +1,218 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2026 MediaTek Inc.
@@ -89,7 +89,24 @@
 +		};
 +	};
 +
-+	spi_flash_pins: spi-flash-pins-33-to-38 {
++	spi_nand_pins: spi-nand-pins {
++		mux {
++			function = "spi";
++			groups = "spi0", "spi0_wp_hold";
++		};
++		conf-pu {
++			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
++			drive-strength = <MTK_DRIVE_4mA>;
++			bias-disable;	/* bias-disable */
++		};
++		conf-pd {
++			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
++			drive-strength = <MTK_DRIVE_4mA>;
++			bias-disable;	/* bias-disable */
++		};
++	};
++
++	spi_nor_pins: spi-nand-pins {
 +		mux {
 +			function = "spi";
 +			groups = "spi0", "spi0_wp_hold";
