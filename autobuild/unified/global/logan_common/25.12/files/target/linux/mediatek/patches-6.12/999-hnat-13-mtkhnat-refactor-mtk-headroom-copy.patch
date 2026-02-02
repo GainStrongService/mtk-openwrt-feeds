@@ -10,12 +10,13 @@
 +	int need_copy = 0;
 +	int is_esp = 0;
  
- 	if (skb_hnat_reason(old) == HIT_UNBIND_RATE_REACH && skb_hnat_tops(old))
+-	if (skb_hnat_reason(old) == HIT_UNBIND_RATE_REACH && skb_hnat_tops(old))
 -		memcpy(new->head, old->head, skb_headroom(old));
++	if (skb_hnat_tops(old))
 +		need_copy = 1;
 +
 +	if (old->inner_protocol == IPPROTO_ESP &&
-+	           skb_hnat_cdrt(old) && is_magic_tag_valid(old)) {
++	    skb_hnat_cdrt(old) && is_magic_tag_valid(old)) {
 +		need_copy = 1;
 +		is_esp = 1;
 +	}
