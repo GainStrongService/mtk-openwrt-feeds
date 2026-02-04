@@ -46,6 +46,10 @@ autobuild_branch_name_check() {
 	local path=
 
 	for field in ${names}; do
+		if test -z "${path}" -a \( x"${field}" = x"global" -o x"${field}" = x"global-dev" \); then
+			return 1
+		fi
+
 		path="${path}${field}/"
 		if ! test -f "${ab_root}/${path}rules"; then
 			return 1
@@ -239,6 +243,10 @@ list_all_autobuild_branches_real() {
 
 		if test -z "${1}"; then
 			path=${line}
+
+			if test x"${path}" = x"global" -o x"${path}" = x"global-dev"; then
+				continue
+			fi
 		else
 			path=${1}/${line}
 		fi
@@ -353,6 +361,10 @@ inherit_patch_file_group_hooks() {
 	for i in $(seq 0 $((n-1))); do
 		if test -z ${path}; then
 			path="${name_arr[$i]}"
+
+			if test x"${path}" = x"global" -o x"${path}" = x"global-dev"; then
+				return
+			fi
 		else
 			path="${path}/${name_arr[$i]}"
 		fi
