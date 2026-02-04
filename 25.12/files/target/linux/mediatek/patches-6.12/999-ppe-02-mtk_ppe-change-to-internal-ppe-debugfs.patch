@@ -8,24 +8,11 @@ with a single debug command.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  1 +
  drivers/net/ethernet/mediatek/mtk_ppe.c       |  1 +
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  2 +
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   | 60 +++++++++++++++++++
- 4 files changed, 64 insertions(+)
+ 3 files changed, 63 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 81773ee..025ff77 100644
---- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-+++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -6867,6 +6867,7 @@ static int mtk_probe(struct platform_device *pdev)
- 			if (err)
- 				goto err_deinit_ppe;
- 		}
-+		mtk_ppe_internal_debugfs_init(eth);
- 	}
- 
- 	mtk_eth_debugfs_init(eth);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index cb08d13..117cce9 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c

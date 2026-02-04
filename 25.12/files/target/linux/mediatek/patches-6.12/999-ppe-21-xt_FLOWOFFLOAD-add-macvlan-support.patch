@@ -9,9 +9,8 @@ would not be HNAT offloaded.
 Signed-off-by: chak-kei.lam <chak-kei.lam@mediatek.com>
 ---
  drivers/net/macvlan.c          | 11 +++++++++++
- include/linux/netdevice.h      |  1 +
  net/netfilter/xt_FLOWOFFLOAD.c |  4 +++-
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ 2 files changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/macvlan.c b/drivers/net/macvlan.c
 index e1a5010..4285a18 100644
@@ -42,18 +41,6 @@ index e1a5010..4285a18 100644
  };
  
  static void macvlan_dev_free(struct net_device *dev)
-diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index f49eacd..b49de4d 100644
---- a/include/linux/netdevice.h
-+++ b/include/linux/netdevice.h
-@@ -836,6 +836,7 @@ enum net_device_path_type {
- 	DEV_PATH_BRIDGE,
- 	DEV_PATH_PPPOE,
- 	DEV_PATH_DSA,
-+	DEV_PATH_MACVLAN,
- 	DEV_PATH_MTK_WDMA,
- };
- 
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
 index 0597cff..423e6d2 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c

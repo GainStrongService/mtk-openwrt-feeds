@@ -1,4 +1,5 @@
 list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
+list_add_after $(hooks autobuild_prepare) filogic_change_kernel_config change_kernel_flowoffload_conf
 list_append $(hooks autobuild_prepare) airoha_firmware_install
 list_add_after $(hooks autobuild_prepare) airoha_firmware_install copy_phy_firmware
 
@@ -78,6 +79,13 @@ filogic_change_kernel_config() {
 	kernel_config_enable CONFIG_IIO
 	kernel_config_disable CONFIG_ZTS8032
 	kernel_config_enable CONFIG_ZTS8232
+}
+
+change_kernel_flowoffload_conf () {
+	kernel_config_enable CONFIG_NETFILTER
+	kernel_config_enable CONFIG_NETFILTER_INGRESS
+	kernel_config_enable CONFIG_NF_CONNTRACK
+	kernel_config_enable CONFIG_NF_FLOW_TABLE
 }
 
 platform_enable_optee_config() {

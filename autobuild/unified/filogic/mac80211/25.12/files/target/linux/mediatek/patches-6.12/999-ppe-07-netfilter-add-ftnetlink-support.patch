@@ -8,27 +8,13 @@ PPE entries via the FTNL application.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- include/net/netfilter/nf_flow_table.h    |   1 +
  include/uapi/linux/netfilter/nfnetlink.h |   3 +-
  net/netfilter/Kconfig                    |   9 +
  net/netfilter/Makefile                   |   1 +
- net/netfilter/nf_flow_table_core.c       |  23 +++
  net/netfilter/nf_flow_table_netlink.c    | 235 +++++++++++++++++++++++
- 6 files changed, 271 insertions(+), 1 deletion(-)
+ 4 files changed, 247 insertions(+), 1 deletion(-)
  create mode 100644 net/netfilter/nf_flow_table_netlink.c
 
-diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index b96d91c..3f63813 100644
---- a/include/net/netfilter/nf_flow_table.h
-+++ b/include/net/netfilter/nf_flow_table.h
-@@ -295,6 +295,7 @@ int nf_flow_table_init(struct nf_flowtable *flow_table);
- void nf_flow_table_free(struct nf_flowtable *flow_table);
- 
- void flow_offload_teardown(struct flow_offload *flow);
-+void flow_offload_teardown_by_tuple(struct flow_offload_tuple *tuple);
- 
- int nf_flow_table_iterate(struct nf_flowtable *flow_table,
-                       void (*iter)(struct nf_flowtable *flowtable,
 diff --git a/include/uapi/linux/netfilter/nfnetlink.h b/include/uapi/linux/netfilter/nfnetlink.h
 index 6cd58cd..71cd2d0 100644
 --- a/include/uapi/linux/netfilter/nfnetlink.h
@@ -75,40 +61,6 @@ index e9d1185..08e0910 100644
  
  # generic X tables
  obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
-diff --git a/net/netfilter/nf_flow_table_core.c b/net/netfilter/nf_flow_table_core.c
-index 6e3a8e9..13af051 100644
---- a/net/netfilter/nf_flow_table_core.c
-+++ b/net/netfilter/nf_flow_table_core.c
-@@ -349,6 +349,29 @@ void flow_offload_teardown(struct flow_offload *flow)
- }
- EXPORT_SYMBOL_GPL(flow_offload_teardown);
- 
-+void flow_offload_teardown_by_tuple(struct flow_offload_tuple *tuple)
-+{
-+	struct net_device *netdev;
-+	struct nf_flowtable *flowtable;
-+	struct flow_offload_tuple_rhash *tuplehash;
-+	struct flow_offload *flow;
-+	int dir;
-+
-+	list_for_each_entry(flowtable, &flowtables, list) {
-+		for_each_netdev(&init_net, netdev) {
-+			tuple->iifidx = netdev->ifindex;
-+			tuplehash = flow_offload_lookup(flowtable, tuple);
-+			if (!tuplehash)
-+				continue;
-+
-+			dir = tuplehash->tuple.dir;
-+			flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
-+			flow_offload_teardown(flow);
-+		}
-+	};
-+}
-+EXPORT_SYMBOL_GPL(flow_offload_teardown_by_tuple);
-+
- struct flow_offload_tuple_rhash *
- flow_offload_lookup(struct nf_flowtable *flow_table,
- 		    struct flow_offload_tuple *tuple)
 diff --git a/net/netfilter/nf_flow_table_netlink.c b/net/netfilter/nf_flow_table_netlink.c
 new file mode 100644
 index 0000000..c1c86f2

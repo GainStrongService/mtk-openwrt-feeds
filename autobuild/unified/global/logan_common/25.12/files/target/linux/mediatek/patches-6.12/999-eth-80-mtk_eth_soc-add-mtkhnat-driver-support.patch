@@ -1,14 +1,16 @@
-From 4b017f7225bca449e91921801e08de93a8d834c3 Mon Sep 17 00:00:00 2001
+From 096f1f857cdbc8412a4a00b834ab07d50d08dd2e Mon Sep 17 00:00:00 2001
 From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
-Date: Mon, 24 Nov 2025 17:41:05 +0800
+Date: Thu, 5 Feb 2026 10:23:31 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
 
 ---
  drivers/net/ethernet/mediatek/Kconfig       | 24 +++++++++++++
  drivers/net/ethernet/mediatek/Makefile      |  1 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 38 +++++++++++++++++++++
- 3 files changed, 63 insertions(+)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 39 +++++++++++++++++++++
+ 3 files changed, 64 insertions(+)
 
+diff --git a/drivers/net/ethernet/mediatek/Kconfig b/drivers/net/ethernet/mediatek/Kconfig
+index d974316..1589b36 100644
 --- a/drivers/net/ethernet/mediatek/Kconfig
 +++ b/drivers/net/ethernet/mediatek/Kconfig
 @@ -40,4 +40,28 @@ config NET_MEDIATEK_STAR_EMAC
@@ -40,14 +42,18 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
 +	  family.
 +
  endif #NET_VENDOR_MEDIATEK
+diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
+index 52848b7..96d0f74 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
-@@ -11,4 +11,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) +
+@@ -11,4 +11,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
  endif
  obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o
  obj-$(CONFIG_NET_MEDIATEK_STAR_EMAC) += mtk_star_emac.o
 +obj-$(CONFIG_NET_MEDIATEK_HNAT) += mtk_hnat/
  obj-$(CONFIG_NET_AIROHA) += airoha_eth.o
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index a03baee..6784cc2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -40,6 +40,10 @@
@@ -61,7 +67,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2769,6 +2773,31 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2819,6 +2823,31 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  
  			skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
  			skb_put(skb, pktlen);
@@ -93,7 +99,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  		}
  
  		skb->dev = netdev;
-@@ -2811,8 +2840,10 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2861,8 +2890,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
  		}
  
@@ -104,29 +110,36 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  
  		if (eth->hwlro && eth->debugfs->hwlro_stats.ebl &&
  		    IS_HW_LRO_RING(ring->ring_no)) {
-@@ -4481,8 +4512,10 @@ static int mtk_open(struct net_device *d
+@@ -4531,6 +4562,7 @@ static int mtk_open(struct net_device *dev)
  		if (err)
  			return err;
  
 +#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  		for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  			mtk_ppe_start(eth->ppe[i]);
+ 
+@@ -4538,6 +4570,7 @@ static int mtk_open(struct net_device *dev)
+ 		if (err)
+ 			netdev_err(dev, "%s: could not start ppe roaming work: %d\n",
+ 				   __func__, err);
 +#endif
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4663,8 +4696,10 @@ static int mtk_stop(struct net_device *d
+@@ -4718,10 +4751,12 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
 +#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+ 	mtk_ppe_roaming_stop(eth);
+ 
  	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  		mtk_ppe_stop(eth->ppe[i]);
 +#endif
  
  	return 0;
  }
-@@ -7164,6 +7199,7 @@ static int mtk_probe(struct platform_dev
+@@ -7222,6 +7257,7 @@ static int mtk_probe(struct platform_device *pdev)
  		};
  	}
  
@@ -134,15 +147,15 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -7184,6 +7220,7 @@ static int mtk_probe(struct platform_dev
- 				goto err_deinit_ppe;
- 		}
+@@ -7246,6 +7282,7 @@ static int mtk_probe(struct platform_device *pdev)
+ 		if (err)
+ 			goto err_deinit_ppe;
  	}
 +#endif
  
  	mtk_eth_debugfs_init(eth);
  
-@@ -7244,7 +7281,9 @@ err_unreg_netdev:
+@@ -7306,7 +7343,9 @@ static int mtk_probe(struct platform_device *pdev)
  	free_netdev(eth->dummy_dev);
  err_deinit_ppe:
  	mtk_napi_del(eth);
@@ -152,3 +165,6 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
  	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
  err_free_dev:
+-- 
+2.45.2
+
