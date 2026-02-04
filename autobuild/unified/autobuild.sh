@@ -375,9 +375,21 @@ __ab_copy_files_hook_name=
 add_global_patch_file_group_hooks global "${ab_global}"
 [ -f "${ab_global}/${openwrt_branch}/rules" ] && . "${ab_global}/${openwrt_branch}/rules"
 
+[ -d "${ab_global}/rules.d" ] && {
+	for __rule in $(find "${ab_global}/rules.d" -maxdepth 1 -type f -executable | sort); do
+		. "${__rule}"
+	done
+}
+
 [ -d "${ab_global}-dev" -o -L "${ab_global}-dev" ] && {
 	add_global_patch_file_group_hooks global_dev "${ab_global}-dev"
 	[ -f "${ab_global}-dev/rules" ] && . "${ab_global}-dev/rules"
+
+	[ -d "${ab_global}-dev/rules.d" ] && {
+		for __rule in $(find "${ab_global}-dev/rules.d" -maxdepth 1 -type f -executable | sort); do
+			. "${__rule}"
+		done
+	}
 }
 
 [ -n "${ab_platform_dir}" ] && {
