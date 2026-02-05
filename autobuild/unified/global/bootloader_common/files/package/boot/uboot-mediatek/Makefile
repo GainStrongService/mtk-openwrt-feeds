@@ -2,13 +2,13 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=uboot-mediatek-filogic-official-release
-PKG_VERSION:=2025.09.12
+PKG_VERSION:=2026.01.23
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=https://github.com/mtk-openwrt/u-boot.git
-PKG_MIRROR_HASH:=04ad02384619f632ddd63187a7bb42a3c7bd909f2149df5130b62e88c3a00529
-PKG_SOURCE_DATE:=2025-07-11
-PKG_SOURCE_VERSION:=9a25de54e417e9ed0391786e6de177aaef5f4dd4
+PKG_MIRROR_HASH:=4383cf80f4ff012510bc83508b4e0d677b034c9c5a2f633cae68fcc103c08bb0
+PKG_SOURCE_DATE:=2026-01-23
+PKG_SOURCE_VERSION:=cecda4b7a198f8606c9f454ddf9a2a8fdf30a57c
 PKG_BUILD_DEPENDS:=arm-trusted-firmware-tools/host
 
 PKG_BUILD_DIR = $(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
@@ -165,7 +165,7 @@ define U-Boot/mt7981_rfb-spim-nand-nmbm
   NAME:=MT7981 NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7981a-rfb
-  UBOOT_CONFIG:= mt7981_spim_nand_rfb
+  UBOOT_CONFIG:= mt7981_spim_nand_nmbm_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7981
@@ -214,7 +214,7 @@ define U-Boot/mt7986_rfb-spim-nand-nmbm
   NAME:=MT7986A NAND-NMBM Reference Board
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7986a-rfb
-  UBOOT_CONFIG:= mt7986_spim_nand_rfb
+  UBOOT_CONFIG:=mt7986_spim_nand_nmbm_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7986
@@ -576,6 +576,7 @@ define Build/fip-image
 	$(STAGING_DIR_HOST)/bin/fiptool create \
 		--soc-fw $(STAGING_DIR_IMAGE)/$(if $(BL2_SOC),$(BL2_SOC),$(BUILD_SUBTARGET))-$(BL2_BOOTDEV)-$(if $(BL2_DDRTYPE),$(BL2_DDRTYPE)-)$(if $(BL2_DDRBLOB),$(BL2_DDRBLOB)ddr-)bl31.bin$(if $(FIP_COMPRESS),.xz) \
 		--nt-fw $(PKG_BUILD_DIR)/u-boot.bin$(if $(FIP_COMPRESS),.xz) \
+		--align 8 \
 		$(PKG_BUILD_DIR)/u-boot.fip
 endef
 

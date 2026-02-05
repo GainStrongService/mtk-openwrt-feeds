@@ -1,0 +1,214 @@
+--- a/drivers/mtd/nand/spi/core.c
++++ b/drivers/mtd/nand/spi/core.c
+@@ -2037,6 +2037,141 @@ static int spinand_set_update_op_variant
+ 	return 0;
+ }
+ 
++/*
++ * [MTK]SPINAND CASN Todo API
++ *  Uboot spinand framework has newly define otp related api and info,
++ *  hence, CASN may need further more info about otp setting with varient
++ *  manufacturer.
++ *  Todo API will incldue:
++ *   @spinand_casn_user_otp_info
++ *   @spinand_casn_otp_lock
++ *   @spinand_casn_fact_otp_info
++ *   @spinand_casn_get_otp_user_op_from_casn
++ *   @spinand_casn_get_otp_fact_op_from_casn
++ */
++static int spinand_casn_user_otp_info(struct spinand_device *spinand, size_t len,
++				      struct otp_info *buf, size_t *retlen)
++{
++	/* Todo */
++	return 0;
++}
++
++static int spinand_casn_otp_lock(struct spinand_device *spinand, loff_t from,
++				 size_t len)
++{
++	/* Todo */
++	return 0;
++}
++
++static int spinand_casn_fact_otp_info(struct spinand_device *spinand, size_t len,
++				      struct otp_info *buf, size_t *retlen)
++{
++	/* Todo */
++	return 0;
++}
++
++static int spinand_casn_get_otp_user_op_from_casn(struct spinand_device *spinand,
++						  struct casn_user_otp *otp)
++{
++	struct spinand_user_otp_ops *user_ops;
++	u32 npage, start_page;
++	int ret = 0;
++
++	user_ops = kmalloc(sizeof(*user_ops), GFP_KERNEL);
++	if (!user_ops)
++		return -ENOMEM;
++
++	/* Todo: Need CASN to parse npage & start_page info */
++	start_page = 0;
++	npage = 0;
++
++	*user_ops = (struct spinand_user_otp_ops) {
++		.info = spinand_casn_user_otp_info,
++		.lock = spinand_casn_otp_lock,
++		.read = spinand_user_otp_read,
++		.write = spinand_user_otp_write,
++	};
++
++	*otp = (struct casn_user_otp) SPINAND_CASN_OTP_INFO(npage , start_page, user_ops);
++	return ret;
++}
++
++static int spinand_casn_get_otp_fact_op_from_casn(struct spinand_device *spinand,
++						  struct casn_fact_otp *otp)
++{
++	struct spinand_fact_otp_ops *fact_ops;
++	u32 npage, start_page;
++	int ret = 0;
++
++	fact_ops = kmalloc(sizeof(*fact_ops), GFP_KERNEL);
++	if (!fact_ops)
++		return -ENOMEM;
++
++	/* Todo: Need CASN to parse npage & start_page info */
++	npage = 0;
++	start_page = 0;
++
++	*fact_ops = (struct spinand_fact_otp_ops) {
++		.info = spinand_casn_fact_otp_info,
++		.read = spinand_fact_otp_read,
++	};
++
++	*otp = (struct casn_fact_otp) SPINAND_CASN_OTP_INFO(npage, start_page, fact_ops);
++
++	return ret;
++}
++
++static int spinand_casn_set_otp_usr_op(struct spinand_device *spinand,
++				       struct nand_casn *casn)
++{
++	const struct spinand_user_otp *p;
++	struct casn_user_otp *otp;
++	int ret = 0;
++
++	otp = kmalloc(sizeof(*otp), GFP_KERNEL);
++	if (!otp)
++		return -ENOMEM;
++
++	*otp = (struct casn_user_otp) SPINAND_CASN_OTP_INFO(0, 0, NULL);
++	if (spinand->flags & SPINAND_CASN_SUP_OTP_OPS) {
++		ret = spinand_casn_get_otp_user_op_from_casn(spinand, otp);
++		if (ret < 0)
++			goto out;
++	}
++
++	p = (struct spinand_user_otp*) otp;
++	spinand->user_otp = p;
++
++out:
++	return ret;
++}
++
++static int spinand_casn_set_otp_fact_op(struct spinand_device *spinand,
++					struct nand_casn *casn)
++{
++	const struct spinand_fact_otp *p;
++	struct casn_fact_otp *otp;
++	int ret = 0;
++
++	otp = kmalloc(sizeof(*otp), GFP_KERNEL);
++	if (!otp)
++		return -ENOMEM;
++
++	*otp = (struct casn_fact_otp) SPINAND_CASN_OTP_INFO(0, 0, NULL);
++
++	if (spinand->flags & SPINAND_CASN_SUP_OTP_OPS) {
++		ret = spinand_casn_get_otp_fact_op_from_casn(spinand, otp);
++		if (ret < 0)
++			goto out;
++	}
++
++	p = (struct spinand_fact_otp*) otp;
++	spinand->fact_otp = p;
++
++out:
++	return ret;
++}
++
+ static int spinand_init_via_casn(struct spinand_device *spinand,
+ 				 struct nand_casn *casn)
+ {
+@@ -2131,6 +2266,14 @@ static int spinand_init_via_casn(struct
+ 	if (ret < 0)
+ 		return ret;
+ 
++	ret = spinand_casn_set_otp_fact_op(spinand, casn);
++	if (ret < 0)
++		return ret;
++
++	ret = spinand_casn_set_otp_usr_op(spinand, casn);
++	if (ret < 0)
++		return ret;
++
+ 	return 0;
+ }
+ 
+--- a/include/linux/mtd/casn.h
++++ b/include/linux/mtd/casn.h
+@@ -8,6 +8,8 @@
+ #ifndef __LINUX_MTD_CASN_H
+ #define __LINUX_MTD_CASN_H
+ 
++#include <linux/mtd/spinand.h>
++
+ #define CASN_CRC_BASE	0x4341
+ #define CASN_SIGNATURE	0x4341534EU
+ #define SPINAND_CASN_V1_CRC_OFS (254)
+@@ -93,6 +95,16 @@ enum oob_overall {
+ 	OOB_CONTINUOUS,
+ };
+ 
++struct casn_fact_otp {
++	struct spinand_otp_layout layout;
++	struct spinand_fact_otp_ops *ops;
++};
++
++struct casn_user_otp {
++	struct spinand_otp_layout layout;
++	struct spinand_user_otp_ops *ops;
++};
++
+ struct nand_casn {
+ 	/* CASN signature must be 4 chars: 'C','A','S','N'  */
+ 	union {
+--- a/include/linux/mtd/spinand.h
++++ b/include/linux/mtd/spinand.h
+@@ -119,6 +119,15 @@
+ 		   SPI_MEM_OP_DUMMY(casn_adv_ecc_status.dummy_nbytes,		\
+ 				    casn_adv_ecc_status.dummy_buswidth),	\
+ 		   SPI_MEM_OP_DATA_IN(casn_adv_ecc_status.status_nbytes, buf, 1))
++
++#define SPINAND_CASN_OTP_INFO(__npages, __start_page, __ops)		\
++	{								\
++		.layout = {						\
++			.npages = __npages,				\
++			.start_page = __start_page,			\
++		},							\
++		.ops = __ops,						\
++	}
+ /* Macros for CASN end */
+ 
+ #define SPINAND_PAGE_READ_FROM_CACHE_1S_1S_1S_OP(addr, ndummy, buf, len, freq) \
+@@ -658,7 +667,7 @@ struct spinand_dirmap {
+ #define SPINAND_CASN_SUP_LEGACY_ECC_STATUS	BIT(4)
+ #define SPINAND_CASN_SUP_ADV_ECC_STATUS		BIT(5)
+ #define SPINAND_CASN_ECC_PARITY_READABLE	BIT(6)
+-
++#define SPINAND_CASN_SUP_OTP_OPS		BIT(7)
+ /**
+  * struct CASN_ADVECC - CASN's advanced ECC description
+  * @cmd: Command to access SPI-NAND on-chip ECC status registers
