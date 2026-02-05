@@ -394,11 +394,7 @@ int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
 
 void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp)
 {
-}
-
-void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
-{
-#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
 	struct mtk_xfrm_params *xfrm_params;
 
 	if (!xp->xdo.offload_handle)
@@ -408,10 +404,18 @@ void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
 	xp->xdo.offload_handle = 0;
 
 	if (xfrm_params->cdrt)
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 		foe_clear_crypto_entry(xfrm_params->cdrt->idx);
+#elif defined(CONFIG_CRYPTO_OFFLOAD_INLINE_FLOWBLOCK)
+		mtk_flow_offload_teardown_by_crypto(mcrypto.eth, xfrm_params->cdrt->idx);
+#endif
 
 	return;
-#endif
+#endif // hnat or flowblock
+}
+
+void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
+{
 }
 
 static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb,

@@ -29,9 +29,81 @@
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
  			   int tid, bool amsdu_en)
+@@ -1401,6 +1423,62 @@ mtk_ppe_check_wdma_path(struct mtk_eth *
+ 	return 0;
+ }
+ 
++void mtk_flow_offload_teardown_by_crypto(struct mtk_eth *eth, int id)
++{
++	int i, j, k;
++
++	if (!eth)
++		return;
++
++	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++) {
++		struct mtk_ppe *ppe = eth->ppe[i];
++
++		for (j = 0; j < MTK_PPE_ENTRIES; j++) {
++			struct mtk_foe_entry *entry = mtk_foe_get_entry(ppe, j);
++			struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
++			struct flow_offload_tuple tuple;
++			int type, state, cdrt;
++
++			state = FIELD_GET(MTK_FOE_IB1_STATE, entry->ib1);
++			if (state != MTK_FOE_STATE_BIND)
++				continue;
++
++			cdrt = FIELD_GET(MTK_FOE_CDRT_IDX, l2->tinfo);
++			if (cdrt != id)
++				continue;
++
++			memset(&tuple, 0, sizeof(tuple));
++
++			if (entry->ib1 & MTK_FOE_IB1_UDP)
++				tuple.l4proto = IPPROTO_UDP;
++			else
++				tuple.l4proto = IPPROTO_TCP;
++
++			type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
++			if (type > MTK_PPE_PKT_TYPE_IPV4_DSLITE) {
++				tuple.l3proto = NFPROTO_IPV6;
++				tuple.src_port = htons(entry->ipv6.src_port);
++				tuple.dst_port = htons(entry->ipv6.src_port);
++				for (k = 0; k < 4; k++) {
++					tuple.src_v6.s6_addr32[j] = htonl(entry->ipv6.src_ip[j]);
++					tuple.dst_v6.s6_addr32[j] = htonl(entry->ipv6.dest_ip[j]);
++				}
++			} else {
++				tuple.l3proto = NFPROTO_IPV4;
++				tuple.src_port = htons(entry->ipv4.orig.src_port);
++				tuple.dst_port = htons(entry->ipv4.orig.dest_port);
++				tuple.src_v4.s_addr = htonl(entry->ipv4.orig.src_ip);
++				tuple.dst_v4.s_addr = htonl(entry->ipv4.orig.dest_ip);
++			}
++
++			flow_offload_teardown_by_tuple(&tuple);
++
++			pr_info("mtk_ppe: the entry (%x) with cdrt_idx %d has been deleted\n", i, id);
++		}
++	}
++}
++EXPORT_SYMBOL(mtk_flow_offload_teardown_by_crypto);
++
+ static int
+ mtk_flow_offload_teardown_by_roaming(struct mtk_ppe *ppe, u8 *mac)
+ {
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -101,6 +101,10 @@ enum {
+@@ -8,6 +8,8 @@
+ #include <linux/bitfield.h>
+ #include <linux/rhashtable.h>
+ 
++#include "mtk_eth_soc.h"
++
+ #define MTK_PPE_ENTRIES_SHIFT		4
+ #define MTK_PPE_ENTRIES			(1024 << MTK_PPE_ENTRIES_SHIFT)
+ #define MTK_PPE_HASH_MASK		(MTK_PPE_ENTRIES - 1)
+@@ -101,6 +103,10 @@ enum {
  #define MTK_FOE_UDF_KEEP_DSCP		BIT(10)
  
  #define MTK_FOE_TPORT_IDX		GENMASK(3, 0)
@@ -42,7 +114,7 @@
  
  enum {
  	MTK_FOE_STATE_INVALID,
-@@ -408,6 +412,10 @@ int mtk_foe_entry_set_vlan(struct mtk_et
+@@ -408,6 +414,10 @@ int mtk_foe_entry_set_vlan(struct mtk_et
  			   int vid);
  int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			    int sid);
@@ -53,6 +125,13 @@
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
  			   int tid, bool amsdu_en);
+@@ -422,5 +432,6 @@ void mtk_foe_entry_get_stats(struct mtk_
+ int mtk_flow_entry_match_len(struct mtk_eth *eth, struct mtk_foe_entry *entry);
+ bool mtk_flow_entry_match(struct mtk_eth *eth, struct mtk_flow_entry *entry,
+ 			  struct mtk_foe_entry *data, int len);
++void mtk_flow_offload_teardown_by_crypto(struct mtk_eth *eth, int id);
+ 
+ #endif
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -46,6 +46,9 @@ struct mtk_flow_data {
