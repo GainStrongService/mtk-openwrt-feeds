@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7986-pinctrl.dtsi
-@@ -0,0 +1,218 @@
+@@ -0,0 +1,225 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2026 MediaTek Inc.
@@ -78,7 +78,7 @@
 +	pcie_pins: pcie-pins {
 +		mux {
 +			function = "pcie";
-+			groups = "pcie_clk", "pcie_wake", "pcie_pereset";
++			groups = "pcie_pereset";
 +		};
 +	};
 +
@@ -134,6 +134,13 @@
 +		mux {
 +			function = "uart";
 +			groups = "uart1";
++		};
++	};
++
++	uart1_tx_rx_pins: uart1-tx-rx-pins {
++		mux {
++			function = "uart";
++			groups = "uart1_rx_tx";
 +		};
 +	};
 +
@@ -385,3 +392,15 @@
  	status = "okay";
  
  	proslic_spi: proslic_spi@0 {
+--- a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
++++ b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
+@@ -9,7 +9,8 @@
+ #include <dt-bindings/clock/mt7986-clk.h>
+ #include <dt-bindings/reset/mt7986-resets.h>
+ #include <dt-bindings/phy/phy.h>
+-
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
+ / {
+ 	compatible = "mediatek,mt7986a";
+ 	interrupt-parent = <&gic>;
