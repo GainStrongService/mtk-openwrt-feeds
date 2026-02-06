@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Aeonsemi AS21XXxX PHY Driver
  *
@@ -56,7 +56,7 @@ struct as21xxx_priv {
 	struct mutex ipc_lock;
 	struct an_mdi_cfg mdi_cfg;
 	struct dentry *debugfs_root;
-	unsigned short raw_eye_data[EYE_TOTAL_BYTES];
+	unsigned char raw_eye_data[EYE_TOTAL_BYTES];
 };
 
 int aeon_cl45_read(struct phy_device *phydev, int dev_addr,

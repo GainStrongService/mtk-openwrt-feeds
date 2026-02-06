@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
  * AEONSEMI CONFIDENTIAL
@@ -20,26 +19,9 @@
 #ifndef _AS21XX_PROC_H_
 #define _AS21XX_PROC_H_
 
-/******************************************************************************
- * MISC Macros
- *****************************************************************************/
-#define MAX_BUF     64
-#define MAX_CMD_LEN 32
-#define MAX_ARGS    10
-
 #define CHAN_NUM 4
-#define AS21XX_PHY_NUM 2
-
-/******************************************************************************
- * Common Structure
- *****************************************************************************/
-struct parsed_cmd {
-	char cmd[MAX_CMD_LEN];
-	long args[MAX_ARGS];
-	int argc;
-};
 
 int as21xxx_debugfs_init(struct phy_device *phydev);
 void as21xxx_debugfs_remove(struct phy_device *phydev);
 
-#endif
+#endif /**/

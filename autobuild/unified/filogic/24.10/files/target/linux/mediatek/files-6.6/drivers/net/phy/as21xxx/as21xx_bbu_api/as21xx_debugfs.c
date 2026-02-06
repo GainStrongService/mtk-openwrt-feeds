@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  * AEONSEMI CONFIDENTIAL
  * _____________________
@@ -16,6 +15,18 @@
  *
  *
  *****************************************************************************/
+/* FILE NAME:  as21xx_debugfs.c
+ * PURPOSE:
+ *    It provides as21xx phy debugfs definations.
+ *
+ * NOTES:
+ *
+ */
+
+/************************************************************************
+*                  I N C L U D E S
+*************************************************************************
+*/
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/debugfs.h>
@@ -32,13 +43,32 @@
 #include <linux/timex.h>
 #include <linux/string.h>
 
+/************************************************************************
+*                  D E F I N E S   &   C O N S T A N T S
+*************************************************************************
+*/
+#define MAX_BUF     64
+#define MAX_CMD_LEN 32
+#define MAX_ARGS    10
+
+struct parsed_cmd {
+	char cmd[MAX_CMD_LEN];
+	long args[MAX_ARGS];
+	int argc;
+};
+
+/************************************************************************
+*                  D A T A   D E C L A R A T I O N S
+*************************************************************************
+*/
 const char *IMP_TYPE_STR[CHAN_NUM] = {
 	"Null", "Open", "Short", "Load"
 };
 
-/******************************************************************************
- * Static Function
- *****************************************************************************/
+/************************************************************************
+*    STATIC    I N L I N E    F U N C T I O N   D E F I N I T I O N S
+*************************************************************************
+*/
 static int parse_cmd_args(const char *input, struct parsed_cmd *result, int max_args)
 {
 	char buffer[MAX_BUF];
@@ -81,6 +111,43 @@ static int parse_cmd_args(const char *input, struct parsed_cmd *result, int max_
 
 	result->argc = count;
 	return 0;
+}
+
+static inline void printk_force_speed_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Set 10G FD: echo 10Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
+	pr_info("Set 5G FD: echo 5Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
+	pr_info("Set 2.5G FD: echo 2.5Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
+	pr_info("Set 1G FD: echo 1Gbps   > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
+	pr_info("Set 100M FD: echo 100Mbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n\n");
+}
+
+static inline void printk_restart_an_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Restart AN: echo RestartAN > /sys/kernel/debug/{MDIOBUS}/aeon_restart_an\n");
+}
+
+static inline void printk_mdi_cfg_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Set FastRetrain: echo FastRetrain [speed] [thp_bypass]> /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set EEE: echo EEE [speed] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set AeonOUI: echo AeonOUI [pbo_option]> /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set Manual M/S enable: echo ManualMS [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set M/S: echo SetMS [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set Port Type: echo PortType [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set SmartSpd: echo Smartspd [en] [retry_limit] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set Trd Swap: echo TrdSwap [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
+	pr_info("Set CFR: echo CFR [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n\n");
+}
+
+static inline void printk_sds_pcs_cfg_usage(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("Set sds pcs cfg: echo SdsPcs [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_set_sds_pcs_cfg\n");
+	pr_info("Set sds ra enable: echo SdsRA > /sys/kernel/debug/{MDIOBUS}/aeon_set_sds_pcs_cfg\n\n");
 }
 
 #ifndef AEON_SEI2
@@ -126,12 +193,13 @@ static inline void printk_sds2nd_cfg_usage(void)
 	pr_info("Enable Second Serdes: echo Sds2ndEn [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_enable\n");
 	pr_info("Config Second Serdes Equlization: echo Sds2ndEq [vga] [slc] [ctle] [dfe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eq_cfg\n");
 	pr_info("Config Second Serdes PCS Mode and Datarate: echo Sds2ndMode [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_mode_cfg\n");
+
 }
 
 static inline void printk_sds2nd_eye_diagram_usage(void)
 {
 	pr_info("================Please input:===================\n");
-	pr_info("echo eyescan > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
+	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
 	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_sds2nd_eye_diagram_data\n");
 }
 
@@ -153,146 +221,7 @@ static inline void printk_sds_txfir_usage(void)
 	pr_info("================Please input:===================\n");
 	pr_info("echo SdsTxFir [pre] [main] [post] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_txfir\n\n");
 }
-
-static inline void printk_ra_mode_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo ra_mode [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_ra_mode\n\n");
-	pr_info("echo ra_get > /sys/kernel/debug/{MDIOBUS}/aeon_ra_mode\n\n");
-}
-
-static inline void printk_dbg_dump_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo cnt > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-	pr_info("echo clr > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-	pr_info("echo mse > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-	pr_info("echo sds > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-}
-
-static inline void printk_traffic_loopback_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo sds > /sys/kernel/debug/{MDIOBUS}/aeon_traffic_loopback\n\n");
-	pr_info("echo eth > /sys/kernel/debug/{MDIOBUS}/aeon_traffic_loopback\n\n");
-}
-
-static inline void printk_sds_restart_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo sds [sds_id] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_restart\n\n");
-}
-#else
-static inline void printk_dpc_fc_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo FcCfg > /sys/kernel/debug/{MDIOBUS}/aeon_dpc_fc\n");
-	pr_info("echo FcGet > /sys/kernel/debug/{MDIOBUS}/aeon_dpc_fc\n\n");
-}
-
-static inline void printk_dpc_eee_mode_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo eee_mode [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_eee_mode\n");
-	pr_info("echo eee_mode_get > /sys/kernel/debug/{MDIOBUS}/aeon_eee_mode\n\n");
-}
-
-static inline void printk_buffer_mode_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo buffer_mode [mode] > /sys/kernel/debug/{MDIOBUS}/aeon_buffer_mode\n");
-	pr_info("echo buffer_mode_get > /sys/kernel/debug/{MDIOBUS}/aeon_buffer_mode\n\n");
-}
-
-static inline void printk_eee_clk_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo eee_clk [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_eee_clk\n\n");
-}
-
-static inline void printk_sds_eq_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo sds_eq [vga] [slc] [ctle] [dfe] [ffe] > /sys/kernel/debug/{MDIOBUS}/aeon_sds_eq\n");
-	pr_info("echo sds_eq_get > /sys/kernel/debug/{MDIOBUS}/aeon_sds_eq\n\n");
-}
-
-static inline void printk_i2c_enable_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo IIC [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_i2c_enable\n");
-}
-
-static inline void printk_fifofull_th_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo fifofull [enable] [rx_th] [tx_th] > /sys/kernel/debug/{MDIOBUS}/aeon_fifofull_th\n");
-	pr_info("echo fifofull_get > /sys/kernel/debug/{MDIOBUS}/aeon_fifofull_th\n");
-}
-
-static inline void printk_dbg_dump_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo cnt > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-	pr_info("echo clr > /sys/kernel/debug/{MDIOBUS}/aeon_dbg_dump\n\n");
-}
-
-static inline void printk_testmode5_gain_idx_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo gain [idx] > /sys/kernel/debug/{MDIOBUS}/aeon_tm5_gain\n\n");
-}
 #endif
-
-#ifdef DUAL_FLASH
-static inline void printk_sys_dual_flash(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo flash [include_bootloader] > /sys/kernel/debug/{MDIOBUS}/aeon_burn_flash_image\n\n");
-}
-
-static inline void printk_erase_flash(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo erase [flash_addr] [size] > /sys/kernel/debug/{MDIOBUS}/aeon_erase_flash\n\n");
-}
-#endif
-
-static inline void printk_force_speed_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Set 10G FD: echo 10Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
-	pr_info("Set 5G FD: echo 5Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
-	pr_info("Set 2.5G FD: echo 2.5Gbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
-	pr_info("Set 1G FD: echo 1Gbps   > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n");
-	pr_info("Set 100M FD: echo 100Mbps > /sys/kernel/debug/{MDIOBUS}/aeon_set_speed_mode\n\n");
-}
-
-static inline void printk_restart_an_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Restart AN: echo RestartAN > /sys/kernel/debug/{MDIOBUS}/aeon_restart_an\n");
-}
-
-static inline void printk_mdi_cfg_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Set FastRetrain: echo FastRetrain [speed] [thp_bypass]> /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set EEE: echo EEE [speed] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set AeonOUI: echo AeonOUI [pbo_option]> /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set Manual M/S enable: echo ManualMS [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set M/S: echo SetMS [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set Port Type: echo PortType [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set SmartSpd: echo Smartspd [en] [retry_limit] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set Trd Swap: echo TrdSwap [en] [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n");
-	pr_info("Set CFR: echo CFR [value] > /sys/kernel/debug/{MDIOBUS}/aeon_set_mdi_cfg\n\n");
-}
-
-static inline void printk_sds_pcs_cfg_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("Set sds pcs cfg: echo SdsPcs [pcsMode] [sdsSpd] > /sys/kernel/debug/{MDIOBUS}/aeon_set_sds_pcs_cfg\n");
-}
 
 static inline void printk_sds_pma_cfg_usage(void)
 {
@@ -347,6 +276,20 @@ static inline void printk_phy_enable_usage(void)
 	pr_info("================Please input:===================\n");
 	pr_info("echo phyenable [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_phy_enable\n\n");
 }
+
+#ifdef DUAL_FLASH
+static inline void printk_sys_dual_flash(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo flash [include_bootloader] > /sys/kernel/debug/{MDIOBUS}/aeon_burn_flash_image\n\n");
+}
+
+static inline void printk_erase_flash(void)
+{
+	pr_info("================Please input:===================\n");
+	pr_info("echo erase [flash_addr] [size] > /sys/kernel/debug/{MDIOBUS}/aeon_erase_flash\n\n");
+}
+#endif
 
 static inline void printk_test_mode_usage(void)
 {
@@ -407,7 +350,7 @@ static inline void printk_cable_diag_usage(void)
 static inline void printk_sds_eye_diagram_usage(void)
 {
 	pr_info("================Please input:===================\n");
-	pr_info("echo eyescan > /sys/kernel/debug/{MDIOBUS}/aeon_eye_diagram_data\n");
+	pr_info("echo eyescan [part] > /sys/kernel/debug/{MDIOBUS}/aeon_eye_diagram_data\n");
 	pr_info("echo eyeshow > /sys/kernel/debug/{MDIOBUS}/aeon_eye_diagram_data\n");
 }
 
@@ -447,22 +390,6 @@ static inline void printk_synce_slave_mode2_usage(void)
 	pr_info("echo synce_slave_mode2 [enable] [bw] [oc] > /sys/kernel/debug/{MDIOBUS}/aeon_synce_slave_mode2\n\n");
 }
 
-static inline void printk_phylog_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo readlog > /sys/kernel/debug/{MDIOBUS}/aeon_read_log\n\n");
-	pr_info("echo cleanlog > /sys/kernel/debug/{MDIOBUS}/aeon_read_log\n\n");
-}
-
-static inline void printk_enable_an_usage(void)
-{
-	pr_info("================Please input:===================\n");
-	pr_info("echo enableAN [enable] > /sys/kernel/debug/{MDIOBUS}/aeon_enable_an\n\n");
-}
-
-/******************************************************************************
- * Debugfs Function API
- *****************************************************************************/
 #ifndef AEON_SEI2
 static ssize_t aeon_pkt_chk_cfg_read_proc(struct file *file, char __user *buf,
 					  size_t size, loff_t *ppos)
@@ -830,10 +757,10 @@ static ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char 
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
-	unsigned short *raw_eye_data = priv->raw_eye_data;
+	unsigned char *raw_eye_data = priv->raw_eye_data;
 	char val_string[MAX_BUF] = { 0 };
 	struct parsed_cmd cmdinfo = { 0 };
-	unsigned short ii, grp;
+	unsigned short ii, grp, part;
 
 	if (count >= sizeof(val_string))
 		return -EINVAL;
@@ -846,24 +773,31 @@ static ssize_t aeon_sds2nd_eye_diagram_write_proc(struct file *file, const char 
 	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
 		return -EINVAL;
 
-	if (!strcmp(cmdinfo.cmd, "eyescan"))
-		for (grp = 0; grp < EYE_GRPS ; ++grp) {
-			aeon_ipc_sync_parity(phydev);
-			aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-			msleep(1000);
-			aeon_ipc_sync_parity(phydev);
-			aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+	if (!strcmp(cmdinfo.cmd, "eyescan")) {
+		part = cmdinfo.args[0];
+		if (part == EYE_PART_0) {
+			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else if (part == EYE_PART_1) {
+			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(1, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else {
+			return -EINVAL;
 		}
-	else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
+	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
 		pr_info("RAW EYE data:\n");
 		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
-			if ((ii % 16) == 0)
+			if (ii % 16 == 0)
 				pr_info("\n");
-			pr_info("0x%04x ", raw_eye_data[ii]);
+			pr_info("0x%02x ", raw_eye_data[ii]);
 		}
 		pr_info("\n");
 
-		memset(raw_eye_data, 0, EYE_TOTAL_BYTES * sizeof(unsigned short));
+		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
 	} else
 		printk_sds2nd_eye_diagram_usage();
 
@@ -989,668 +923,6 @@ static ssize_t aeon_sds_txfir_write_proc(struct file *file, const char __user *b
 		aeon_ipc_sds_txfir(0, pre, main, post, phydev);
 	} else
 		printk_sds_txfir_usage();
-
-	return count;
-}
-
-static ssize_t aeon_ra_mode_read_proc(struct file *file, char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	printk_ra_mode_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_ra_mode_write_proc(struct file *file, const char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char ra_cfg[16] = {0};
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "ra_mode")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ra_mode_shift(cmdinfo.args[0], phydev);
-		pr_info("aeon set ra cfg successful\r\n");
-	} else if (!strcmp(cmdinfo.cmd, "ra_get")) {
-		aeon_ra_mode_get(ra_cfg, phydev);
-		pr_info("aeon get ra cfg %d\r\n", ra_cfg[0]);
-	} else
-		printk_ra_mode_usage();
-
-	return count;
-}
-
-static ssize_t aeon_dbg_dump_read_proc(struct file *file, char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	printk_dbg_dump_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_dbg_dump_write_proc(struct file *file, const char __user *buffer,
-					size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	unsigned short val = 0;
-	unsigned char mse = 0;
-	unsigned char pwr = 0;
-	unsigned char speed = 0;
-	unsigned char link_status = 0;
-	unsigned int addr = 0;
-	unsigned char ch = 0;
-	unsigned short top = 0;
-	struct parsed_cmd cmdinfo = {0};
-	unsigned int recv_buf[IPC_DBG_DUMP_NUM] = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "clr")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_cnt_clr(phydev);
-	} else if (!strcmp(cmdinfo.cmd, "cnt")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_cnt_dump(recv_buf, phydev);
-		pr_info("ERR_BLk     : %d\n", recv_buf[0]);
-		pr_info("BER_CNT     : %d\n", recv_buf[1]);
-		pr_info("HI_BER      : %d\n", recv_buf[2]);
-		pr_info("CFR_CNT     : %d\n", recv_buf[3]);
-		pr_info("CU_AN_CNT   : %d\n", recv_buf[4]);
-		pr_info("LDPC_ERR    : %d\n", recv_buf[5]);
-		pr_info("ETH_CRC_ERR : %d\n", recv_buf[6]);
-		pr_info("SDS_CRC_ERR : %d\n", recv_buf[7]);
-	} else if (!strcmp(cmdinfo.cmd, "mse")) {
-		val = aeon_cl45_read(phydev, 0x7, 0x8005);
-		link_status = ((val & 0xF000) >> 12) == 9;
-		if (link_status == 0)
-			pr_info("Link is down\n");
-		else {
-			val = aeon_cl45_read(phydev, 0x1E, 0x4002);
-			speed = val & 0xFF;
-			if (0x3 == speed || 0x5 == speed || 0x9 == speed) {
-				val = aeon_cl45_read(phydev, 0x1,  0xc2aa);
-				pr_info("CH_0 : MSE %d\n", val);
-				val = aeon_cl45_read(phydev, 0x1,  0xc2ab);
-				pr_info("CH_1 : MSE %d\n", val);
-				val = aeon_cl45_read(phydev, 0x1,  0xcaaa);
-				pr_info("CH_2 : MSE %d\n", val);
-				val = aeon_cl45_read(phydev, 0x1,  0xcaab);
-				pr_info("CH_3 : MSE %d\n", val);
-			} else if (speed == 0x10  || speed == 0x20) {
-				addr = 0x99ae;
-				for (ch = 0; ch < 4; ch++) {
-					val = aeon_cl45_read(phydev, 0x1, addr + ch);
-					mse = val & 0xff;
-					pwr = (val >> 8) & 0xff;
-					pr_info("CH_%d : PWR %d MSE %d\n", ch, pwr, mse);
-				}
-			}
-		}
-	} else if (!strcmp(cmdinfo.cmd, "sds")) {
-		pr_info("SerDes State:\n");
-		val = aeon_cl45_read(phydev, 0x1e, 0x0002);
-		top = val;
-		aeon_cl45_write(phydev, 0x1e, 0x0002, val | 0x8000);
-		val = aeon_cl45_read(phydev, 0x3, 0x0020);
-		pr_info("  PCS_STAT1    : 0x%04x\n", val);
-		val = aeon_cl45_read(phydev, 0x3, 0x0021);
-		pr_info("  PCS_STAT2    : 0x%04x\n", val);
-		aeon_cl45_write(phydev, 0x1, 0x80e3, 0xFFFF);
-		val = aeon_cl45_read(phydev, 0x1, 0x80e3);
-		pr_info("  PMA_INTR_FLAG: 0x%04x\n", val);
-		val = aeon_cl45_read(phydev, 0x1, 0x80e4);
-		pr_info("  PMA_INTR_RAW : 0x%04x\n", val);
-		val = aeon_cl45_read(phydev, 0x7, 0xFFE4);
-		pr_info("  USXGMII_MII4 : 0x%04x\n", val);
-		val = aeon_cl45_read(phydev, 0x7, 0xFFE5);
-		pr_info("  USXGMII_MII5 : 0x%04x\n", val);
-		val = aeon_cl45_read(phydev, 0x7, 0x8002);
-		pr_info("  USXGMII_STAT : 0x%04x\n", val);
-		aeon_cl45_write(phydev, 0x1e, 0x0002, top);
-	} else
-		printk_dbg_dump_usage();
-
-	return count;
-}
-
-static ssize_t aeon_traffic_loopback_read_proc(struct file *file, char __user *buffer,
-					       size_t count, loff_t *pos)
-{
-	printk_traffic_loopback_usage();
-	return 0;
-}
-
-static ssize_t aeon_traffic_loopback_write_proc(struct file *file, const char __user *buffer,
-						size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char pcs_sel = 0, sds_spd = 0;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "sds")) {
-		aeon_ipc_enable_sds_loopback(phydev);
-		pr_info("  Set sds loopback successful\n");
-	} else if (!strcmp(cmdinfo.cmd, "eth")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds_pcs_get_cfg(&pcs_sel, &sds_spd, phydev);
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds_pcs_set_cfg(pcs_sel, sds_spd, 3, phydev);
-		pr_info("  Set eth loopback successful\n");
-	} else
-		printk_traffic_loopback_usage();
-
-	return count;
-}
-
-static ssize_t aeon_sds_restart_read_proc(struct file *file, char __user *buffer,
-					  size_t count, loff_t *pos)
-{
-	printk_sds_restart_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_sds_restart_write_proc(struct file *file, const char __user *buffer,
-					   size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "sds")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-		aeon_sds_restart(cmdinfo.args[0], phydev);
-		pr_info("  Set sds restart successful\n");
-	} else
-		printk_sds_restart_usage();
-
-	return count;
-}
-
-#else
-static ssize_t aeon_dpc_fc_read_proc(struct file *file, char __user *buffer,
-				     size_t count, loff_t *pos)
-{
-	printk_dpc_fc_usage();
-	return 0;
-}
-
-static ssize_t aeon_dpc_fc_write_proc(struct file *file, const char __user *buffer,
-				   size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char enable[16] = {0};
-	unsigned char pcs_sel = 0, sds_spd = 0;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "FcCfg")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds_pcs_get_cfg(&pcs_sel, &sds_spd, phydev);
-		aeon_ipc_sync_parity(phydev);
-		if (pcs_sel == 0)
-			aeon_dpc_fc_cfg(1, phydev);
-		else
-			aeon_dpc_fc_cfg(0, phydev);
-		pr_info("Dpc Fc Write Successful\r\n");
-	} else if (!strcmp(cmdinfo.cmd, "FcGet")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_fc_cfg_get(enable, phydev);
-		pr_info("FcCfg Enable: %d\n", enable[0]);
-	} else
-		printk_dpc_fc_usage();
-
-	return count;
-}
-
-static ssize_t aeon_dpc_eee_mode_read_proc(struct file *file, char __user *buffer,
-					   size_t count, loff_t *pos)
-{
-	printk_dpc_eee_mode_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_dpc_eee_mode_write_proc(struct file *file, const char __user *buffer,
-					    size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char eee_mode[16] = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "eee_mode")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		eee_mode[0] = cmdinfo.args[0];
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_eee_mode(eee_mode[0], phydev);
-		pr_info("Dpc EEE Mode Write Successful\r\n");
-	} else if (!strcmp(cmdinfo.cmd, "eee_mode_get")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_eee_mode_get(eee_mode, phydev);
-		pr_info("Dpc EEE Mode mode: %d\n", eee_mode[0]);
-	} else
-		printk_dpc_eee_mode_usage();
-
-	return count;
-}
-
-static ssize_t aeon_dpc_buffer_mode_read_proc(struct file *file, char __user *buffer,
-					      size_t count, loff_t *pos)
-{
-	printk_buffer_mode_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_dpc_buffer_mode_write_proc(struct file *file, const char __user *buffer,
-					       size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char buffer_mode[16] = {0}, eee_mode[16] = {0};
-	unsigned char pcs_sel = 0, sds_spd = 0;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "buffer_mode")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		buffer_mode[0] = cmdinfo.args[0];
-		aeon_ipc_sync_parity(phydev);
-		aeon_sds_pcs_get_cfg(&pcs_sel, &sds_spd, phydev);
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_eee_mode_get(eee_mode, phydev);
-		if (pcs_sel == 0)
-			aeon_dpc_buffer_mode(1, phydev);
-		else if (eee_mode[0] == 1)
-			aeon_dpc_buffer_mode(1, phydev);
-		else
-			aeon_dpc_buffer_mode(buffer_mode[0], phydev);
-		pr_info("Buffer Mode Write Successful\n");
-	} else if (!strcmp(cmdinfo.cmd, "buffer_mode_get")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_buffer_mode_get(buffer_mode, phydev);
-		pr_info("Buffer Mode Read: %d\n", buffer_mode[0]);
-	} else
-		printk_buffer_mode_usage();
-
-	return count;
-}
-
-static ssize_t aeon_eee_clk_read_proc(struct file *file, char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	printk_eee_clk_usage();
-	return 0;
-}
-
-static ssize_t aeon_eee_clk_write_proc(struct file *file, const char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char eee_clk, eee_mode[16] = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "eee_clk")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		eee_clk = cmdinfo.args[0];
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_eee_mode_get(eee_mode, phydev);
-		aeon_ipc_sync_parity(phydev);
-		if (eee_mode[0] == 2)
-			aeon_dpc_eee_clk_mode(eee_clk, phydev);
-		else {
-			eee_clk = 0;
-			aeon_dpc_eee_clk_mode(eee_clk, phydev);
-		}
-		pr_info("EEE Clk  %d Write Successful\n", eee_clk);
-	} else
-		printk_eee_clk_usage();
-
-	return count;
-}
-
-static ssize_t aeon_sds_eq_read_proc(struct file *file, char __user *buffer,
-				     size_t count, loff_t *pos)
-{
-	printk_sds_eq_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_sds_eq_write_proc(struct file *file, const char __user *buffer,
-				      size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = { 0 };
-	struct parsed_cmd cmdinfo = { 0 };
-	unsigned char vga, slc, ctle, dfe, ffe;
-	unsigned char cfg[5] = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 5) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "sds_eq")) {
-		if (cmdinfo.argc != 5)
-			return -EINVAL;
-
-		vga = cmdinfo.args[0];
-		slc = cmdinfo.args[1];
-		ctle = cmdinfo.args[2];
-		dfe = cmdinfo.args[3];
-		ffe = cmdinfo.args[4];
-		aeon_ipc_sync_parity(phydev);
-		aeon_dpc_eq_cfg(vga, slc, ctle, dfe, ffe, phydev);
-		pr_info("Sds Eq Write Successful\n");
-	} else if (!strcmp(cmdinfo.cmd, "sds_eq_get")) {
-		aeon_dpc_eq_cfg_get(cfg, phydev);
-		pr_info("Sds Eq Vga: %d, Slc %d, Ctle %d, Dfe %d, Ffe %d\r\n",
-			cfg[0], cfg[1], cfg[2], cfg[3], cfg[4]);
-	} else
-		printk_sds_eq_usage();
-
-	return count;
-}
-
-static ssize_t aeon_i2c_enable_read_proc(struct file *file, char __user *buffer,
-					 size_t count, loff_t *pos)
-{
-	printk_i2c_enable_usage();
-	return 0;
-}
-
-static ssize_t aeon_i2c_enable_write_proc(struct file *file, const char __user *buffer,
-					  size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
-	unsigned short reg = 0;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "IIC")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		if (cmdinfo.args[0] == 0) {
-			reg = aeon_cl45_read(phydev, 30, 2);
-			reg &= 0xe7ff;
-			reg |= 0x1000;
-			aeon_cl45_write(phydev, 30, 2, reg);
-		} else if (cmdinfo.args[0] == 1) {
-			reg = aeon_cl45_read(phydev, 30, 2);
-			reg &= 0xe7ff;
-			reg |= 0x800;
-			aeon_cl45_write(phydev, 30, 2, reg);
-		} else
-			printk_i2c_enable_usage();
-
-		pr_info("IIC enable/disable write successful\r\n");
-	} else
-		printk_i2c_enable_usage();
-
-	return count;
-}
-
-static ssize_t aeon_fifofull_th_read_proc(struct file *file, char __user *buffer,
-					  size_t count, loff_t *pos)
-{
-	printk_fifofull_th_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_fifofull_th_write_proc(struct file *file, const char __user *buffer,
-					   size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
-	unsigned short rx_th, tx_th;
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "fifofull")) {
-		if (cmdinfo.argc != 3)
-			return -EINVAL;
-		aeon_ipc_sync_parity(phydev);
-		aeon_pkt_fifo_full_th(cmdinfo.args[0], cmdinfo.args[1], cmdinfo.args[2], phydev);
-		pr_info("fifo full th write successful\r\n");
-	} else if (!strcmp(cmdinfo.cmd, "fifofull_get")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_pkt_fifo_full_th_get(&rx_th, &tx_th, phydev);
-		pr_info("fifo full th get rx_th %d, tx_th %d\r\n", rx_th, tx_th);
-	} else
-		printk_fifofull_th_usage();
-
-	return count;
-}
-
-static ssize_t aeon_dbg_dump_read_proc(struct file *file, char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	printk_dbg_dump_usage();
-	return 0;
-}
-
-static ssize_t aeon_dbg_dump_write_proc(struct file *file, const char __user *buffer,
-					size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
-	unsigned int recv_buf[IPC_DP_DUMP_NUM] = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 0) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "clr")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_cnt_clr(phydev);
-	} else if (!strcmp(cmdinfo.cmd, "cnt")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_cnt_dump(recv_buf, phydev);
-		pr_info("from sds:\n");
-		pr_info("  frm_cnt=%llu, crc_err=%llu, err_sym=%llu, runt=%d, oversize=%d\n",
-				((u64)recv_buf[1] << 32) | recv_buf[0],
-				((u64)recv_buf[3] << 32) | recv_buf[2],
-				((u64)recv_buf[5] << 32) | recv_buf[4],
-				recv_buf[6], recv_buf[7]);
-		pr_info("to eth:\n");
-		pr_info("  frm_cnt=%llu, crc_err=%llu, err_sym=%llu, runt=%d, oversize=%d\n",
-				((u64)recv_buf[9] << 32) | recv_buf[8],
-				((u64)recv_buf[11] << 32) | recv_buf[10],
-				((u64)recv_buf[13] << 32) | recv_buf[12],
-				recv_buf[14], recv_buf[15]);
-		pr_info("from eth:\n");
-		pr_info("  frm_cnt=%llu, crc_err=%llu, err_sym=%llu, runt=%d, oversize=%d\n",
-				((u64)recv_buf[17] << 32) | recv_buf[16],
-				((u64)recv_buf[19] << 32) | recv_buf[18],
-				((u64)recv_buf[21] << 32) | recv_buf[20],
-				recv_buf[22], recv_buf[23]);
-		pr_info("to sds:\n");
-		pr_info("  frm_cnt=%llu, crc_err=%llu, err_sym=%llu, runt=%d, oversize=%d\n",
-				((u64)recv_buf[25] << 32) | recv_buf[24],
-				((u64)recv_buf[27] << 32) | recv_buf[26],
-				((u64)recv_buf[29] << 32) | recv_buf[28],
-				recv_buf[30], recv_buf[31]);
-		pr_info("sds_rx_err: ber=%d, errblk=%d\n", recv_buf[32], recv_buf[33]);
-	} else
-		printk_dbg_dump_usage();
-
-	return count;
-}
-
-static ssize_t aeon_tm5_gain_idx_read_proc(struct file *file, char __user *buffer,
-					   size_t count, loff_t *pos)
-{
-	printk_testmode5_gain_idx_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_tm5_gain_idx_write_proc(struct file *file, const char __user *buffer,
-					    size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	unsigned short val = 0;
-	struct parsed_cmd cmdinfo = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "gain")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_testmode5_gain_idx(cmdinfo.args[0], phydev);
-		pr_info("Set testmode5 gain idx %d successfull\n", cmdinfo.args[0]);
-	} else
-		printk_testmode5_gain_idx_usage();
 
 	return count;
 }
@@ -2017,12 +1289,19 @@ static ssize_t aeon_sds_pcs_cfg_write_proc(struct file *file,
 	if (parse_cmd_args(val_string, &cmdinfo, 2) != 0)
 		return -EINVAL;
 
-	if (!strcmp(cmdinfo.cmd, "SdsPcs")) {
+	if (!strcmp(cmdinfo.cmd, "SdsRA")) {
+		if (cmdinfo.argc != 0)
+			return -EINVAL;
+
+		aeon_ipc_sync_parity(phydev);
+		aeon_dpc_ra_enable(phydev);
+		pr_info("Set Sds Rate Adaptation successfully!\n");
+	} else if (!strcmp(cmdinfo.cmd, "SdsPcs")) {
 		if (cmdinfo.argc != 2)
 			return -EINVAL;
 
 		aeon_ipc_sync_parity(phydev);
-		aeon_sds_pcs_set_cfg(cmdinfo.args[0], cmdinfo.args[1], 0, phydev);
+		aeon_sds_pcs_set_cfg(cmdinfo.args[0], cmdinfo.args[1], phydev);
 		pr_info("Set Sds Pcs successfully!\n");
 	} else
 		printk_sds_pcs_cfg_usage();
@@ -2749,13 +2028,15 @@ static ssize_t aeon_cable_diag_write_proc(struct file *file, const char __user *
 		for (ii = 0; ii < CHAN_NUM/2; ii++)
 			pr_info("%u  %u  ", temp[ii] & 0xff, (temp[ii] >> 8));
 		pr_info("\nimp_type : ");
-		for (ii = 0; ii < CHAN_NUM/2; ii++)
+		for (ii = 0; ii < CHAN_NUM/2; ii++) {
 			pr_info("%s  %s  ", IMP_TYPE_STR[temp[ii+CHAN_NUM/2] & 0xff],
 				IMP_TYPE_STR[(temp[ii+CHAN_NUM/2] >> 8)]);
+		}
 		pr_info("\nres_conf : ");
 		pr_info("0x%x\n", temp[CHAN_NUM] & 0xff);
-	} else
+	} else {
 		printk_cable_diag_usage();
+	}
 
 	return count;
 }
@@ -2773,10 +2054,10 @@ static ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user 
 {
 	struct phy_device *phydev = file->private_data;
 	struct as21xxx_priv *priv = phydev->priv;
-	unsigned short *raw_eye_data = priv->raw_eye_data;
+	unsigned char *raw_eye_data = priv->raw_eye_data;
 	char val_string[MAX_BUF] = {  0};
 	struct parsed_cmd cmdinfo = { 0 };
-	unsigned short ii, grp;
+	unsigned short ii, grp, part;
 
 	if (count >= sizeof(val_string))
 		return -EINVAL;
@@ -2789,27 +2070,35 @@ static ssize_t aeon_eye_diagram_write_proc(struct file *file, const char __user 
 	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
 		return -EINVAL;
 
-	if (!strcmp(cmdinfo.cmd, "eyescan"))
-		for (grp = 0; grp < EYE_GRPS ; ++grp) {
-			aeon_ipc_sync_parity(phydev);
-			aeon_ipc_eye_scan(0, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
-			msleep(1000);
-			aeon_ipc_sync_parity(phydev);
-			aeon_ipc_eye_scan(0, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+	if (!strcmp(cmdinfo.cmd, "eyescan")) {
+		part = cmdinfo.args[0];
+		if (part == EYE_PART_0) {
+			for (grp = 0; grp < EYE_PART_0_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(0, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else if (part == EYE_PART_1) {
+			for (grp = EYE_PART_0_GRPS; grp < EYE_GRPS ; ++grp) {
+				aeon_ipc_sync_parity(phydev);
+				aeon_ipc_eye_scan(0, grp, &raw_eye_data[grp * EYE_STRIDE], phydev);
+			}
+		} else {
+			return -EINVAL;
 		}
-	else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
+	} else if (!strcmp(cmdinfo.cmd, "eyeshow")) {
 		pr_info("RAW EYE data:\n");
 		for (ii = 0; ii < EYE_TOTAL_BYTES; ++ii) {
 			if (ii % 16 == 0)
 				pr_info("\n");
-			pr_info("0x%04x ", raw_eye_data[ii]);
+
+			pr_info("0x%02x ", raw_eye_data[ii]);
 		}
 		pr_info("\n");
 
-		memset(raw_eye_data, 0, EYE_TOTAL_BYTES * sizeof(unsigned short));
-	} else
+		memset(raw_eye_data, 0, EYE_TOTAL_BYTES);
+	} else {
 		printk_sds_eye_diagram_usage();
-
+	}
 	return count;
 }
 
@@ -2934,6 +2223,7 @@ static ssize_t aeon_force_mdi_mode_write_proc(struct file *file, const char __us
 		pr_info("Force mdi/mdix mode successfully!\n");
 	} else
 		printk_force_mdi_mode_usage();
+
 
 	return count;
 }
@@ -3067,6 +2357,7 @@ static ssize_t aeon_synce_slave_mode2_write_proc(struct file *file, const char _
 	if (parse_cmd_args(val_string, &cmdinfo, 3) != 0)
 		return -EINVAL;
 
+
 	if (!strcmp(cmdinfo.cmd, "synce_slave_mode2")) {
 		if (cmdinfo.argc != 3)
 			return -EINVAL;
@@ -3098,112 +2389,90 @@ static ssize_t aeon_synce_slave_mode2_write_proc(struct file *file, const char _
 	return count;
 }
 
-static ssize_t aeon_read_log_read_proc(struct file *file, char __user *buffer,
-				       size_t count, loff_t *pos)
-{
-	printk_phylog_usage();
+static const struct file_operations aeon_set_speed_mode_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_speed_mode_read_proc,
+	.write = aeon_speed_mode_write_proc,
+};
 
-	return 0;
-}
+static const struct file_operations aeon_set_mdi_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_mdi_cfg_read_proc,
+	.write = aeon_mdi_cfg_write_proc,
+};
 
-static ssize_t aeon_read_log_write_proc(struct file *file, const char __user *buffer,
-					size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	unsigned short log_size = 0, buf_size = 0, wptr = 0,  i = 0;
-	char *log_raw = NULL;
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
+static const struct file_operations aeon_set_sds_pcs_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds_pcs_cfg_read_proc,
+	.write = aeon_sds_pcs_cfg_write_proc,
+};
 
-	if (count >= sizeof(val_string))
-		return -EINVAL;
+static const struct file_operations aeon_set_sds_pma_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sds_pma_cfg_read_proc,
+	.write = aeon_sds_pma_cfg_write_proc,
+};
 
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
+static const struct file_operations aeon_fw_version_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_fw_version_read_proc,
+	.write = aeon_fw_version_write_proc,
+};
 
-	val_string[count] = '\0';
+static const struct file_operations aeon_restart_an_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_restart_an_read_proc,
+	.write = aeon_restart_an_write_proc,
+};
 
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
+static const struct file_operations aeon_set_led_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_set_led_read_proc,
+	.write = aeon_set_led_write_proc,
+};
 
-	if (!strcmp(cmdinfo.cmd, "readlog")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_log_size(&log_size, phydev);
-		pr_info("AEON console log, available: %u bytes\n", log_size);
+static const struct file_operations aeon_temp_monitor_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_temp_monitor_read_proc,
+	.write = aeon_temp_monitor_write_proc,
+};
 
-		log_raw = kcalloc(log_size + 1, 1, GFP_KERNEL);
-		if (!log_raw)
-			return -EINVAL;
+static const struct file_operations aeon_set_sys_reboot_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_sys_reboot_read_proc,
+	.write = aeon_sys_reboot_write_proc,
+};
 
-		while (log_size > wptr) {
-			buf_size = log_size - wptr;
-			if (buf_size > IPC_PAYLOAD_SIZE)
-				buf_size = IPC_PAYLOAD_SIZE;
+static const struct file_operations aeon_read_reg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_read_reg_read_proc,
+	.write = aeon_read_reg_write_proc,
+};
 
-			aeon_ipc_read_log(buf_size, wptr, log_raw, phydev);
-			wptr += buf_size;
-		}
+static const struct file_operations aeon_write_reg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_write_reg_read_proc,
+	.write = aeon_write_reg_write_proc,
+};
 
-		log_raw[log_size] = '\0';
+static const struct file_operations aeon_get_eth_status_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_eth_status_read_proc,
+	.write = aeon_eth_status_write_proc,
+};
 
-		for (i = 0; i < (log_size + 1); i++)
-			pr_info("%c", log_raw[i]);
-
-		pr_info("aeon_read_log_end\r\n");
-
-		kfree(log_raw);
-	} else if (!strcmp(cmdinfo.cmd, "cleanlog")) {
-		aeon_ipc_sync_parity(phydev);
-		aeon_ipc_log_clean(phydev);
-		pr_info("clean aeon log successfully\r\n");
-	} else
-		printk_phylog_usage();
-
-	return count;
-}
-
-static ssize_t aeon_enable_an_read_proc(struct file *file, char __user *buffer,
-					size_t count, loff_t *pos)
-{
-	printk_enable_an_usage();
-
-	return 0;
-}
-
-static ssize_t aeon_enable_an_write_proc(struct file *file, const char __user *buffer,
-					 size_t count, loff_t *pos)
-{
-	struct phy_device *phydev = file->private_data;
-	char val_string[MAX_BUF] = {0};
-	struct parsed_cmd cmdinfo = {0};
-
-	if (count >= sizeof(val_string))
-		return -EINVAL;
-
-	if (copy_from_user(val_string, buffer, count))
-		return -EFAULT;
-
-	val_string[count] = '\0';
-
-	if (parse_cmd_args(val_string, &cmdinfo, 1) != 0)
-		return -EINVAL;
-
-	if (!strcmp(cmdinfo.cmd, "enableAN")) {
-		if (cmdinfo.argc != 1)
-			return -EINVAL;
-
-		aeon_ipc_sync_parity(phydev);
-		aeon_cu_an_enable(cmdinfo.args[0], phydev);
-		pr_info("Enable/Disable AN successfully!\n");
-	} else
-		printk_enable_an_usage();
-
-	return count;
-}
-
-/******************************************************************************
- * Register debugfs Read/Write Func
- *****************************************************************************/
 #ifndef AEON_SEI2
 static const struct file_operations aeon_mdc_timing_fops = {
 	.owner = THIS_MODULE,
@@ -3295,86 +2564,14 @@ static const struct file_operations aeon_sds_txfir = {
 	.read = aeon_sds_txfir_read_proc,
 	.write = aeon_sds_txfir_write_proc,
 };
-
-static const struct file_operations aeon_ra_mode = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_ra_mode_read_proc,
-	.write = aeon_ra_mode_write_proc,
-};
-
-static const struct file_operations aeon_traffic_loopback = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_traffic_loopback_read_proc,
-	.write = aeon_traffic_loopback_write_proc,
-};
-
-static const struct file_operations aeon_restart_sds = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_restart_read_proc,
-	.write = aeon_sds_restart_write_proc,
-};
-
-#else
-static const struct file_operations aeon_dpc_fc = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_dpc_fc_read_proc,
-	.write = aeon_dpc_fc_write_proc,
-};
-
-static const struct file_operations aeon_dpc_eee = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_dpc_eee_mode_read_proc,
-	.write = aeon_dpc_eee_mode_write_proc,
-};
-
-static const struct file_operations aeon_dpc_buffer = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_dpc_buffer_mode_read_proc,
-	.write = aeon_dpc_buffer_mode_write_proc,
-};
-
-static const struct file_operations aeon_eee_clk_mode = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_eee_clk_read_proc,
-	.write = aeon_eee_clk_write_proc,
-};
-
-static const struct file_operations aeon_sds_eq_mode = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_eq_read_proc,
-	.write = aeon_sds_eq_write_proc,
-};
-
-static const struct file_operations aeon_i2c_enable = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_i2c_enable_read_proc,
-	.write = aeon_i2c_enable_write_proc,
-};
-
-static const struct file_operations aeon_fifofull_th = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_fifofull_th_read_proc,
-	.write = aeon_fifofull_th_write_proc,
-};
-
-static const struct file_operations aeon_tm5_gain = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_tm5_gain_idx_read_proc,
-	.write = aeon_tm5_gain_idx_write_proc,
-};
 #endif
 
+static const struct file_operations aeon_phy_enable_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = aeon_phy_enable_read_proc,
+	.write = aeon_phy_enable_write_proc,
+};
 #ifdef DUAL_FLASH
 static const struct file_operations aeon_burn_flash_image_fops = {
 	.owner = THIS_MODULE,
@@ -3389,98 +2586,6 @@ static const struct file_operations aeon_erase_flash_fops = {
 	.write = aeon_erase_flash_write_proc,
 };
 #endif
-
-static const struct file_operations aeon_set_speed_mode_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_speed_mode_read_proc,
-	.write = aeon_speed_mode_write_proc,
-};
-
-static const struct file_operations aeon_set_mdi_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_mdi_cfg_read_proc,
-	.write = aeon_mdi_cfg_write_proc,
-};
-
-static const struct file_operations aeon_set_sds_pcs_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_pcs_cfg_read_proc,
-	.write = aeon_sds_pcs_cfg_write_proc,
-};
-
-static const struct file_operations aeon_set_sds_pma_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sds_pma_cfg_read_proc,
-	.write = aeon_sds_pma_cfg_write_proc,
-};
-
-static const struct file_operations aeon_fw_version_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_fw_version_read_proc,
-	.write = aeon_fw_version_write_proc,
-};
-
-static const struct file_operations aeon_restart_an_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_restart_an_read_proc,
-	.write = aeon_restart_an_write_proc,
-};
-
-static const struct file_operations aeon_set_led_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_set_led_read_proc,
-	.write = aeon_set_led_write_proc,
-};
-
-static const struct file_operations aeon_temp_monitor_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_temp_monitor_read_proc,
-	.write = aeon_temp_monitor_write_proc,
-};
-
-static const struct file_operations aeon_set_sys_reboot_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_sys_reboot_read_proc,
-	.write = aeon_sys_reboot_write_proc,
-};
-
-static const struct file_operations aeon_read_reg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_read_reg_read_proc,
-	.write = aeon_read_reg_write_proc,
-};
-
-static const struct file_operations aeon_write_reg_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_write_reg_read_proc,
-	.write = aeon_write_reg_write_proc,
-};
-
-static const struct file_operations aeon_get_eth_status_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_eth_status_read_proc,
-	.write = aeon_eth_status_write_proc,
-};
-
-static const struct file_operations aeon_phy_enable_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_phy_enable_read_proc,
-	.write = aeon_phy_enable_write_proc,
-};
-
 static const struct file_operations aeon_test_mode_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -3586,38 +2691,12 @@ static const struct file_operations aeon_synce_slave_mode2 = {
 	.write = aeon_synce_slave_mode2_write_proc,
 };
 
-static const struct file_operations aeon_read_log = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_read_log_read_proc,
-	.write = aeon_read_log_write_proc,
-};
-
-static const struct file_operations aeon_enable_an = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_enable_an_read_proc,
-	.write = aeon_enable_an_write_proc,
-};
-
-static const struct file_operations aeon_dbg_dump = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = aeon_dbg_dump_read_proc,
-	.write = aeon_dbg_dump_write_proc,
-};
-
 int as21xxx_debugfs_init(struct phy_device *phydev)
 {
 	struct as21xxx_priv *priv = phydev->priv;
 	struct an_mdi_cfg *__priv_data = &priv->mdi_cfg;
 	struct dentry *dir = priv->debugfs_root;
 	int ret = 0;
-
-	if (!phydev) {
-		phydev_err(phydev, "%s:phydevice is NULL\n", __func__);
-		return -EINVAL;
-	}
 
 	dir = debugfs_create_dir(dev_name(&phydev->mdio.dev), NULL);
 	if (!dir) {
@@ -3685,29 +2764,6 @@ int as21xxx_debugfs_init(struct phy_device *phydev)
 			    &aeon_auto_link);
 	debugfs_create_file("aeon_sds_txfir", 0644, dir, phydev,
 			    &aeon_sds_txfir);
-	debugfs_create_file("aeon_ra_mode", 0644, dir, phydev,
-			    &aeon_ra_mode);
-	debugfs_create_file("aeon_traffic_loopback", 0644, dir, phydev,
-			    &aeon_traffic_loopback);
-	debugfs_create_file("aeon_sds_restart", 0644, dir, phydev,
-			    &aeon_restart_sds);
-#else
-	debugfs_create_file("aeon_dpc_fc", 0644, dir, phydev,
-			    &aeon_dpc_fc);
-	debugfs_create_file("aeon_eee_mode", 0644, dir, phydev,
-			    &aeon_dpc_eee);
-	debugfs_create_file("aeon_buffer_mode", 0644, dir, phydev,
-			    &aeon_dpc_buffer);
-	debugfs_create_file("aeon_eee_clk", 0644, dir, phydev,
-			    &aeon_eee_clk_mode);
-	debugfs_create_file("aeon_sds_eq", 0644, dir, phydev,
-			    &aeon_sds_eq_mode);
-	debugfs_create_file("aeon_i2c_enable", 0644, dir, phydev,
-			    &aeon_i2c_enable);
-	debugfs_create_file("aeon_fifofull_th", 0644, dir, phydev,
-			    &aeon_fifofull_th);
-	debugfs_create_file("aeon_tm5_gain", 0644, dir, phydev,
-			    &aeon_tm5_gain);
 #endif
 	debugfs_create_file("aeon_read_reg", 0644, dir, phydev,
 			    &aeon_read_reg_fops);
@@ -3753,12 +2809,6 @@ int as21xxx_debugfs_init(struct phy_device *phydev)
 			    &aeon_synce_slave_mode1);
 	debugfs_create_file("aeon_synce_slave_mode2", 0644, dir, phydev,
 			    &aeon_synce_slave_mode2);
-	debugfs_create_file("aeon_read_log", 0644, dir, phydev,
-			    &aeon_read_log);
-	debugfs_create_file("aeon_enable_an", 0644, dir, phydev,
-			    &aeon_enable_an);
-	debugfs_create_file("aeon_dbg_dump", 0644, dir, phydev,
-			    &aeon_dbg_dump);
 
 	priv->debugfs_root = dir;
 
