@@ -941,6 +941,38 @@ static void mt798x_2p5ge_phy_remove(struct phy_device *phydev)
 	phydev->priv = NULL;
 }
 
+int mt798x_2p5ge_phy_write_mmd(struct phy_device *phydev, int devnum,
+				      u16 regnum, u16 val)
+{
+	int ret;
+
+	if (devnum > 32)
+		return -EINVAL;
+
+	if (phydev->is_c45) {
+		u32 addr = MII_ADDR_C45 | (devnum << 16) | regnum;
+
+		ret = __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
+				      addr, val);
+	} else {
+		struct mii_bus *bus = phydev->mdio.bus;
+		int phy_addr = phydev->mdio.addr;
+
+		__mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devnum);
+		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
+		__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
+				devnum | MII_MMD_CTRL_NOINCR);
+
+		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
+
+		ret = 0;
+	}
+
+	usleep_range(7000, 8000);
+
+	return ret;
+}
+
 static struct phy_driver mtk_2p5gephy_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7987),
@@ -959,6 +991,7 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.resume = genphy_resume,
 		.read_page = mtk_phy_read_page,
 		.write_page = mtk_phy_write_page,
+		.write_mmd = mt798x_2p5ge_phy_write_mmd,
 	},
 	{
 		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7988),
@@ -977,6 +1010,7 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.resume = genphy_resume,
 		.read_page = mtk_phy_read_page,
 		.write_page = mtk_phy_write_page,
+		.write_mmd = mt798x_2p5ge_phy_write_mmd,
 	},
 };
 
