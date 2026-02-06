@@ -137,7 +137,7 @@
 +};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-1pcie-2L.dtso
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,38 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -167,10 +167,18 @@
 +			status = "disabled";
 +		};
 +	};
++
++	fragment@2 {
++		target-path = "/soc/phy@11e4a000";
++		__overlay__ {
++			mediatek,1port-2lane;
++			status = "okay";
++		};
++	};
 +};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-2pcie-1L.dtso
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,39 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -197,6 +205,14 @@
 +	fragment@1 {
 +		target-path = "/soc/pcie@11290000";
 +		__overlay__ {
++			status = "okay";
++		};
++	};
++
++	fragment@2 {
++		target-path = "/soc/phy@11e4a000";
++		__overlay__ {
++			mediatek,2port-1lane;
 +			status = "okay";
 +		};
 +	};
