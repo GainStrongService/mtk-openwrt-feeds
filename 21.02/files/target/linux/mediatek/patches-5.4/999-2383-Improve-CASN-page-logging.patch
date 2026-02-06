@@ -1,0 +1,170 @@
+--- a/drivers/mtd/nand/spi/core.c
++++ b/drivers/mtd/nand/spi/core.c
+@@ -1132,10 +1132,9 @@ finish:
+ 	if (final_ret)
+ 		return final_ret;
+ 
+-	if (check_ret) {
+-		dev_err(dev, "CASN page check failed\n");
++	/* CASN page check failed, try other ways. */
++	if (check_ret)
+ 		return check_ret;
+-	}
+ 
+ 	if (ret)
+ 		dev_err(dev, "CASN page read failed\n");
+@@ -1174,7 +1173,7 @@ static int spinand_id_detect(struct spin
+ 
+ static int spinand_manufacturer_init(struct spinand_device *spinand)
+ {
+-	if (!spinand->use_casn && spinand->manufacturer->ops->init)
++	if (spinand->manufacturer && spinand->manufacturer->ops->init)
+ 		return spinand->manufacturer->ops->init(spinand);
+ 
+ 	return 0;
+@@ -1183,7 +1182,7 @@ static int spinand_manufacturer_init(str
+ static void spinand_manufacturer_cleanup(struct spinand_device *spinand)
+ {
+ 	/* Release manufacturer private data */
+-	if (!spinand->use_casn && spinand->manufacturer->ops->cleanup)
++	if (spinand->manufacturer && spinand->manufacturer->ops->cleanup)
+ 		return spinand->manufacturer->ops->cleanup(spinand);
+ }
+ 
+@@ -1255,30 +1254,32 @@ int spinand_match_and_init(struct spinan
+ 		if (memcmp(id + 1, info->devid.id, info->devid.len))
+ 			continue;
+ 
+-		nand->memorg = table[i].memorg;
+-		nand->eccreq = table[i].eccreq;
+-		spinand->eccinfo = table[i].eccinfo;
+-		spinand->flags = table[i].flags;
+-		spinand->id.len = 1 + table[i].devid.len;
+-		spinand->select_target = table[i].select_target;
+-
+-		op = spinand_select_op_variant(spinand,
+-					       info->op_variants.read_cache);
+-		if (!op)
+-			return -ENOTSUPP;
+-
+-		spinand->op_templates.read_cache = op;
+-
+-		op = spinand_select_op_variant(spinand,
+-					       info->op_variants.write_cache);
+-		if (!op)
+-			return -ENOTSUPP;
+-
+-		spinand->op_templates.write_cache = op;
+-
+-		op = spinand_select_op_variant(spinand,
+-					       info->op_variants.update_cache);
+-		spinand->op_templates.update_cache = op;
++		if (!spinand->use_casn) {
++			nand->memorg = table[i].memorg;
++			nand->eccreq = table[i].eccreq;
++			spinand->eccinfo = table[i].eccinfo;
++			spinand->flags = table[i].flags;
++			spinand->id.len = 1 + table[i].devid.len;
++			spinand->select_target = table[i].select_target;
++
++			op = spinand_select_op_variant(spinand,
++						       info->op_variants.read_cache);
++			if (!op)
++				return -ENOTSUPP;
++
++			spinand->op_templates.read_cache = op;
++
++			op = spinand_select_op_variant(spinand,
++						       info->op_variants.write_cache);
++			if (!op)
++				return -ENOTSUPP;
++
++			spinand->op_templates.write_cache = op;
++
++			op = spinand_select_op_variant(spinand,
++						       info->op_variants.update_cache);
++			spinand->op_templates.update_cache = op;
++		}
+ 
+ 		return 0;
+ 	}
+@@ -1686,6 +1687,17 @@ static int spinand_detect(struct spinand
+ 	if (!casn)
+ 		return -ENOMEM;
+ 
++	/*
++	 * Three initialization paths:
++	 * 1. CASN page + ID probe
++	 *    - CASN provides: memorg, eccreq, eccinfo, flags, select_target
++	 *    - ID probe adds: configure_chip, set_cont_read, fact_otp, user_otp,
++	 *      read_retries, set_read_retry
++	 * 2. Pure CASN page
++	 *    - Only CASN info, manufacturer-specific fields remain NULL/0
++	 * 3. Pure ID probe
++	 *    - Traditional detection, all fields from manufacturer table
++	 */
+ 	ret = spinand_casn_detect(spinand, casn, &sel);
+ 	if (!ret) {
+ 		spinand->use_casn = true;
+@@ -1697,24 +1709,25 @@ static int spinand_detect(struct spinand
+ 		spinand_dump_casn(spinand, casn + sel);
+ 
+ 		ret = spinand_init_via_casn(spinand, casn + sel);
+-		if (ret)
++		if (ret) {
+ 			dev_err(dev, "Initilize spinand via CASN failed: %d\n", ret);
++			goto free_casn;
++		}
+ 	}
+ 
+-	if (ret < 0) {
+-		dev_warn(dev, "Fallback to read ID\n");
++	ret = spinand_reset_op(spinand);
++	if (ret)
++		goto free_casn;
+ 
+-		ret = spinand_reset_op(spinand);
+-		if (ret)
+-			goto free_casn;
+-		ret = spinand_id_detect(spinand);
+-		if (ret) {
+-			dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
+-				spinand->id.data);
+-			goto free_casn;
+-		}
++	ret = spinand_id_detect(spinand);
++	if (ret && spinand->use_casn == false) {
++		dev_err(dev, "CASN page doesn't exist and unknown raw ID %*phN\n",
++			SPINAND_MAX_ID_LEN, spinand->id.data);
++		goto free_casn;
+ 	}
+ 
++	/* Since spinand_id_detect returns unsupported if ID probe fails, we should reset this flag. */
++	ret = 0;
+ 	if (nand->memorg.ntargets > 1 && !spinand->select_target) {
+ 		dev_err(dev,
+ 			"SPI NANDs with more than one die must implement ->select_target()\n");
+@@ -1723,11 +1736,19 @@ static int spinand_detect(struct spinand
+ 	}
+ 
+ 	if (spinand->use_casn) {
+-		dev_info(&spinand->spimem->spi->dev,
+-			 "%s %s SPI NAND was found.\n", manufacturer, model);
++		if (spinand->manufacturer) {
++			/* Path 1: CASN page + ID probe */
++			dev_info(dev, "%s %s SPI NAND was found by CASN page v%u.%02u and ID probe\n",
++				 manufacturer, model, casn[sel].version >> 4, casn[sel].version & 0xf);
++		} else {
++			/* Path 2: Pure CASN page */
++			dev_info(dev, "%s %s SPI NAND was found by pure CASN page v%u.%02u\n",
++				 manufacturer, model, casn[sel].version >> 4, casn[sel].version & 0xf);
++		}
+ 	} else {
+-		dev_info(&spinand->spimem->spi->dev,
+-			 "%s SPI NAND was found.\n", spinand->manufacturer->name);
++		/* Path 3: Pure ID probe */
++		dev_info(dev, "%s SPI NAND was found by ID probe.\n",
++			 spinand->manufacturer->name);
+ 	}
+ 
+ 	dev_info(&spinand->spimem->spi->dev,
