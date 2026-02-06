@@ -5,9 +5,9 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: remove pextp reset for SerDes
  phy
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 37 ---------------------
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 38 ---------------------
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  1 -
- 2 files changed, 38 deletions(-)
+ 2 files changed, 39 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 index 837d20c..24e4028 100644
@@ -79,7 +79,7 @@ index 837d20c..24e4028 100644
  	return 0;
  }
  
-@@ -5091,17 +5065,6 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
+@@ -5091,18 +5065,6 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
  		}
  	}
  
@@ -90,7 +90,8 @@ index 837d20c..24e4028 100644
 -				dev_err(eth->dev, "cannot get PHY, error %ld\n",
 -					PTR_ERR(mac->pextp));
 -
--			return PTR_ERR(mac->pextp);
+-			err = PTR_ERR(mac->pextp);
+-			goto free_netdev;
 -		}
 -	}
 -
