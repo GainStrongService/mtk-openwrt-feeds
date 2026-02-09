@@ -4,13 +4,13 @@ Date: Thu, 10 Apr 2025 23:10:21 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor SER monitor
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 221 ++++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 222 ++++++++++++++++----
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  29 ++-
- 2 files changed, 211 insertions(+), 39 deletions(-)
+ 2 files changed, 212 insertions(+), 39 deletions(-)
 
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4413,80 +4413,231 @@ static void mtk_hw_warm_reset(struct mtk
+@@ -4413,80 +4413,232 @@ static void mtk_hw_warm_reset(struct mtk
  			val, rst_mask);
  }
  
@@ -175,7 +175,8 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor SER monitor
 +
 +		/* GMAC Tx */
 +		gmac_tx = FIELD_GET(GENMASK(31, 24), mtk_r32(eth, MTK_MAC_FSM(i))) != 1;
-+		if (oq_hang && gmac_tx && (txgp_cnt == eth->reset.gdm_txgp_cnt[i])) {
++		if (oq_hang && gmac_tx && (txgp_cnt == eth->reset.gdm_txgp_cnt[i]) &&
++		    (rxfc_cnt == eth->reset.gdm_rxfc_cnt[i])) {
 +			if (++eth->reset.mac_tx_hang_count[i] > 2) {
 +				dev_warn(eth->dev, "detect GMAC%d Tx hang!\n", i + 1);
 +				eth->reset.mac_tx_hang_count[i] = 0;

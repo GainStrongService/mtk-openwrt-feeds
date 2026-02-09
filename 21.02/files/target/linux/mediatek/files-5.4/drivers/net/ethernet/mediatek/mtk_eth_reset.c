@@ -1067,6 +1067,7 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 
 		gmac_tx = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
 		if (gmac_tx && (cur_tx_cnt == gdm_tx->pre_tx_cnt[i]) &&
+		    (cur_rxfc_cnt == gdm_tx->pre_rxfc_cnt[i]) &&
 		    (cur_opq_gdm > 0)) {
 			gdm_tx->hang_count_gmac[i]++;
 			if (gdm_tx->hang_count_gmac[i] >= 5) {
