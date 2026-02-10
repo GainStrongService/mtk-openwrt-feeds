@@ -17,7 +17,7 @@ define Package/overlayfs-encryption
   CATEGORY:=MTK Properties
   SUBMENU:=Misc
   TITLE:=overlayfs_encryption
-  DEPENDS:=+keyctl +dmsetup +optee-mediatek +blockdev
+  DEPENDS:=+keyctl +dmsetup +optee-apps +blockdev
   KCONFIG:= \
 	CONFIG_KEYS=y \
 	CONFIG_TRUSTED_KEYS=y \
