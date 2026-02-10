@@ -11,7 +11,7 @@
 	model = "MediaTek / Arcadyan - Mozart";
 
 	aliases {
-		serial0 = &uart0;
+		serial0 = &serial0;
 		led-boot = &led_status_blue;
 		led-failsafe = &led_status_red;
 		led-running = &led_status_green;
@@ -64,6 +64,15 @@
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&pio 14 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		#thermal-sensor-cells = <1>;
+		/* cooling level (0, 1, 2) : (0% duty, 50% duty, 100% duty) */
+		cooling-levels = <0 128 255>;
+		pwms = <&pwm 1 40000 0>;
 	};
 };
 
@@ -179,16 +188,11 @@
 	};
 };
 
-&uart1 {
-	status = "okay";
-};
-
-&fan {
-	pwms = <&pwm 1 40000 0>;
-	status = "okay";
-};
-
 &pwm {
+	status = "okay";
+};
+
+&serial1 {
 	status = "okay";
 };
 
