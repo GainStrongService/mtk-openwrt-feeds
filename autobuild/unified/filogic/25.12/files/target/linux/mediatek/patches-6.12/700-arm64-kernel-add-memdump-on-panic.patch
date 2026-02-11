@@ -1,6 +1,6 @@
 --- a/arch/arm64/include/asm/memdump.h
 +++ b/arch/arm64/include/asm/memdump.h
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,17 @@
 +/* SPDX-License-Identifier: GPL-2.0-only */
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -14,7 +14,8 @@
 +struct pt_regs;
 +
 +void arm64_atf_memory_dump(int reboot_timeout);
-+void arm64_atf_memory_dump_save_regs(struct pt_regs *regs);
++void arm64_atf_memory_dump_save_info(struct pt_regs *regs);
++void arm64_atf_memory_dump_save_cpu_regs(struct pt_regs *regs, unsigned int cpu);
 +
 +#endif /* _ARM64_MEMDUMP_H_ */
 --- a/arch/arm64/kernel/Makefile
@@ -38,13 +39,16 @@
  subdir- += vdso vdso32
 --- a/arch/arm64/kernel/memdump.c
 +++ b/arch/arm64/kernel/memdump.c
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,219 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
 + *
 + * Author: Weijie Gao <weijie.gao@mediatek.com>
 + */
++
++#define CONFIG_CRASH_DUMP	1
++#define CONFIG_KEXEC_CORE	1
 +
 +#include <linux/kernel.h>
 +#include <linux/arm-smccc.h>
@@ -53,8 +57,6 @@
 +#include <linux/ioport.h>
 +#include <linux/reboot.h>
 +#include <linux/crc32.h>
-+
-+#define CONFIG_KEXEC_CORE
 +#include <linux/kexec.h>
 +#include <asm/kexec.h>
 +#include <asm/cacheflush.h>
@@ -183,13 +185,6 @@
 +void arm64_atf_memory_dump(int reboot_timeout)
 +{
 +	struct arm_smccc_res res;
-+	struct pt_regs regs;
-+
-+	crash_setup_regs(&regs, NULL);
-+	crash_save_vmcoreinfo();
-+
-+	/* for crashing cpu */
-+	crash_save_cpu(&regs, smp_processor_id());
 +
 +	prepare_mdump_core_info();
 +
@@ -201,13 +196,34 @@
 +	pr_err("Memory dump SMCC failed\n");
 +}
 +
-+void arm64_atf_memory_dump_save_regs(struct pt_regs *regs)
++void arm64_atf_memory_dump_save_info(struct pt_regs *regs)
 +{
++	struct pt_regs *saved_regs = (struct pt_regs *)mdump_panic_regs;
++	struct pt_regs fixed_regs;
++	u32 cpu = smp_processor_id();
++
++	crash_setup_regs(&fixed_regs, regs);
++	crash_save_vmcoreinfo();
++
++	/* for crashing cpu */
++	crash_save_cpu(&fixed_regs, cpu);
++
 +	mdump_core_info->panic_regs_valid = true;
 +
-+	memcpy(mdump_panic_regs, regs, sizeof(*regs));
++	memcpy(saved_regs, regs, sizeof(*regs));
 +
-+	dcache_clean_inval_poc((unsigned long)mdump_panic_regs, sizeof(*regs));
++	dcache_clean_inval_poc((unsigned long)saved_regs, sizeof(*regs));
++
++	arm64_atf_memory_dump_save_cpu_regs(regs, cpu);
++}
++
++void arm64_atf_memory_dump_save_cpu_regs(struct pt_regs *regs, unsigned int cpu)
++{
++	struct pt_regs *saved_regs = (struct pt_regs *)mdump_panic_regs;
++
++	memcpy(&saved_regs[cpu + 1], regs, sizeof(*regs));
++
++	dcache_clean_inval_poc((unsigned long)&saved_regs[cpu + 1], sizeof(*regs));
 +}
 +
 +/* dummy functions */
@@ -245,16 +261,34 @@
 +subsys_initcall(memdump_core_info_init);
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
-@@ -31,6 +31,8 @@
- #include <linux/of.h>
- #include <linux/irq_work.h>
- #include <linux/kernel_stat.h>
-+
+@@ -6,6 +6,8 @@
+  * Copyright (C) 2012 ARM Ltd.
+  */
+ 
++#define CONFIG_CRASH_DUMP	1
 +#define CONFIG_KEXEC_CORE	1
- #include <linux/kexec.h>
- #include <linux/kgdb.h>
- #include <linux/kvm_host.h>
-@@ -970,10 +972,13 @@ static void do_handle_IPI(int ipinr)
+ #include <linux/acpi.h>
+ #include <linux/arm_sdei.h>
+ #include <linux/delay.h>
+@@ -55,6 +57,8 @@
+ 
+ #include <trace/events/ipi.h>
+ 
++#include <asm/memdump.h>
++
+ /*
+  * as from 2.5, kernels no longer have an init_tasks structure
+  * so we need some other way of telling a new secondary core
+@@ -903,6 +907,8 @@ static void __noreturn ipi_cpu_crash_sto
+ 
+ 	crash_save_cpu(regs, cpu);
+ 
++	arm64_atf_memory_dump_save_cpu_regs(regs, cpu);
++
+ 	set_cpu_online(cpu, false);
+ 
+ 	sdei_mask_local_cpu();
+@@ -970,10 +976,13 @@ static void do_handle_IPI(int ipinr)
  
  	case IPI_CPU_STOP:
  	case IPI_CPU_STOP_NMI:
@@ -285,7 +319,7 @@
  	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
  	oops_exit();
  
-+	arm64_atf_memory_dump_save_regs(regs);
++	arm64_atf_memory_dump_save_info(regs);
 +
  	if (in_interrupt())
  		panic("%s: Fatal exception in interrupt", str);
