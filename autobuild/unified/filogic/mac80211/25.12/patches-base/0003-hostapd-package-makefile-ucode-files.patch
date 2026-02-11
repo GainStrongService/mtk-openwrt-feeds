@@ -32,7 +32,7 @@ index 3e14929352..a3451f1c35 100644
  	+libubus +libblobmsg-json \
 -	+libudebug
 -OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
-+	+libudebug +libcurl +libjson-c
++	+libudebug +libcurl
 +OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
  
  DRIVER_MAKEOPTS= \
@@ -88,7 +88,7 @@ index 3e14929352..a3451f1c35 100644
  	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
  
 -TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
-+TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug -lcurl -ljson-c
++TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug -lcurl
  
  ifdef CONFIG_WPA_ENABLE_WEP
      DRIVER_MAKEOPTS += CONFIG_WEP=y
