@@ -24,6 +24,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 
 #include "hnat.h"
+#include "hnat_api.h"
 #include "nf_hnat_mtk.h"
 #include "../mtk_eth_soc.h"
 #include "../mtk_eth_dbg.h"
@@ -3567,6 +3568,9 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_l2br_toggle_fops);
 	debugfs_create_file("l4s_toggle", 0444, root, h,
 			    &hnat_l4s_toggle_fops);
+
+	/* init manual_api debugfs node */
+	hnat_api_init_debugfs(root);
 
 	for (i = 0; i < hnat_priv->data->num_of_sch; i++) {
 		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);

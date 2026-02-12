@@ -27,6 +27,7 @@
 #include <net/netfilter/nf_conntrack_acct.h>
 
 #include "nf_hnat_mtk.h"
+#include "hnat_api.h"
 #include "hnat.h"
 
 #include "../mtk_eth_soc.h"
@@ -2848,6 +2849,9 @@ hnat_entry_bind:
 	hnat_foe_entry_commit(foe, &entry, BIND);
 	spin_unlock_bh(&hnat_priv->entry_lock);
 
+	if (hnat_bind_callback && IS_HNAT_API_SUPPORTED(&entry))
+		hnat_trigger_callback(hnat_bind_callback, skb);
+
 	/* reset statistic for this entry */
 	if (hnat_priv->data->per_flow_accounting &&
 	    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
@@ -3189,6 +3193,9 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	}
 	hnat_foe_entry_commit(hw_entry, &entry, BIND);
 	spin_unlock_bh(&hnat_priv->entry_lock);
+
+	if (hnat_bind_callback && IS_HNAT_API_SUPPORTED(&entry))
+		hnat_trigger_callback(hnat_bind_callback, skb);
 
 	/* reset statistic for this entry */
 	if (hnat_priv->data->per_flow_accounting) {
@@ -3762,6 +3769,11 @@ static unsigned int mtk_hnat_nf_post_routing(
 	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 
 	switch (skb_hnat_reason(skb)) {
+	case TCP_FIN_SYN_RST:
+		if (hnat_fin_callback && entry->bfib1.state == FIN &&
+		    IS_HNAT_API_SUPPORTED(entry))
+			hnat_trigger_callback(hnat_fin_callback, skb);
+		break;
 	case HIT_UNBIND_RATE_REACH:
 		if (entry_hnat_is_bound(entry))
 			break;
