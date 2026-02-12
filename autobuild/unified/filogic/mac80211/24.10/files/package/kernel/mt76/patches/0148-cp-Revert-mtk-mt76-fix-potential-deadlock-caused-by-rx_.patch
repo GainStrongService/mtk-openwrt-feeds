@@ -1,0 +1,50 @@
+From a7d2b7bb4ad7f5832883e675debb5cf03ca6b7eb Mon Sep 17 00:00:00 2001
+From: "meichia.chiu" <meichia.chiu@mediatek.com>
+Date: Thu, 5 Feb 2026 16:11:07 +0800
+Subject: [PATCH 4/4] Revert "mtk: mt76: fix potential deadlock caused by
+ rx_lock"
+
+This reverts commit 505a6677310b8cfd3792179ca8049b3976ff007d.
+
+Reason for revert: According to Felix's explanation, in order to handle cases of "TX request while doing RX", mt76 has introduced wcid->tx_list, which queues TX packets and will be scheduled after RX finished, so the deadlock cannot occur in the current codebase.
+
+---
+ dma.c | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/dma.c b/dma.c
+index 5f2ebb146..cd546e8be 100644
+--- a/dma.c
++++ b/dma.c
+@@ -667,8 +667,6 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 		.skb = skb,
+ 	};
+ 	struct mt76_dev *dev = phy->dev;
+-	struct ieee80211_tx_info *info;
+-	struct ieee80211_hdr *hdr;
+ 	struct ieee80211_hw *hw;
+ 	int len, n = 0, ret = -ENOMEM;
+ 	struct mt76_txwi_cache *t;
+@@ -762,16 +760,9 @@ free:
+ free_skb:
+ 	status.skb = tx_info.skb;
+ 	hw = mt76_tx_status_get_hw(dev, tx_info.skb);
+-	hdr = (struct ieee80211_hdr *)tx_info.skb->data;
+-	info = IEEE80211_SKB_CB(tx_info.skb);
+-	if ((info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) ||
+-	    ieee80211_is_data(hdr->frame_control)) {
+-		spin_lock_bh(&dev->rx_lock);
+-		ieee80211_tx_status_ext(hw, &status);
+-		spin_unlock_bh(&dev->rx_lock);
+-	} else {
+-		ieee80211_free_txskb(hw, tx_info.skb);
+-	}
++	spin_lock_bh(&dev->rx_lock);
++	ieee80211_tx_status_ext(hw, &status);
++	spin_unlock_bh(&dev->rx_lock);
+ 
+ 	return ret;
+ }
+-- 
+2.45.2
+

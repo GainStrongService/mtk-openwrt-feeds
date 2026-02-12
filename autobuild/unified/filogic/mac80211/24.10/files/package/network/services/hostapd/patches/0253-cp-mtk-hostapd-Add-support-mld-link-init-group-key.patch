@@ -1,0 +1,37 @@
+From 3135afd919d17f8508b8b11c4ee4db5328f779ce Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Fri, 9 Jan 2026 15:55:11 +0800
+Subject: [PATCH 4/6] mtk: hostapd: Add support mld link init group key
+
+Add support mld link init group key.
+Note that, for_each_sm_auth() didn't include the assoc link.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ src/ap/wpa_auth.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+index 44e548f3d..57f4ee2e8 100644
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -2639,9 +2639,16 @@ static void wpa_group_ensure_init(struct wpa_authenticator *wpa_auth,
+ 
+ SM_STATE(WPA_PTK, AUTHENTICATION2)
+ {
++	int link_id;
++
+ 	SM_ENTRY_MA(WPA_PTK, AUTHENTICATION2, wpa_ptk);
+ 
+ 	wpa_group_ensure_init(sm->wpa_auth, sm->group);
++#ifdef CONFIG_IEEE80211BE
++	for_each_sm_auth(sm, link_id)
++		wpa_group_ensure_init(sm->mld_links[link_id].wpa_auth,
++				      sm->mld_links[link_id].wpa_auth->group);
++#endif /* CONFIG_IEEE80211BE */
+ 	sm->ReAuthenticationRequest = false;
+ 
+ 	/*
+-- 
+2.45.2
+

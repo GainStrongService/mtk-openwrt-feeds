@@ -1,0 +1,37 @@
+From 389a94f76d885b3fe306a77358864eeab08e29fb Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 21 Jan 2026 16:14:59 +0800
+Subject: [PATCH 6/6] mtk: hostapd: handle the case that legacy STA send AUTH
+ with MLE
+
+Also do deauthentication if the original STA is an STA MLD.
+This aims to prevent the case that the STA initially connects as a
+legacy STA but sends a AUTH with MLE.
+
+In summary, the AP does de-authentication on the following cases
+1. An associated STA MLD sends an AUTH (no matter there is MLE or not)
+2. An associated legacy STA sends an AUTH with MLE
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ieee802_11.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index bf1c4a34a..ac648f2f6 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -3447,8 +3447,8 @@ static void handle_auth(struct hostapd_data *hapd,
+ #ifdef CONFIG_IEEE80211BE
+ 		/* TODO: When FTO successfully roams to target FTR,
+ 		 * we should clean up STA entry in current FTR. */
+-		if (mld_sta && auth_transaction == 1 && !sta->added_unassoc &&
+-		    auth_alg != WLAN_AUTH_FT) {
++		if ((mld_sta || ap_sta_is_mld(hapd, sta)) && auth_transaction == 1 &&
++		    !sta->added_unassoc && auth_alg != WLAN_AUTH_FT) {
+ 			wpa_printf(MSG_INFO,
+ 				   "receive AUTH from associated STA "MACSTR
+ 				   ", do deauthentication\n",
+-- 
+2.45.2
+

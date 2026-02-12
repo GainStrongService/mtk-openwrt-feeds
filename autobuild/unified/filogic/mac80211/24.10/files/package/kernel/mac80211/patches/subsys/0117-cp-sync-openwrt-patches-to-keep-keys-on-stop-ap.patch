@@ -1,0 +1,32 @@
+From 005ae602715ad652be1c6b35fb6a6d41f15d18fb Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 16 Jan 2026 17:27:30 +0800
+Subject: [PATCH] sync openwrt patches to keep keys on stop ap
+
+Sync missing patch for openwrt patches/subsys.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ net/mac80211/cfg.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 9f5d016c..8fb87302 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -1783,12 +1783,6 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+ 
+ 	__sta_info_flush(sdata, true, link_id, NULL);
+ 
+-	ieee80211_remove_link_keys(link, &keys);
+-	if (!list_empty(&keys)) {
+-		synchronize_net();
+-		ieee80211_free_key_list(local, &keys);
+-	}
+-
+ 	ieee80211_stop_mbssid(sdata);
+ 	RCU_INIT_POINTER(link_conf->tx_bss_conf, NULL);
+ 
+-- 
+2.45.2
+

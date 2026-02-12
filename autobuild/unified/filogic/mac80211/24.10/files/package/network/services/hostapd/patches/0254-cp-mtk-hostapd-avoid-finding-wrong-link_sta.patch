@@ -1,0 +1,37 @@
+From 19baaae82fdf2cb3b157fae5a1f74a3845e56334 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 19 Jan 2026 11:30:02 +0800
+Subject: [PATCH 5/6] mtk: hostapd: avoid finding wrong link_sta
+
+The STA MLD might not connect to all the AP MLD's link, and there
+might be no sta_info on some hapd of the AP MLD.
+
+In such case, passing the hapd that does not contain sta_info to
+ap_get_sta() makes it return the sta_info on the STA MLD's setup
+link, causing that 'tmp_sta' does not match the 'h' in the for-loop.
+We want to avoid such case, but the original check in the if-clause
+was wrong.
+
+Fix the logic to avoid the mis-matching problem.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ctrl_iface_ap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 797305703..2cbe51dd7 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -633,7 +633,7 @@ int hostapd_ctrl_iface_sta_next(struct hostapd_data *hapd, const char *txtaddr,
+ 		for_each_mld_link(h, hapd) {
+ 			tmp_sta = ap_get_sta(h, addr);
+ 			if (tmp_sta && (!tmp_sta->mld_info.mld_sta ||
+-					tmp_sta == tmp_sta->mld_assoc_sta)) {
++			    tmp_sta->mld_assoc_link_id == h->mld_link_id)) {
+ 				sta = tmp_sta;
+ 				tmp_hapd = h;
+ 				break;
+-- 
+2.45.2
+
