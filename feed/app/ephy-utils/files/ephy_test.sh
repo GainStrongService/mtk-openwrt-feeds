@@ -164,7 +164,7 @@ fi
 
 if [ "${an_type}" = "ifconfig" ] || [ "${an_type}" = "phy_power_downup" ]
 then
-	interface_down_time=2
+	interface_down_time=3
 elif [ "${an_type}" = "manual_plugin" ]
 then
 	interface_down_time=10
