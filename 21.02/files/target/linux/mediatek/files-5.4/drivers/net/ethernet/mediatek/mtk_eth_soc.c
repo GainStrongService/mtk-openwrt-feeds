@@ -610,7 +610,8 @@ static void mtk_set_mcr_max_rx(struct mtk_mac *mac, u32 val)
 
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr_cur = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
-		mcr_new = mcr_cur & ~MAC_MCR_MAX_RX_MASK;
+		mcr_new = mcr_cur & ~(MAC_MCR_MAX_RX_MASK |
+				      MAC_MCR_MAX_RX_JUMBO_MASK);
 
 		if (val <= 1518)
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1518);
@@ -620,7 +621,8 @@ static void mtk_set_mcr_max_rx(struct mtk_mac *mac, u32 val)
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1552);
 		else {
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_2048);
-			mcr_new |= MAC_MCR_MAX_RX_JUMBO;
+			mcr_new |= MAC_MCR_MAX_RX_JUMBO(DIV_ROUND_UP(val,
+							MTK_MAX_RX_LENGTH_UNIT));
 		}
 
 		if (mcr_new != mcr_cur)
@@ -4675,7 +4677,7 @@ static int mtk_open(struct net_device *dev)
 
 	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_9K) && mac->type == MTK_XGDM_TYPE)
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_9K))
 		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_9K - MTK_RX_ETH_HLEN;
 	else
 		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
@@ -5218,10 +5220,9 @@ static int mtk_change_mtu(struct net_device *dev, int new_mtu)
 	length = max_mtu + MTK_RX_ETH_HLEN;
 	if (length <= MTK_MAX_RX_LENGTH)
 		eth->rx_buf_len = MTK_MAX_RX_LENGTH;
-	else if (length <= MTK_MAX_RX_LENGTH_2K)
-		eth->rx_buf_len = MTK_MAX_RX_LENGTH_2K;
-	else if (length <= MTK_MAX_RX_LENGTH_9K)
-		eth->rx_buf_len = MTK_MAX_RX_LENGTH_9K;
+	else
+		eth->rx_buf_len = DIV_ROUND_UP(length, MTK_MAX_RX_LENGTH_UNIT) *
+				  MTK_MAX_RX_LENGTH_UNIT;
 
 	return 0;
 }
