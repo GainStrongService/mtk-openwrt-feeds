@@ -4671,7 +4671,8 @@ static int mtk_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->sgmii && eth->sgmii->pcs[id].regmap)
+	if (!phy_node && mac->interface == PHY_INTERFACE_MODE_SGMII &&
+	    eth->sgmii && eth->sgmii->pcs[id].regmap)
 		regmap_write(eth->sgmii->pcs[id].regmap,
 			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
@@ -4761,7 +4762,8 @@ static int mtk_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->sgmii && eth->sgmii->pcs[id].regmap) {
+	if (!phy_node && mac->interface == PHY_INTERFACE_MODE_SGMII &&
+	    eth->sgmii && eth->sgmii->pcs[id].regmap) {
 		regmap_read(eth->sgmii->pcs[id].regmap,
 			    SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
