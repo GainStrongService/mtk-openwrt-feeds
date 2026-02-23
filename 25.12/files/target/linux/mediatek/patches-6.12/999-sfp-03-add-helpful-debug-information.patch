@@ -1,6 +1,6 @@
-From 105fb14055cfee8f49ce1d7778e4524fd0e61e09 Mon Sep 17 00:00:00 2001
-From: "neal.yen" <neal.yen@mediatek.com>
-Date: Tue, 28 Oct 2025 11:22:30 +0800
+From f01b49ae6043e40a1953c8f5ef8951dea225c4a4 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Mon, 23 Feb 2026 10:30:52 +0800
 Subject: [PATCH] net: phy: sfp: add helpful debug information
 
 we provide the following information to help users resolve issues
@@ -11,11 +11,19 @@ efficiently:
 If debug messages is too annoying, user can disable it by "dmesg -n 7"
 command.
 
-Signed-off-by: neal.yen <neal.yen@mediatek.com>
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+---
+ drivers/net/phy/phylink.c     | 13 +++++++--
+ drivers/net/phy/sfp-bus.c     |  3 +++
+ drivers/net/phy/sfp.c         | 50 +++++++++++++++++++++++++++++------
+ include/linux/mdio/mdio-i2c.h | 16 +++++++++++
+ 4 files changed, 72 insertions(+), 10 deletions(-)
 
+diff --git a/drivers/net/phy/phylink.c b/drivers/net/phy/phylink.c
+index 8c2c342..3026ea4 100644
 --- a/drivers/net/phy/phylink.c
 +++ b/drivers/net/phy/phylink.c
-@@ -1717,6 +1717,15 @@ static void phylink_resolve(struct work_
+@@ -1726,6 +1726,15 @@ static void phylink_resolve(struct work_struct *w)
  				link_state.duplex = pl->phy_state.duplex;
  			}
  
@@ -31,7 +39,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  			/* If we have a PHY, we need to update with the PHY
  			 * flow control bits.
  			 */
-@@ -3420,7 +3429,7 @@ static void phylink_sfp_set_config(struc
+@@ -3429,7 +3438,7 @@ static void phylink_sfp_set_config(struct phylink *pl,
  	u8 mode = MLO_AN_INBAND;
  	bool changed = false;
  
@@ -40,7 +48,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  		    phylink_an_mode_str(mode), phy_modes(state->interface),
  		    __ETHTOOL_LINK_MODE_MASK_NBITS, supported);
  
-@@ -3513,7 +3522,7 @@ static int phylink_sfp_config_optical(st
+@@ -3523,7 +3532,7 @@ static int phylink_sfp_config_optical(struct phylink *pl)
  	phy_interface_t interface;
  	int ret;
  
@@ -49,21 +57,25 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  		    (int)PHY_INTERFACE_MODE_MAX,
  		    pl->config->supported_interfaces,
  		    (int)PHY_INTERFACE_MODE_MAX,
+diff --git a/drivers/net/phy/sfp-bus.c b/drivers/net/phy/sfp-bus.c
+index b771904..b7ceaa7 100644
 --- a/drivers/net/phy/sfp-bus.c
 +++ b/drivers/net/phy/sfp-bus.c
-@@ -342,6 +342,9 @@ void sfp_parse_support(struct sfp_bus *b
- 	if (bus->sfp_quirk && bus->sfp_quirk->modes)
- 		bus->sfp_quirk->modes(id, modes, interfaces);
+@@ -375,6 +375,9 @@ static void sfp_init_module(struct sfp_bus *bus,
  
-+	dev_info(bus->sfp_dev, "sfp: support mode %*pb\n",
-+		 __ETHTOOL_LINK_MODE_MASK_NBITS, modes);
+ 	if (quirk && quirk->support)
+ 		quirk->support(id, &bus->caps);
 +
- 	linkmode_or(support, support, modes);
++	dev_info(bus->sfp_dev, "sfp: support mode %*pb\n",
++		 __ETHTOOL_LINK_MODE_MASK_NBITS, bus->caps.link_modes);
  }
- EXPORT_SYMBOL_GPL(sfp_parse_support);
+ 
+ /**
+diff --git a/drivers/net/phy/sfp.c b/drivers/net/phy/sfp.c
+index c7b15df..58dcf19 100644
 --- a/drivers/net/phy/sfp.c
 +++ b/drivers/net/phy/sfp.c
-@@ -573,7 +573,7 @@ static bool sfp_match(const char *qs, co
+@@ -578,7 +578,7 @@ static bool sfp_match(const char *qs, const char *str, size_t len)
  	return !strncmp(qs, str, len);
  }
  
@@ -72,7 +84,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  {
  	const struct sfp_quirk *q;
  	unsigned int i;
-@@ -584,8 +584,14 @@ static const struct sfp_quirk *sfp_looku
+@@ -589,8 +589,14 @@ static const struct sfp_quirk *sfp_lookup_quirk(const struct sfp_eeprom_id *id)
  
  	for (i = 0, q = sfp_quirks; i < ARRAY_SIZE(sfp_quirks); i++, q++)
  		if (sfp_match(q->vendor, id->base.vendor_name, vs) &&
@@ -88,7 +100,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  
  	return NULL;
  }
-@@ -1706,14 +1712,14 @@ static void sfp_hwmon_exit(struct sfp *s
+@@ -1711,14 +1717,14 @@ static void sfp_hwmon_exit(struct sfp *sfp)
  /* Helpers */
  static void sfp_module_tx_disable(struct sfp *sfp)
  {
@@ -105,7 +117,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  		sfp->state & SFP_F_TX_DISABLE ? 1 : 0, 0);
  	sfp_mod_state(sfp, SFP_F_TX_DISABLE, 0);
  }
-@@ -1822,7 +1828,8 @@ static void sfp_sm_phy_detach(struct sfp
+@@ -1827,7 +1833,8 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
  static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
  {
  	struct phy_device *phy;
@@ -115,7 +127,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  
  	phy = get_phy_device(sfp->i2c_mii, addr, is_c45);
  	if (phy == ERR_PTR(-ENODEV))
-@@ -1843,6 +1850,30 @@ static int sfp_sm_probe_phy(struct sfp *
+@@ -1848,6 +1855,30 @@ static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
  		return err;
  	}
  
@@ -146,7 +158,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  	err = sfp_add_phy(sfp->sfp_bus, phy);
  	if (err) {
  		phy_device_remove(phy);
-@@ -1925,6 +1956,9 @@ static void sfp_sm_fault(struct sfp *sfp
+@@ -1930,6 +1961,9 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
  
  static int sfp_sm_add_mdio_bus(struct sfp *sfp)
  {
@@ -156,7 +168,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  	if (sfp->mdio_protocol != MDIO_I2C_NONE)
  		return sfp_i2c_mdiobus_create(sfp);
  
-@@ -2391,7 +2425,7 @@ static int sfp_sm_mod_probe(struct sfp *
+@@ -2396,7 +2430,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
  	else
  		sfp->mdio_protocol = MDIO_I2C_NONE;
  
@@ -165,7 +177,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  
  	mutex_lock(&sfp->st_mutex);
  	/* Initialise state bits to use from hardware */
-@@ -2744,7 +2778,7 @@ static void sfp_sm_main(struct sfp *sfp,
+@@ -2749,7 +2783,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  
  static void __sfp_sm_event(struct sfp *sfp, unsigned int event)
  {
@@ -174,7 +186,7 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  		mod_state_to_str(sfp->sm_mod_state),
  		dev_state_to_str(sfp->sm_dev_state),
  		sm_state_to_str(sfp->sm_state),
-@@ -2754,7 +2788,7 @@ static void __sfp_sm_event(struct sfp *s
+@@ -2759,7 +2793,7 @@ static void __sfp_sm_event(struct sfp *sfp, unsigned int event)
  	sfp_sm_module(sfp, event);
  	sfp_sm_main(sfp, event);
  
@@ -183,6 +195,8 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  		mod_state_to_str(sfp->sm_mod_state),
  		dev_state_to_str(sfp->sm_dev_state),
  		sm_state_to_str(sfp->sm_state));
+diff --git a/include/linux/mdio/mdio-i2c.h b/include/linux/mdio/mdio-i2c.h
+index 65b550a..c3eaccd 100644
 --- a/include/linux/mdio/mdio-i2c.h
 +++ b/include/linux/mdio/mdio-i2c.h
 @@ -18,6 +18,22 @@ enum mdio_i2c_proto {
@@ -208,3 +222,6 @@ Signed-off-by: neal.yen <neal.yen@mediatek.com>
  struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
  			       enum mdio_i2c_proto protocol);
  
+-- 
+2.45.2
+
