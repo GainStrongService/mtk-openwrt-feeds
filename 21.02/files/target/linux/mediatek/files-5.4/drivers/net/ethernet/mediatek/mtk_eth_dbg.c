@@ -1457,10 +1457,14 @@ static void mii_mgr_read_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg,
 	if (mdiodev)
 		phydev = container_of(mdiodev, struct phy_device, mdio);
 
+	mutex_lock(&eth->mii_bus->mdio_lock);
+
 	if (phydev && phydev->drv && phydev->drv->read_mmd)
 		*data = phydev->drv->read_mmd(phydev, devad, reg);
 	else
-		*data = mdiobus_read(eth->mii_bus, port, mdiobus_c45_addr(devad, reg));
+		*data = __mdiobus_read(eth->mii_bus, port, mdiobus_c45_addr(devad, reg));
+
+	mutex_unlock(&eth->mii_bus->mdio_lock);
 }
 
 static void mii_mgr_write_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data)
@@ -1471,10 +1475,14 @@ static void mii_mgr_write_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg
 	if (mdiodev)
 		phydev = container_of(mdiodev, struct phy_device, mdio);
 
+	mutex_lock(&eth->mii_bus->mdio_lock);
+
 	if (phydev && phydev->drv && phydev->drv->write_mmd)
 		phydev->drv->write_mmd(phydev, devad, reg, data);
 	else
-		mdiobus_write(eth->mii_bus, port, mdiobus_c45_addr(devad, reg), data);
+		__mdiobus_write(eth->mii_bus, port, mdiobus_c45_addr(devad, reg), data);
+
+	mutex_unlock(&eth->mii_bus->mdio_lock);
 }
 
 int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
