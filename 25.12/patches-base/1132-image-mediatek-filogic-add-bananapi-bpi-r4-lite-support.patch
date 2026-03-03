@@ -1,21 +1,21 @@
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -679,15 +679,20 @@ define Device/bananapi_bpi-r4-lite
+@@ -724,15 +724,21 @@ define Device/bananapi_bpi-r4-lite
    DEVICE_VENDOR := Bananapi
    DEVICE_MODEL := BPi-R4 Lite
    DEVICE_DTS := mt7987a-bananapi-bpi-r4-lite
 -  DEVICE_DTS_OVERLAY:= mt7987a-bananapi-bpi-r4-lite-1pcie-2L mt7987a-bananapi-bpi-r4-lite-2pcie-1L \
 -		       mt7987a-bananapi-bpi-r4-lite-emmc mt7987a-bananapi-bpi-r4-lite-sd \
 -		       mt7987a-bananapi-bpi-r4-lite-nand mt7987a-bananapi-bpi-r4-lite-nor
--  DEVICE_DTS_CONFIG := config-mt7987a-bananapi-bpi-r4-lite
 +  DEVICE_DTS_OVERLAY:= \
-+	mt7987-spim2-nand \
-+	mt7987-spim2-nand-nmbm \
-+	mt7987-spim-nor \
-+	mt7987-emmc \
-+	mt7987-sd \
++	mt7987a-bananapi-bpi-r4-lite-nand \
++	mt7987a-bananapi-bpi-r4-lite-nand-nmbm \
++	mt7987a-bananapi-bpi-r4-lite-nor \
++	mt7987a-bananapi-bpi-r4-lite-emmc \
++	mt7987a-bananapi-bpi-r4-lite-sd \
 +	mt7987a-bananapi-bpi-r4-lite-1pcie-2L \
 +	mt7987a-bananapi-bpi-r4-lite-2pcie-1L
+   DEVICE_DTS_CONFIG := config-mt7987a-bananapi-bpi-r4-lite
    DEVICE_DTC_FLAGS := --pad 4096
 -  DEVICE_DTS_DIR := ../dts
 +  DEVICE_DTS_DIR := $(DTS_DIR)/
@@ -27,7 +27,7 @@
    BLOCKSIZE := 128k
    PAGESIZE := 2048
    KERNEL_IN_UBI := 1
-@@ -701,34 +706,6 @@ define Device/bananapi_bpi-r4-lite
+@@ -746,34 +752,6 @@ define Device/bananapi_bpi-r4-lite
    KERNEL_IN_UBI := 1
    IMAGES := sysupgrade.itb
    IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
