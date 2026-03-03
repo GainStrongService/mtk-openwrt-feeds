@@ -1,3 +1,24 @@
+---
+[v4] arm64: dts: mediatek: mt7987a: add Banana Pi BPI-R4-Lite support
+
+Add device-tree support for the Banana Pi BPI-R4-Lite (MT7987A).
+Introduce the base board DTS and a mikroBUS dtsi, plus DT overlays
+to select boot/storage media (eMMC/NAND/NMBM/NOR/SD) and to switch
+PCIe topology between a single 2-lane port and two 1-lane ports.
+By default the platform uses a single 2-lane port unless the
+bootloader register setup is changed. Flash-related overlays are
+split out from mt7987a-rfb to match the DTSO layout used upstream
+in OpenWrt.
+
+Signed-off-by: Sam Shih <sam.shih@mediatek.com>
+---
+v4: Split BPI-R4-Lite flash overlays out of mt7987a-rfb; add storage
+    media DT overlays; align with OpenWrt DTSO format
+v3: Add PCIe mux overlays for 1x2-lane or 2x1-lane and document defaults
+v2: Move patch under openwrt-25.12 branch path (no functional change)
+v1: Initial port from mediatek SDK; base DTS and PCIe option
+---
+
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-mikrobus.dtsi
 @@ -0,0 +1,134 @@
@@ -483,3 +504,518 @@
 +&tphyu3port0 {
 +	status = "okay";
 +};
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-emmc.dtso
+@@ -0,0 +1,101 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++/plugin/;
++
++/ {
++	fragment@0 {
++		target-path = "/";
++		__overlay__ {
++			reg_3p3v: regulator-3p3v {
++				compatible = "regulator-fixed";
++				regulator-name = "fixed-3.3V";
++				regulator-min-microvolt = <3300000>;
++				regulator-max-microvolt = <3300000>;
++				regulator-boot-on;
++				regulator-always-on;
++			};
++		};
++	};
++
++	fragment@1 {
++		target-path = "/soc/spi@11007800";
++		__overlay__ {
++			status = "disabled";
++		};
++	};
++
++	fragment@2 {
++		target-path = "/soc/mmc@11230000";
++		__overlay__ {
++			pinctrl-names = "default", "state_uhs";
++			pinctrl-0 = <&mmc_pins_default>;
++			pinctrl-1 = <&mmc_pins_uhs>;
++			bus-width = <8>;
++			max-frequency = <48000000>;
++			cap-mmc-highspeed;
++			vmmc-supply = <&reg_3p3v>;
++			non-removable;
++			status = "okay";
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			card@0 {
++				compatible = "mmc-card";
++				reg = <0>;
++
++				block {
++					compatible = "block-device";
++					partitions {
++						block-partition-env {
++							partname = "ubootenv";
++							nvmem-layout {
++								compatible = "u-boot,env";
++							};
++						};
++
++						block-partition-factory {
++							partname = "factory";
++
++							nvmem-layout {
++								compatible = "fixed-layout";
++								#address-cells = <1>;
++								#size-cells = <1>;
++
++								eeprom_factory_0: eeprom@0 {
++									reg = <0x0 0x1e00>;
++								};
++							};
++						};
++
++						emmc_rootfs: block-partition-production {
++							partname = "production";
++						};
++					};
++				};
++			};
++		};
++	};
++
++        fragment@3 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-emmc = <&emmc_rootfs>;
++		};
++	};
++
++	fragment@4 {
++		target = <&pcie0>;
++		__overlay__ {
++			slot0: pcie@0,0 {
++				reg = <0x0000 0 0 0 0>;
++				mt7996@0,0 {
++					reg = <0x0000 0 0 0 0>;
++					nvmem-cells = <&eeprom_factory_0>;
++					nvmem-cell-names = "eeprom";
++				};
++			};
++		};
++	};
++};
++
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-nand.dtso
+@@ -0,0 +1,134 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++/plugin/;
++
++/ {
++	fragment@0 {
++		target-path = "/soc/spi@11009800";
++		__overlay__ {
++			pinctrl-names = "default";
++			pinctrl-0 = <&spi2_flash_pins>;
++			status = "okay";
++
++			flash@0 {
++				compatible = "spi-nand";
++				reg = <0>;
++				spi-max-frequency = <52000000>;
++				spi-tx-bus-width = <4>;
++				spi-rx-bus-width = <4>;
++
++				partitions {
++					compatible = "fixed-partitions";
++					#address-cells = <1>;
++					#size-cells = <1>;
++
++					partition@0 {
++						label = "BL2";
++						reg = <0x00000 0x0200000>;
++						read-only;
++					};
++
++					partition@200000 {
++						label = "ubi";
++						reg = <0x0200000 0xfe00000>;
++						compatible = "linux,ubi";
++
++						volumes {
++							ubi-volume-ubootenv {
++								volname = "ubootenv";
++								nvmem-layout {
++									compatible = "u-boot,env-redundant-bool";
++								};
++							};
++
++							ubi-volume-ubootenv2 {
++								volname = "ubootenv2";
++								nvmem-layout {
++									compatible = "u-boot,env-redundant-bool";
++								};
++							};
++
++							ubi_factory: ubi-volume-factory {
++								volname = "factory";
++
++								nvmem-layout {
++									compatible = "fixed-layout";
++									#address-cells = <1>;
++									#size-cells = <1>;
++
++									eeprom_wmac: eeprom@0 {
++										reg = <0x0 0x1e00>;
++									};
++
++									gmac2_mac: eeprom@fffee {
++										reg = <0xfffee 0x6>;
++									};
++
++									gmac1_mac: eeprom@ffffa {
++										reg = <0xffffa 0x6>;
++									};
++
++									gmac0_mac: eeprom@ffff4 {
++										reg = <0xffff4 0x6>;
++									};
++								};
++							};
++
++							ubi_root: ubi-volume-fit {
++								volname = "fit";
++							};
++						};
++					};
++				};
++			};
++		};
++	};
++
++	fragment@1 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-spim-nand = <&ubi_root>;
++		};
++	};
++
++	fragment@2 {
++		target = <&pcie0>;
++		__overlay__ {
++			slot0: pcie@0,0 {
++				reg = <0x0000 0 0 0 0>;
++
++				wifi@0,0 {
++					compatible = "mediatek,mt76";
++					reg = <0x0000 0 0 0 0>;
++					nvmem-cell-names = "eeprom";
++					nvmem-cells = <&eeprom_wmac>;
++				};
++			};
++		};
++	};
++
++	fragment@3 {
++		target = <&gmac0>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac0_mac>;
++		};
++	};
++
++	fragment@4 {
++		target = <&gmac1>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac1_mac>;
++		};
++	};
++
++	fragment@5 {
++		target = <&gmac2>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac2_mac>;
++		};
++	};
++};
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-nand-nmbm.dtso
+@@ -0,0 +1,130 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++/plugin/;
++
++/ {
++	fragment@0 {
++		target-path = "/soc/spi@11009800";
++		__overlay__ {
++			pinctrl-names = "default";
++			pinctrl-0 = <&spi2_flash_pins>;
++			status = "okay";
++
++			flash@0 {
++				compatible = "spi-nand";
++				reg = <0>;
++				spi-max-frequency = <52000000>;
++				spi-tx-bus-width = <4>;
++				spi-rx-bus-width = <4>;
++				mediatek,nmbm;
++				mediatek,bmt-max-ratio = <1>;
++				mediatek,bmt-max-reserved-blocks = <64>;
++
++				partitions {
++					compatible = "fixed-partitions";
++					#address-cells = <1>;
++					#size-cells = <1>;
++
++					partition@0 {
++						label = "BL2";
++						reg = <0x00000 0x0100000>;
++						read-only;
++					};
++
++					partition@100000 {
++						label = "u-boot-env";
++						reg = <0x0100000 0x0080000>;
++					};
++
++					factory: partition@180000 {
++						label = "Factory";
++						reg = <0x180000 0x0400000>;
++
++						nvmem-layout {
++							compatible = "fixed-layout";
++							#address-cells = <1>;
++							#size-cells = <1>;
++
++							gmac2_mac: eeprom@fffee {
++								reg = <0xfffee 0x6>;
++							};
++
++							gmac1_mac: eeprom@ffffa {
++								reg = <0xffffa 0x6>;
++							};
++
++							gmac0_mac: eeprom@ffff4 {
++								reg = <0xffff4 0x6>;
++							};
++						};
++					};
++
++					partition@580000 {
++						label = "FIP";
++						reg = <0x580000 0x0200000>;
++					};
++
++					partition@780000 {
++						label = "ubi";
++						reg = <0x780000 0x7080000>;
++						compatible = "linux,ubi";
++
++						volumes {
++							ubi_rootfs: ubi-volume-fit {
++								volname = "firmware";
++							};
++						};
++					};
++				};
++			};
++		};
++	};
++
++	fragment@1 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-spim-nand = <&ubi_rootfs>;
++		};
++	};
++
++	fragment@2 {
++		target = <&pcie0>;
++		__overlay__ {
++			slot0: pcie@0,0 {
++				reg = <0x0000 0 0 0 0>;
++
++				mt7996@0,0 {
++					compatible = "mediatek,mt76";
++					reg = <0x0000 0 0 0 0>;
++					device_type = "pci";
++					mediatek,mtd-eeprom = <&factory 0x0>;
++				};
++			};
++		};
++	};
++
++	fragment@3 {
++		target = <&gmac0>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac0_mac>;
++		};
++	};
++
++	fragment@4 {
++		target = <&gmac1>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac1_mac>;
++		};
++	};
++
++	fragment@5 {
++		target = <&gmac2>;
++		__overlay__ {
++			nvmem-cell-names = "mac-address";
++			nvmem-cells = <&gmac2_mac>;
++		};
++	};
++};
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-nor.dtso
+@@ -0,0 +1,61 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++/plugin/;
++
++/ {
++	fragment@0 {
++		target-path = "/soc/spi@11009800";
++		__overlay__ {
++			pinctrl-names = "default";
++			pinctrl-0 = <&spi2_flash_pins>;
++			status = "okay";
++
++			flash@0 {
++				#address-cells = <1>;
++				#size-cells = <1>;
++				compatible = "jedec,spi-nor";
++				spi-cal-enable;
++				spi-cal-mode = "read-data";
++				spi-cal-datalen = <7>;
++				spi-cal-data = /bits/ 8 <
++					0x53 0x46 0x5F 0x42 0x4F 0x4F 0x54>;
++				spi-cal-addrlen = <1>;
++				spi-cal-addr = /bits/ 32 <0x0>;
++				reg = <0>;
++				spi-max-frequency = <52000000>;
++				spi-tx-bus-width = <4>;
++				spi-rx-bus-width = <4>;
++
++				partition@00000 {
++					label = "BL2";
++					reg = <0x00000 0x0040000>;
++				};
++				partition@40000 {
++					label = "u-boot-env";
++					reg = <0x40000 0x0010000>;
++				};
++				partition@50000 {
++					label = "Factory";
++					reg = <0x50000 0x0200000>;
++				};
++				partition@250000 {
++					label = "FIP";
++					reg = <0x250000 0x0080000>;
++				};
++				nor_rootdisk: partition@2D0000 {
++					label = "firmware";
++					reg = <0x2D0000 0x1D30000>;
++				};
++			};
++		};
++	};
++
++	fragment@1 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-nor = <&nor_rootdisk>;
++		};
++	};
++};
++
+--- /dev/null
++++ b/arch/arm64/boot/dts/mediatek/mt7987a-bananapi-bpi-r4-lite-sd.dtso
+@@ -0,0 +1,74 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++/plugin/;
++
++/ {
++	fragment@0 {
++		target-path = "/";
++		__overlay__ {
++			reg_3p3v: regulator-3p3v {
++				compatible = "regulator-fixed";
++				regulator-name = "fixed-3.3V";
++				regulator-min-microvolt = <3300000>;
++				regulator-max-microvolt = <3300000>;
++				regulator-boot-on;
++				regulator-always-on;
++			};
++		};
++	};
++
++	fragment@1 {
++		target-path = "/soc/spi@11007800";
++		__overlay__ {
++			status = "disabled";
++		};
++	};
++
++	fragment@2 {
++		target-path = "/soc/mmc@11230000";
++		__overlay__ {
++			pinctrl-names = "default", "state_uhs";
++			pinctrl-0 = <&sd_pins_default>;
++			pinctrl-1 = <&sd_pins_uhs>;
++			bus-width = <4>;
++			max-frequency = <48000000>;
++			cap-sd-highspeed;
++			vmmc-supply = <&reg_3p3v>;
++			vqmmc-supply = <&reg_3p3v>;
++			no-mmc;
++			no-sdio;
++			status = "okay";
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			card@0 {
++				compatible = "mmc-card";
++				reg = <0>;
++
++				block {
++					compatible = "block-device";
++					partitions {
++						block-partition-env {
++							partname = "ubootenv";
++							nvmem-layout {
++								compatible = "u-boot,env";
++							};
++						};
++						sd_rootfs: block-partition-production {
++							partname = "production";
++						};
++					};
++				};
++			};
++		};
++	};
++
++        fragment@3 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-sd = <&sd_rootfs>;
++		};
++	};
++};
++
