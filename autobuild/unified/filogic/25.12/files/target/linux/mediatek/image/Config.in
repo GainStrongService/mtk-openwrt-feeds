@@ -21,11 +21,20 @@ config FIT_SIGN_ALG
 	string "FIT sign algorithm"
 	default "sha256,rsa2048"
 
-menuconfig MTK_FW_ENC
+menu "Firmware Encryption"
+
+config MTK_FW_ENC
 	bool "Enable firmware encryption"
 	default n
 	help
 	  Select mtk firmware encryption
+
+config MTK_TA_ENC
+	bool "Enable TA encryption"
+	default n
+	select OPTEE_ENCRYPT_TA
+	help
+	  Enable TA encryption
 
 if MTK_FW_ENC
 
@@ -52,7 +61,6 @@ config FW_ENC_DECRYPT_VIA_BL32
 	bool "Decrypt firmware via BL32"
 	select PACKAGE_optee-apps
 	select OPTEE_FW_ENC_EARLY_TA
-
 endchoice
 
 config FW_ENC_ALG
@@ -60,23 +68,34 @@ config FW_ENC_ALG
 	default "tee_aes256" if FW_ENC_DECRYPT_VIA_BL31
 	default "optee_aes256" if FW_ENC_DECRYPT_VIA_BL32
 
+endif # MTK_FW_ENC
+
+
 config PLAT_KEY_NAME
 	string "platform key name"
 	default "plat_key"
+	depends on MTK_FW_ENC || MTK_TA_ENC
 
 config ROE_SALT
 	string "ROE key salt"
 	default "salt/roe_salt.bin"
+	depends on MTK_FW_ENC || MTK_TA_ENC
 
 config KERNEL_SALT
 	string "Kernel encryption key salt"
 	default "salt/kernel_salt.bin"
+	depends on MTK_FW_ENC
 
 config ROOTFS_SALT
 	string "Rootfs encryption key salt"
 	default "salt/rootfs_salt.bin"
+	depends on MTK_FW_ENC
 
-endif # MTK_FW_ENC
+config TA_SALT
+	string "TA encryption key salt"
+	default "salt/ta_salt.bin"
+	depends on MTK_TA_ENC
+endmenu
 
 menuconfig MTK_ANTI_ROLLBACK
 	bool "Enable Anti-Rollback"

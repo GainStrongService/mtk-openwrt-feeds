@@ -46,8 +46,10 @@ OPTEE_APPS_CONFIGS := \
 	CFG_RUST_TA_HOST=$(CONFIG_OPTEE_RUST_TA_HOST)
 
 include ../optee-mediatek/optee-ta-sign.mk
+include ../optee-mediatek/optee-ta-encrypt.mk
 
-OPTEE_APPS_CONFIGS += $(OPTEE_TA_SIGN_KEY_CONFIGS)
+OPTEE_APPS_CONFIGS += $(OPTEE_TA_SIGN_KEY_CONFIGS) \
+		      $(OPTEE_TA_ENCRYPT_CONFIGS)
 
 TA_DEV_KIT_DIR := $(STAGING_DIR)/usr/lib/export-ta_arm64
 

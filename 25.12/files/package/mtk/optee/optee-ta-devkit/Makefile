@@ -15,6 +15,7 @@ PKG_SOURCE_URL_FILE:=$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/OP-TEE/optee_os/archive/refs/tags/
 PKG_HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
 TAR_OPTIONS+=--transform 's/optee_os-$(PKG_VERSION)/$(PKG_NAME)-$(PKG_VERSION)/'
+PKG_BUILD_DEPENDS:=openssl/host
 
 PKG_BUILD_PARALLEL:=1
 
@@ -37,8 +38,10 @@ endef
 
 include ../optee-mediatek/optee-os-config.mk
 include ../optee-mediatek/optee-ta-sign.mk
+include ../optee-mediatek/optee-ta-encrypt.mk
 
-OPTEE_OS_CONFIGS += $(OPTEE_TA_SIGN_KEY_CONFIGS)
+OPTEE_OS_CONFIGS += $(OPTEE_TA_SIGN_KEY_CONFIGS) \
+		    $(OPTEE_TA_ENCRYPT_CONFIGS)
 
 TA_DEV_KIT_DIR := $(STAGING_DIR)/usr/lib/export-ta_arm64
 
@@ -57,6 +60,10 @@ MAKE_FLAGS := \
 
 ifeq ($(CONFIG_OPTEE_OFFLINE_SIGN),y)
 Hooks/Compile/Post += ta-offline-sign
+endif
+
+ifeq ($(CONFIG_OPTEE_ENCRYPT_TA),y)
+Hooks/Compile/Pre += gen-ta-key
 endif
 
 define Build/InstallDev

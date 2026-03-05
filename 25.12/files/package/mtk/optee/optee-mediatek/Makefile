@@ -61,6 +61,7 @@ OPTEE_OS_CONFIGS += $(OPTEE_TA_SIGN_KEY_CONFIGS)
 TA_DEV_KIT_DIR := $(STAGING_DIR)/usr/lib/export-ta_arm64
 
 OPTEE_MAKE_FLAGS += PYTHON3=$(STAGING_DIR_HOST)/bin/python3 \
+		    CFG_BUILD_IN_TREE_TA=n \
 		    $(OPTEE_OS_CONFIGS) \
 		    EARLY_TA_PATHS="$$(find $(TA_DEV_KIT_DIR)/ta/early -type f)"
 
