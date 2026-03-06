@@ -1,7 +1,7 @@
-From ff0221a22f5a085094c7dc6ad5ec755fa7141e96 Mon Sep 17 00:00:00 2001
+From b3a23219b26b11e80d638c384099511ae0f9fc19 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Tue, 10 Sep 2024 17:07:46 +0800
-Subject: [PATCH 108/254] mtk: hostapd: remove sta_info from partner links when
+Subject: [PATCH 108/260] mtk: hostapd: remove sta_info from partner links when
  deauthenticating inactive STA
 
 Originally only the sta_info of the associated hapd will be remove,
@@ -16,7 +16,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 5 insertions(+)
 
 diff --git a/src/ap/sta_info.c b/src/ap/sta_info.c
-index 828ce7a3f..42ca7e45e 100644
+index 8710f6cb1..20757b6fe 100644
 --- a/src/ap/sta_info.c
 +++ b/src/ap/sta_info.c
 @@ -49,6 +49,7 @@ static void ap_sta_disassoc_cb_timeout(void *eloop_ctx, void *timeout_ctx);
@@ -27,7 +27,7 @@ index 828ce7a3f..42ca7e45e 100644
  
  int ap_for_each_sta(struct hostapd_data *hapd,
  		    int (*cb)(struct hostapd_data *hapd, struct sta_info *sta,
-@@ -590,6 +591,8 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
+@@ -630,6 +631,8 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
  			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
  			       "local deauth request");
  		hostapd_ubus_notify(hapd, "local-deauth", sta->addr);
@@ -36,7 +36,7 @@ index 828ce7a3f..42ca7e45e 100644
  		ap_free_sta(hapd, sta);
  		return;
  	}
-@@ -759,6 +762,8 @@ skip_poll:
+@@ -799,6 +802,8 @@ skip_poll:
  			hapd, sta,
  			WLAN_REASON_PREV_AUTH_NOT_VALID);
  		hostapd_ubus_notify(hapd, "inactive-deauth", sta->addr);

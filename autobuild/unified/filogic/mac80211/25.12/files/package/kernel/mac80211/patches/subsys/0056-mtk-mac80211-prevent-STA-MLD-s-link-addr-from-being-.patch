@@ -1,7 +1,7 @@
-From 62e048cc5ee61cd9fcf342d1f1d8113fea3d20e8 Mon Sep 17 00:00:00 2001
+From d156e7b4750f75f86136ee1617d2f9564bf9593c Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 6 May 2024 15:06:55 +0800
-Subject: [PATCH 056/128] mtk: mac80211: prevent STA MLD's link addr from being
+Subject: [PATCH 056/137] mtk: mac80211: prevent STA MLD's link addr from being
  randaomized
 
 STA MLD's link address should be fixed, otherwise it sends AUTH request
@@ -15,10 +15,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index a8b7fb77..1746ec75 100644
+index b40fad93..6628b2ec 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -8922,8 +8922,10 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
+@@ -9074,8 +9074,10 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
  	else if (sdata->u.mgd.reconf.add_links_data)
  		ether_addr_copy(link->conf->addr,
  				sdata->u.mgd.reconf.add_links_data->link[link_id].addr);
@@ -31,7 +31,7 @@ index a8b7fb77..1746ec75 100644
  }
  
  /* scan finished notification */
-@@ -9768,11 +9770,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
+@@ -9933,11 +9935,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
  			}
  
  			link = sdata_dereference(sdata->link[i], sdata);

@@ -1,7 +1,7 @@
-From 920a28be6393d41c3bc42f31a89b996457a1bc06 Mon Sep 17 00:00:00 2001
+From ddb2b1c36dcbf8b0857f8407fdd6aadf5bd93aa9 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 8 Jan 2025 11:26:00 +0800
-Subject: [PATCH 120/254] mtk: hostapd: Add DFS offchain control support
+Subject: [PATCH 120/260] mtk: hostapd: Add DFS offchain control support
 
 Add DFS background chain channel switch command for testing purpose.
 This feature is implemented via hostapd_cli command.
@@ -27,17 +27,17 @@ hostapd_cli -i <intf> set_offchain chan=<control channel> [bandwidth=<bw>]
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- hostapd/ctrl_iface.c  | 249 ++++++++++++++++++++++++++++++++++++++----
+ hostapd/ctrl_iface.c  | 250 ++++++++++++++++++++++++++++++++++++++----
  hostapd/hostapd_cli.c |  18 +++
  src/ap/dfs.c          |   1 -
  src/ap/dfs.h          |   1 +
- 4 files changed, 247 insertions(+), 22 deletions(-)
+ 4 files changed, 248 insertions(+), 22 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9800033d4..1f3d907f2 100644
+index 0c7dff7f7..ab172659d 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4929,6 +4929,230 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
+@@ -4785,6 +4785,231 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
  }
  
  
@@ -165,6 +165,7 @@ index 9800033d4..1f3d907f2 100644
 +	iface->radar_background.secondary_channel = secondary_chan;
 +	iface->radar_background.centr_freq_seg0_idx = seg0;
 +	iface->radar_background.centr_freq_seg1_idx = seg1;
++	iface->radar_background.primary_backup = channel;
 +	if (chwidth != hostapd_get_oper_chwidth(iface->conf))
 +		iface->radar_background.new_chwidth = chwidth;
 +	else
@@ -268,7 +269,7 @@ index 9800033d4..1f3d907f2 100644
  static int
  hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
  					 size_t buflen)
-@@ -5247,27 +5471,6 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
+@@ -5103,27 +5328,6 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
  	return os_snprintf(buf, buflen, "OK\n");
  }
  
@@ -296,7 +297,7 @@ index 9800033d4..1f3d907f2 100644
  static int
  hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			  size_t buflen)
-@@ -6270,6 +6473,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6104,6 +6308,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
  		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
  								   reply, reply_size);
@@ -308,10 +309,10 @@ index 9800033d4..1f3d907f2 100644
  		reply_len = hostapd_ctrl_iface_get_amsdu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_BSS_COLOR", 13) == 0) {
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 65e02c2f8..38eb8086d 100644
+index fb6385275..6839eecfa 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
-@@ -1749,6 +1749,20 @@ static int hostapd_cli_cmd_get_ibf(struct wpa_ctrl *ctrl, int argc,
+@@ -1764,6 +1764,20 @@ static int hostapd_cli_cmd_get_ibf(struct wpa_ctrl *ctrl, int argc,
  }
  
  
@@ -332,7 +333,7 @@ index 65e02c2f8..38eb8086d 100644
  static int hostapd_cli_cmd_get_amsdu(struct wpa_ctrl *ctrl, int argc,
  					   char *argv[])
  {
-@@ -2062,6 +2076,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -2083,6 +2097,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
            "<tx type(0/1/2)> <interval> = runtime set inband discovery" },
  	{ "get_ibf", hostapd_cli_cmd_get_ibf, NULL,
  	  " = show iBF state (enabled/disabled)"},
@@ -344,10 +345,10 @@ index 65e02c2f8..38eb8086d 100644
  		" = show AMSDU state"},
  	{ "set_amnt", hostapd_cli_cmd_set_amnt, NULL,
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 31941f01a..7e4fac291 100644
+index c88ac2484..6042d7c95 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
-@@ -20,7 +20,6 @@
+@@ -21,7 +21,6 @@
  #include "dfs.h"
  #include "crypto/crypto.h"
  

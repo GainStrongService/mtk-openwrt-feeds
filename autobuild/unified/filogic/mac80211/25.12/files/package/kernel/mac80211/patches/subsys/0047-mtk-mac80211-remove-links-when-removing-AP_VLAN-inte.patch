@@ -1,7 +1,7 @@
-From 6bd81afab038fc6815dae04914b0492a2a48888a Mon Sep 17 00:00:00 2001
+From 7d508045265f6b208b4300a6f41031facdf36d7c Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 6 Feb 2024 15:03:49 +0800
-Subject: [PATCH 047/128] mtk: mac80211: remove links when removing AP_VLAN
+Subject: [PATCH 047/137] mtk: mac80211: remove links when removing AP_VLAN
  interface
 
 Remove links information when removing AP_VLAN interface.
@@ -16,10 +16,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 22 insertions(+), 1 deletion(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index c601b2de..88fcbe31 100644
+index c15c956e..923ba4cf 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5393,6 +5393,20 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
+@@ -5409,6 +5409,20 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
  	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
  	u16 new_links = wdev->valid_links & ~BIT(link_id);
  
@@ -41,10 +41,10 @@ index c601b2de..88fcbe31 100644
  
  	/* During the link teardown process, certain functions require the
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index fe35ab11..a8e8d544 100644
+index 07803f7a..29ece163 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -2393,7 +2393,6 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
+@@ -2481,7 +2481,6 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
  {
  	struct sk_buff *skb;
  	struct ieee80211_hdr *nullfunc;
@@ -53,10 +53,10 @@ index fe35ab11..a8e8d544 100644
  
  	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 diff --git a/net/wireless/util.c b/net/wireless/util.c
-index 27e8a2f5..8c1203da 100644
+index 404fe604..1d8b6413 100644
 --- a/net/wireless/util.c
 +++ b/net/wireless/util.c
-@@ -2886,6 +2886,14 @@ void cfg80211_remove_links(struct wireless_dev *wdev)
+@@ -2946,6 +2946,14 @@ void cfg80211_remove_links(struct wireless_dev *wdev)
  {
  	unsigned int link_id;
  

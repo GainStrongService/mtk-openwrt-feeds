@@ -163,7 +163,19 @@
 			"type": "string"
 		},
 		"basic_rate": {
-			"type": "array"
+			"type": "alias",
+			"default": "basic_rates"
+		},
+		"basic_rates": {
+			"description": "Set the supported basic rates. Each basic_rate is measured in kb/s. This option only has an effect on ap and adhoc wifi-ifaces. ",
+			"type": "array",
+			"items": {
+				"type": "number"
+			}
+		},
+		"beacon_rate": {
+			"description": "Beacon frame TX rate configuration",
+			"type": "string"
 		},
 		"bss_load_update_period": {
 			"description": "BSS Load update period (in BUs)",
@@ -1006,7 +1018,11 @@
 			"type": "string"
 		},
 		"supported_rates": {
-			"type": "array"
+			"description": "Set the supported data rates. Each supported rate is measured in kb/s. This option only has an effect on ap and adhoc wifi-ifaces. This must be a superset of the rates set in basic_rate. The minimum basic rate should also be the minimum supported rate. It is recommended to use the cell_density option instead",
+			"type": "array",
+			"items": {
+				"type": "number"
+			}
 		},
 		"tdls_prohibit": {
 			"description": "Prohibit use of TDLS in this BSS",
@@ -1287,10 +1303,6 @@
 		},
 		"eml_disable": {
 			"description": "eml_disable",
-			"type": "boolean"
-		},
-		"eml_resp": {
-			"description": "eml_resp",
 			"type": "boolean"
 		},
 		"wmm": {

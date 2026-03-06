@@ -12,7 +12,6 @@ if (!board.wlan)
 let idx = 0;
 let commit;
 
-let has_mlo = 1;
 let random_mac_bytes = getenv("MT76_ENV_RANDOM_MAC_BYTES");
 
 let config = uci.cursor().get_all("wireless") ?? {};
@@ -37,12 +36,22 @@ function radio_exists(path, macaddr, phy, radio) {
 for (let phy_name, phy in board.wlan) {
 	let init_mld;
 	let info = phy.info;
+	let has_mlo = false;
+
 	if (!info || !length(info.bands))
 		continue;
 
-	/* TODO Remove this for multiple wiphy device */
-	if (phy_name != "phy0")
-		continue;
+	for (let band_name, band in info.bands) {
+		for (let mode in band.modes) {
+			if (wildcard(mode, 'EHT*')) {
+				has_mlo = true;
+				break;
+			}
+		}
+
+		if (has_mlo)
+			break;
+	}
 
 	let radios = [];
 	let device_list = [];

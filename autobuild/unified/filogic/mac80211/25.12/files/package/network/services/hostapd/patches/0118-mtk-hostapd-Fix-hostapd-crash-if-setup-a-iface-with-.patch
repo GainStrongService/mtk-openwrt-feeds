@@ -1,7 +1,7 @@
-From 503c632307b441efa9a2792f3e4bc135bedca62b Mon Sep 17 00:00:00 2001
+From 2b0b2fcc9b692f08a53930c221c2421b55566d38 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 8 Nov 2024 10:20:03 +0800
-Subject: [PATCH 118/254] mtk: hostapd: Fix hostapd crash if setup a iface with
+Subject: [PATCH 118/260] mtk: hostapd: Fix hostapd crash if setup a iface with
  a link bss failed
 
 The crash occurs while some link bsses is traversing all the links by using
@@ -25,10 +25,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 70670d882..417a634e9 100644
+index 46116e16a..ea7742388 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -5704,6 +5704,9 @@ int hostapd_mld_remove_link(struct hostapd_data *hapd)
+@@ -5743,6 +5743,9 @@ int hostapd_mld_remove_link(struct hostapd_data *hapd)
  	if (!hapd->link.next)
  		return 0;
  

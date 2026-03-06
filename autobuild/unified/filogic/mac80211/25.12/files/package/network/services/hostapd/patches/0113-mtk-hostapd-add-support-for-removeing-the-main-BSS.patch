@@ -1,7 +1,7 @@
-From 6d7fdafd50965ec66e3fec7518f1cc2eeea59489 Mon Sep 17 00:00:00 2001
+From 7dd66c8544d4634300103895b58781297fa9cf18 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 14 Dec 2023 14:42:58 +0800
-Subject: [PATCH 113/254] mtk: hostapd: add support for removeing the main BSS
+Subject: [PATCH 113/260] mtk: hostapd: add support for removeing the main BSS
 
 This function is ported from wifi 6.
 (https://gerrit.mediatek.inc/c/openwrt/feeds/mtk_openwrt_feeds/+/8407972)
@@ -34,10 +34,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  6 files changed, 168 insertions(+), 2 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 18d59611e..c86a06c66 100644
+index 31a0069e8..eda481d32 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -7103,6 +7103,17 @@ static int hostapd_ctrl_iface_add(struct hapd_interfaces *interfaces,
+@@ -6951,6 +6951,17 @@ static int hostapd_ctrl_iface_add(struct hapd_interfaces *interfaces,
  }
  
  
@@ -55,7 +55,7 @@ index 18d59611e..c86a06c66 100644
  static int hostapd_ctrl_iface_remove(struct hapd_interfaces *interfaces,
  				     char *buf)
  {
-@@ -7520,6 +7531,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
+@@ -7368,6 +7379,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
  	} else if (os_strncmp(buf, "REMOVE ", 7) == 0) {
  		if (hostapd_ctrl_iface_remove(interfaces, buf + 7) < 0)
  			reply_len = -1;
@@ -66,10 +66,10 @@ index 18d59611e..c86a06c66 100644
  		if (hostapd_global_ctrl_iface_attach(interfaces, &from,
  						     fromlen, NULL))
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 3c9cf1ad1..1cfdf61c3 100644
+index e4bf1443c..0f231ee0d 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
-@@ -357,6 +357,16 @@ static inline const char * hostapd_drv_get_radio_name(struct hostapd_data *hapd)
+@@ -344,6 +344,16 @@ static inline const char * hostapd_drv_get_radio_name(struct hostapd_data *hapd)
  	return hapd->driver->get_radio_name(hapd->drv_priv);
  }
  
@@ -87,10 +87,10 @@ index 3c9cf1ad1..1cfdf61c3 100644
  					     struct csa_settings *settings)
  {
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 30cef5493..c00f6452c 100644
+index cd26e95b9..e5b5ef9c6 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -4186,7 +4186,35 @@ fail:
+@@ -4203,7 +4203,35 @@ fail:
  }
  
  
@@ -127,7 +127,7 @@ index 30cef5493..c00f6452c 100644
  {
  	size_t i;
  
-@@ -4223,6 +4251,74 @@ static int hostapd_remove_bss(struct hostapd_iface *iface, unsigned int idx)
+@@ -4240,6 +4268,74 @@ static int hostapd_remove_bss(struct hostapd_iface *iface, unsigned int idx)
  }
  
  
@@ -202,7 +202,7 @@ index 30cef5493..c00f6452c 100644
  int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
  {
  	struct hostapd_iface *hapd_iface;
-@@ -4257,7 +4353,7 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
+@@ -4274,7 +4370,7 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
  				hapd_iface->driver_ap_teardown =
  					!(hapd_iface->drv_flags &
  					  WPA_DRIVER_FLAGS_AP_TEARDOWN_SUPPORT);
@@ -212,10 +212,10 @@ index 30cef5493..c00f6452c 100644
  		}
  	}
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 5fd05230f..a1f2fa2c7 100644
+index fe6b08418..21295806a 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -950,6 +950,7 @@ void hostapd_bss_deinit_no_free(struct hostapd_data *hapd);
+@@ -961,6 +961,7 @@ void hostapd_bss_deinit_no_free(struct hostapd_data *hapd);
  void hostapd_free_hapd_data(struct hostapd_data *hapd);
  void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
  int hostapd_add_iface(struct hapd_interfaces *ifaces, char *buf);
@@ -224,10 +224,10 @@ index 5fd05230f..a1f2fa2c7 100644
  void hostapd_channel_list_updated(struct hostapd_iface *iface, int initiator);
  void hostapd_set_state(struct hostapd_iface *iface, enum hostapd_iface_state s);
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 090b7efb2..b9fc446a4 100644
+index 164e3167c..963f313dc 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -3797,6 +3797,8 @@ struct wpa_driver_ops {
+@@ -3898,6 +3898,8 @@ struct wpa_driver_ops {
  	 */
  	void (*hapd_deinit)(void *priv);
  
@@ -237,10 +237,10 @@ index 090b7efb2..b9fc446a4 100644
  	 * set_ieee8021x - Enable/disable IEEE 802.1X support (AP only)
  	 * @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 66eb4bf24..d1d8328b3 100644
+index 6f6706521..50048b970 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -9145,6 +9145,48 @@ static void i802_deinit(void *priv)
+@@ -9468,6 +9468,48 @@ static void i802_deinit(void *priv)
  	wpa_driver_nl80211_deinit(bss);
  }
  
@@ -289,7 +289,7 @@ index 66eb4bf24..d1d8328b3 100644
  
  static enum nl80211_iftype wpa_driver_nl80211_if_type(
  	enum wpa_driver_if_type type)
-@@ -16720,6 +16762,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -17208,6 +17250,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.sta_set_airtime_weight = driver_nl80211_sta_set_airtime_weight,
  	.hapd_init = i802_init,
  	.hapd_deinit = i802_deinit,

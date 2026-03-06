@@ -1,7 +1,7 @@
-From 687f72d754201f465ef5983f7f9e6f03f7dd174f Mon Sep 17 00:00:00 2001
+From 0d8f5e497426a76ebac2696573509e766f95800e Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 21 Oct 2024 13:53:53 +0800
-Subject: [PATCH 116/254] mtk: hostapd: refactor upstream's enable/disable MLD
+Subject: [PATCH 116/260] mtk: hostapd: refactor upstream's enable/disable MLD
  operations
 
 Refactor the upstream's enable/disable MLD operations. It can be
@@ -25,10 +25,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 102 insertions(+), 60 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 49c25cef0..9800033d4 100644
+index 73086ee74..0c7dff7f7 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3914,77 +3914,32 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
+@@ -3707,77 +3707,32 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
  
  
  #ifdef CONFIG_IEEE80211BE
@@ -119,7 +119,7 @@ index 49c25cef0..9800033d4 100644
  	}
  
  	return 0;
-@@ -6273,10 +6228,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6100,10 +6055,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  #endif /* ANDROID */
  #ifdef CONFIG_IEEE80211BE
  	} else if (os_strcmp(buf, "ENABLE_MLD") == 0) {
@@ -133,10 +133,10 @@ index 49c25cef0..9800033d4 100644
  #ifdef CONFIG_TESTING_OPTIONS
  	} else if (os_strncmp(buf, "LINK_REMOVE ", 12) == 0) {
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 36f4fdd62..70670d882 100644
+index 9997095b3..46116e16a 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -3841,6 +3841,47 @@ int hostapd_enable_bss(struct hostapd_data *hapd)
+@@ -3858,6 +3858,47 @@ int hostapd_enable_bss(struct hostapd_data *hapd)
  }
  
  
@@ -184,7 +184,7 @@ index 36f4fdd62..70670d882 100644
  int hostapd_disable_iface(struct hostapd_iface *hapd_iface)
  {
  	size_t j;
-@@ -3915,6 +3956,50 @@ int hostapd_disable_bss(struct hostapd_data *hapd)
+@@ -3932,6 +3973,50 @@ int hostapd_disable_bss(struct hostapd_data *hapd)
  }
  
  
@@ -236,10 +236,10 @@ index 36f4fdd62..70670d882 100644
  hostapd_iface_alloc(struct hapd_interfaces *interfaces)
  {
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index f83a63746..80e593d32 100644
+index 99f703b11..bf7b1860c 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -1054,6 +1054,8 @@ void hostapd_event_attlm(struct hostapd_data *hapd, struct attlm_event *attlm_ev
+@@ -1070,6 +1070,8 @@ void hostapd_event_attlm(struct hostapd_data *hapd, struct attlm_event *attlm_ev
  void hostapd_event_tsf_offset(struct hostapd_data *hapd, s64 *tsf_offset);
  bool hostapd_mld_is_first_bss(struct hostapd_data *hapd);
  void hostapd_mld_interface_freed(struct hostapd_data *hapd);

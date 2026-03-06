@@ -88,15 +88,18 @@ export function parse_encryption(config, dev_config) {
 	case 'aes+tkip':
 	case 'ccmp+tkip':
 		config.wpa_pairwise = 'CCMP TKIP';
+		wpa3_pairwise = 'CCMP';
 		break;
 
 	case 'ccmp256':
 		config.wpa_pairwise = 'CCMP-256';
+		wpa3_pairwise = 'CCMP-256';
 		break;
 
 	case 'aes':
 	case 'ccmp':
 		config.wpa_pairwise = 'CCMP';
+		wpa3_pairwise = 'CCMP';
 		break;
 
 	case 'tkip':
@@ -105,10 +108,12 @@ export function parse_encryption(config, dev_config) {
 
 	case 'gcmp256':
 		config.wpa_pairwise = 'GCMP-256';
+		wpa3_pairwise = 'GCMP-256';
 		break;
 
 	case 'gcmp':
 		config.wpa_pairwise = 'GCMP';
+		wpa3_pairwise = 'GCMP';
 		break;
 
 	default:

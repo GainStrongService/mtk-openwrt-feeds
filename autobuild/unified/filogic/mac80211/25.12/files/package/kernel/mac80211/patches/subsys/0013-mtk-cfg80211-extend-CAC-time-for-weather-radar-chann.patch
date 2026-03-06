@@ -1,7 +1,7 @@
-From a525dc4e10e6c4984d4401f365d10df333077a55 Mon Sep 17 00:00:00 2001
+From 99bc132f4c5eb62b11f435b790f255ba8f3061e4 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Mar 2022 16:06:30 +0800
-Subject: [PATCH 013/128] mtk: cfg80211: extend CAC time for weather radar
+Subject: [PATCH 013/137] mtk: cfg80211: extend CAC time for weather radar
  channels
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 10 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 728daa28..c57e729d 100644
+index 9af57448..19ce10ac 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -166,6 +166,7 @@ enum ieee80211_channel_flags {
+@@ -168,6 +168,7 @@ enum ieee80211_channel_flags {
  	(IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
  
  #define IEEE80211_DFS_MIN_CAC_TIME_MS		60000
@@ -42,10 +42,10 @@ index 9740770d..af8e6c50 100644
  
  	if (t1 == INT_MAX && t2 == INT_MAX)
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 97a35e3a..c468bab4 100644
+index 1ed96572..dba08e27 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -11234,6 +11234,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
+@@ -11357,6 +11357,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
  	if (WARN_ON(!cac_time_ms))
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  

@@ -1,7 +1,7 @@
-From 20c1ded8f75118af90924718cad443f98f4c845b Mon Sep 17 00:00:00 2001
+From 30dd302eb84d4ffe6f8ca9228a9c3db31a0ccd94 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 2 Jul 2024 09:46:26 +0800
-Subject: [PATCH 098/254] mtk: hostapd: Add Triggered Uplink Access
+Subject: [PATCH 098/260] mtk: hostapd: Add Triggered Uplink Access
  Optimization support
 
 Add TUAO feature support.
@@ -24,16 +24,16 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  src/common/ieee802_11_defs.h      |   5 +
  src/common/mtk_vendor.h           |  17 +++
  src/drivers/driver.h              |  26 ++++
- src/drivers/driver_nl80211.c      |  62 ++++++++
+ src/drivers/driver_nl80211.c      |  63 ++++++++
  src/drivers/driver_nl80211.h      |   1 +
  src/drivers/driver_nl80211_capa.c |   3 +
  wpa_supplicant/Makefile           |   1 +
- 15 files changed, 414 insertions(+), 2 deletions(-)
+ 15 files changed, 415 insertions(+), 2 deletions(-)
  create mode 100644 src/ap/scs.c
  create mode 100644 src/ap/scs.h
 
 diff --git a/hostapd/Makefile b/hostapd/Makefile
-index 57e8655ef..cca9432f2 100644
+index bac603d97..4644b680d 100644
 --- a/hostapd/Makefile
 +++ b/hostapd/Makefile
 @@ -383,6 +383,7 @@ ifdef CONFIG_IEEE80211BE
@@ -58,7 +58,7 @@ index a1e9b7c44..49c6d4a13 100644
  
  include ../lib.rules
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index ed4f26a9f..c7c5fac54 100644
+index 973b586d2..7eda37c60 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -24,6 +24,10 @@
@@ -72,7 +72,7 @@ index ed4f26a9f..c7c5fac54 100644
  
  u32 hostapd_sta_flags_to_drv(u32 flags)
  {
-@@ -1754,3 +1758,12 @@ int hostapd_drv_csi_dump(struct hostapd_data *hapd, void *dump_buf)
+@@ -1729,3 +1733,12 @@ int hostapd_drv_csi_dump(struct hostapd_data *hapd, void *dump_buf)
  		return 0;
  	return hapd->driver->csi_dump(hapd->drv_priv, hapd->iconf->band_idx, dump_buf);
  }
@@ -86,10 +86,10 @@ index ed4f26a9f..c7c5fac54 100644
 +}
 +#endif
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index b74d10dac..3c9cf1ad1 100644
+index 54bb9fd86..e4bf1443c 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
-@@ -196,6 +196,11 @@ int hostapd_drv_wnm_oper(struct hostapd_data *hapd,
+@@ -191,6 +191,11 @@ int hostapd_drv_wnm_oper(struct hostapd_data *hapd,
  int hostapd_drv_set_qos_map(struct hostapd_data *hapd, const u8 *qos_map_set,
  			    u8 qos_map_set_len);
  
@@ -102,10 +102,10 @@ index b74d10dac..3c9cf1ad1 100644
  void hostapd_get_mld_capa(struct hostapd_iface *iface);
  
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 2a46d7718..28584beb8 100644
+index c86d7c706..a1e64b8ab 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -63,6 +63,9 @@
+@@ -66,6 +66,9 @@
  #ifdef CONFIG_APUP
  #	include "apup.h"
  #endif // def CONFIG_APUP
@@ -115,7 +115,7 @@ index 2a46d7718..28584beb8 100644
  
  #ifdef CONFIG_FILS
  static struct wpabuf *
-@@ -6738,8 +6741,11 @@ static int handle_action(struct hostapd_data *hapd,
+@@ -7020,8 +7023,11 @@ static int handle_action(struct hostapd_data *hapd,
  	case WLAN_ACTION_PROTECTED_EHT:
  		ieee802_11_rx_protected_eht_action(hapd, mgmt, len);
  		return 1;
@@ -407,7 +407,7 @@ index 000000000..1b75af2ed
 +void hostapd_handle_scs(struct hostapd_data *hapd, const u8 *buf, size_t len);
 +#endif
 diff --git a/src/ap/sta_info.h b/src/ap/sta_info.h
-index a126cd134..6d40175d9 100644
+index f9c578249..182098eda 100644
 --- a/src/ap/sta_info.h
 +++ b/src/ap/sta_info.h
 @@ -19,6 +19,10 @@
@@ -421,7 +421,7 @@ index a126cd134..6d40175d9 100644
  /* STA flags */
  #define WLAN_STA_AUTH BIT(0)
  #define WLAN_STA_ASSOC BIT(1)
-@@ -319,6 +323,7 @@ struct sta_info {
+@@ -322,6 +326,7 @@ struct sta_info {
  	u8 mld_assoc_link_id;
  	struct link_reconf_req_list *reconf_req;
  	struct sta_info *mld_assoc_sta;
@@ -430,13 +430,13 @@ index a126cd134..6d40175d9 100644
  
  	u16 max_idle_period; /* if nonzero, the granted BSS max idle period in
 diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
-index e8328cd8e..3315d5bea 100644
+index b689c83f9..90b682148 100644
 --- a/src/common/ieee802_11_defs.h
 +++ b/src/common/ieee802_11_defs.h
-@@ -1227,6 +1227,11 @@ struct ieee80211_mgmt {
- 					 * Basic Multi-Link element (optional) */
- 					u8 variable[];
- 				} STRUCT_PACKED link_reconf_resp;
+@@ -1225,6 +1225,11 @@ struct ieee80211_mgmt {
+ 					u8 subtype;
+ 					u8 variable[0];
+ 				} STRUCT_PACKED naf;
 +				struct {
 +					u8 action;
 +					u8 dialog_token;
@@ -446,7 +446,7 @@ index e8328cd8e..3315d5bea 100644
  		} STRUCT_PACKED action;
  	} u;
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 1e68dfa9a..6d479c144 100644
+index cc947c55a..45554c039 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -20,6 +20,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -454,10 +454,10 @@ index 1e68dfa9a..6d479c144 100644
  	MTK_NL80211_VENDOR_SUBCMD_BEACON_CTRL = 0xcd,
  	MTK_NL80211_VENDOR_SUBCMD_TXPOWER_CTRL = 0xce,
 +	MTK_NL80211_VENDOR_SUBCMD_SCS_CTRL = 0xd0,
- 	MTK_NL80211_VENDOR_SUBCMD_EML_CTRL = 0xd3,
  };
  
-@@ -325,6 +326,22 @@ enum mtk_vendor_attr_txpower_ctrl {
+ enum mtk_nl80211_vendor_subevents {
+@@ -309,6 +310,22 @@ enum mtk_vendor_attr_txpower_ctrl {
  		NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL - 1
  };
  
@@ -481,7 +481,7 @@ index 1e68dfa9a..6d479c144 100644
  #define CSI_BW40_DATA_COUNT	128
  #define CSI_BW80_DATA_COUNT	256
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 3f8a1b8b9..24f68c5f6 100644
+index 537ccb1a5..b4edee88e 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -75,6 +75,25 @@ enum hostapd_chan_width_attr {
@@ -510,7 +510,7 @@ index 3f8a1b8b9..24f68c5f6 100644
  /**
   * enum reg_change_initiator - Regulatory change initiator
   */
-@@ -5717,6 +5736,13 @@ struct wpa_driver_ops {
+@@ -5796,6 +5815,13 @@ struct wpa_driver_ops {
  	int (*pp_mode_set)(void *priv, const u8 pp_mode, s8 link_id, u16 punct_bitmap);
  #ifdef CONFIG_IEEE80211BE
  	int (*get_mld_addr)(void *priv, u8 *addr);
@@ -525,7 +525,7 @@ index 3f8a1b8b9..24f68c5f6 100644
  	/**
  	 * csi_set - Set csi related mode and parameter
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 6a96bd312..c8bbedfc7 100644
+index 1f75336de..cee556107 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -44,6 +44,10 @@
@@ -539,9 +539,9 @@ index 6a96bd312..c8bbedfc7 100644
  
  #ifndef NETLINK_CAP_ACK
  #define NETLINK_CAP_ACK 10
-@@ -3035,6 +3039,9 @@ static int nl80211_action_subscribe_ap(struct i802_bss *bss)
- 	/* Protected EHT */
- 	if (nl80211_register_action_frame(bss, (u8 *) "\x25", 1) < 0)
+@@ -3232,6 +3236,9 @@ static int nl80211_action_subscribe_ap(struct i802_bss *bss)
+ 	/* Vendor-specific Protected */
+ 	if (nl80211_register_action_frame(bss, (u8 *) "\x7e", 1) < 0)
  		ret = -1;
 +	/* Robust AV SCS Request */
 +	if (nl80211_register_action_frame(bss, (u8 *) "\x13\x00", 2) < 0)
@@ -549,14 +549,11 @@ index 6a96bd312..c8bbedfc7 100644
  	/* Vendor-specific */
  	if (nl80211_register_action_frame(bss, (u8 *) "\x7f", 1) < 0)
  		ret = -1;
-@@ -16344,6 +16351,60 @@ static int nl80211_set_eml_omn(void *priv, u8 link_id, const u8 *addr,
+@@ -16835,6 +16842,61 @@ static int nl80211_get_mld_addr(void *priv, u8 *addr)
  
- 	return ret;
- 
-+fail:
-+	nlmsg_free(msg);
-+	return ret;
-+}
+ 	return 0;
+ }
++
 +
 +static int
 +nl80211_set_scs(void *priv, struct hostapd_scs_desc_info *info, u8 link_id)
@@ -607,10 +604,14 @@ index 6a96bd312..c8bbedfc7 100644
 +
 +	return ret;
 +
- fail:
- 	nlmsg_free(msg);
- 	return ret;
-@@ -16800,6 +16861,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
++fail:
++	nlmsg_free(msg);
++	return ret;
++}
+ #endif
+ 
+ static int
+@@ -17291,6 +17353,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.pp_mode_set = nl80211_pp_mode_set,
  #ifdef CONFIG_IEEE80211BE
  	.get_mld_addr = nl80211_get_mld_addr,
@@ -619,22 +620,22 @@ index 6a96bd312..c8bbedfc7 100644
  	.csi_set = nl80211_csi_set,
  	.csi_dump = nl80211_csi_dump,
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index c36b6a3ae..e7a52c7ca 100644
+index dd32112b8..9bec0b935 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -216,6 +216,7 @@ struct wpa_driver_nl80211_data {
+@@ -230,6 +230,7 @@ struct wpa_driver_nl80211_data {
+ 	unsigned int mtk_beacon_ctrl_vendor_cmd_avail:1;
  	unsigned int mtk_csi_vendor_cmd_avail:1;
- 	unsigned int mtk_eml_vendor_cmd_avail:1;
  	unsigned int mtk_txpower_vendor_cmd_avail:1;
 +	unsigned int mtk_scs_vendor_cmd_avail:1;
  
  	u8 extra_bss_membership_selectors[8];
  
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 7808f8d13..1abe2e156 100644
+index 77d12df92..33d0a3795 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1190,6 +1190,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1206,6 +1206,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  				case MTK_NL80211_VENDOR_SUBCMD_TXPOWER_CTRL:
  					drv->mtk_txpower_vendor_cmd_avail = 1;
  					break;
@@ -645,10 +646,10 @@ index 7808f8d13..1abe2e156 100644
  			}
  
 diff --git a/wpa_supplicant/Makefile b/wpa_supplicant/Makefile
-index 0abb12292..af0bceb2b 100644
+index b4232b1b9..a77c82c28 100644
 --- a/wpa_supplicant/Makefile
 +++ b/wpa_supplicant/Makefile
-@@ -1038,6 +1038,7 @@ OBJS += ../src/ap/ieee802_11_he.o
+@@ -1060,6 +1060,7 @@ OBJS += ../src/ap/ieee802_11_he.o
  endif
  ifdef CONFIG_IEEE80211BE
  OBJS += ../src/ap/ieee802_11_eht.o

@@ -1,7 +1,7 @@
-From b2bc4166000336ae1941ee58c96d50627b7ac081 Mon Sep 17 00:00:00 2001
+From 0741ee67996baff39c044bfa8d241adb2a5052a3 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 16 Sep 2024 10:12:01 +0800
-Subject: [PATCH 109/254] mtk: hostapd: skip BSS from disallowed channel when
+Subject: [PATCH 109/260] mtk: hostapd: skip BSS from disallowed channel when
  matching the scan results
 
 In the single wiphy, we have added 'freq_list' in wpa_s configuration to
@@ -25,10 +25,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 7 insertions(+)
 
 diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
-index 20921fb75..9849e6f67 100644
+index 32fdd6c89..d5a15b645 100644
 --- a/wpa_supplicant/events.c
 +++ b/wpa_supplicant/events.c
-@@ -1700,6 +1700,13 @@ struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
+@@ -1702,6 +1702,13 @@ struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
  		return NULL;
  	}
  

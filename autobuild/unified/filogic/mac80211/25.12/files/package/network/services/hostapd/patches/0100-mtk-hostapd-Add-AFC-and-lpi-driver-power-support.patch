@@ -1,7 +1,7 @@
-From 9acdc426e7fe04d8963d041b56a2dbdc70697ed8 Mon Sep 17 00:00:00 2001
+From 7614778d4ef6cfb1c8ef089af08375aa075d7e2e Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
-Date: Mon, 22 Dec 2025 18:07:19 +0800
-Subject: [PATCH 100/254] mtk: hostapd: Add AFC and lpi driver power support
+Date: Mon, 9 Mar 2026 19:27:34 +0800
+Subject: [PATCH 100/260] mtk: hostapd: Add AFC and lpi driver power support
 
 Add AFC and lpi driver power support
 This patch parse the AFC response into mtk sku power table format and send
@@ -32,31 +32,22 @@ return value check.
 
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
- hostapd/config_file.c        |   4 +
- src/ap/afc.c                 | 381 ++++++++++++++++++++++++++++++++---
+ hostapd/config_file.c        |   2 +
+ src/ap/afc.c                 | 378 ++++++++++++++++++++++++++++++++---
  src/ap/ap_config.c           |   3 +-
- src/ap/ap_config.h           |   2 +
+ src/ap/ap_config.h           |   1 +
  src/ap/ap_drv_ops.c          |  34 +++-
  src/ap/hostapd.h             |  60 ++++++
  src/common/mtk_vendor.h      |   2 +
  src/drivers/driver.h         |   6 +-
  src/drivers/driver_nl80211.c |  22 +-
- 9 files changed, 475 insertions(+), 39 deletions(-)
+ 9 files changed, 471 insertions(+), 37 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index f3ef3bbf9..68d96fbcf 100644
+index aa279eda2..fa8e8db3d 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4019,6 +4019,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
- 	} else if (os_strcmp(buf, "afc_op_class") == 0) {
- 		if (hostapd_afc_parse_op_class(conf, pos))
- 			return 1;
-+	} else if (os_strcmp(buf, "afc_max_timeout") == 0) {
-+		conf->afc.max_timeout = atoi(pos);
- #endif /* CONFIG_AFC */
- 	} else if (os_strcmp(buf, "mbssid") == 0) {
- 		int mbssid = atoi(pos);
-@@ -5352,6 +5354,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -5356,6 +5356,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		conf->lpi_psd = !!en;
  	} else if (os_strcmp(buf, "sku_idx") == 0) {
  		conf->sku_idx = strtol(pos, NULL, 10);
@@ -66,7 +57,7 @@ index f3ef3bbf9..68d96fbcf 100644
  		u8 en = strtol(pos, NULL, 10);
  		conf->lpi_bcn_enhance = !!en;
 diff --git a/src/ap/afc.c b/src/ap/afc.c
-index 27c2a8061..3650237d7 100644
+index 03b4c6197..e26716820 100644
 --- a/src/ap/afc.c
 +++ b/src/ap/afc.c
 @@ -17,13 +17,14 @@
@@ -83,38 +74,28 @@ index 27c2a8061..3650237d7 100644
 -
 +int hostapd_afc_reset_channels(struct hostapd_iface *iface);
  
- static struct json_object *
+ static struct wpabuf *
  hostapd_afc_build_location_request(struct hostapd_iface *iface)
-@@ -243,7 +244,6 @@ static struct json_object * hostapd_afc_get_opclass_chan_list(u8 op_class)
- 	     chan += oper_class->inc) {
- 		if (chan + chan_offset > oper_class->max_chan)
- 			break;
--
- 		str_obj = json_object_new_int(chan + chan_offset);
- 		if (!str_obj) {
- 			json_object_put(chan_list_obj);
-@@ -558,7 +558,9 @@ static int hostad_afc_update_chan_info(struct afc_chan_info_elem **chan_list,
- 				return -ENOMEM;
+@@ -485,6 +486,9 @@ static int hostad_afc_update_chan_info(struct afc_chan_info_elem **chan_list,
+ 			c = tmp;
  
- 			c[count].chan = ch;
--			memset(c[count++].power, 0, sizeof(c[count].power));
+ 			c[count].chan = channel;
 +			for (int j = 0; j < 5; j++)
 +				c[count].power[j] = AFC_INVALID_POWER;
 +			count++;
  		}
  		c[i].power[op_class_pwr_index] = power;
  	}
-@@ -780,6 +782,9 @@ static int hostapd_afc_parse_reply(struct hostapd_iface *iface, char *reply)
- 	iface->afc.timeout = request_timeout;
+@@ -707,6 +711,8 @@ hostapd_afc_parse_reply(struct hostapd_iface *iface, char *reply, size_t len)
  	if (iface->afc.timeout < 0)
  		iface->afc.timeout = HOSTAPD_AFC_RETRY_TIMEOUT;
-+	else if (iface->afc.timeout > iconf->afc.max_timeout &&
-+		 iconf->afc.max_timeout >= HOSTAPD_AFC_RETRY_TIMEOUT)
-+		iface->afc.timeout = iconf->afc.max_timeout;
  
++fail:
++	json_free(root);
  	return ret;
  }
-@@ -949,7 +954,19 @@ static bool hostapd_afc_has_usable_chans(struct hostapd_iface *iface)
+ 
+@@ -863,7 +869,19 @@ static bool hostapd_afc_has_usable_chans(struct hostapd_iface *iface)
  int hostapd_afc_handle_request(struct hostapd_iface *iface)
  {
  	struct hostapd_config *iconf = iface->conf;
@@ -134,8 +115,8 @@ index 27c2a8061..3650237d7 100644
  
  	/* AFC is required just for standard power AP */
  	if (!he_reg_is_sp(iconf->he_6ghz_reg_pwr_type))
-@@ -963,33 +980,55 @@ int hostapd_afc_handle_request(struct hostapd_iface *iface)
- 
+@@ -878,33 +896,55 @@ int hostapd_afc_handle_request(struct hostapd_iface *iface)
+ 	iface->afc.request_id = os_random();
  	ret = hostapd_afc_send_receive(iface);
  	if (ret < 0) {
 -		/*
@@ -199,7 +180,7 @@ index 27c2a8061..3650237d7 100644
  	eloop_cancel_timeout(hostapd_afc_timeout_handler, iface, NULL);
  	eloop_register_timeout(iface->afc.timeout, 0,
  			       hostapd_afc_timeout_handler, iface, NULL);
-@@ -1016,35 +1055,63 @@ static void hostapd_afc_delete_data_from_server(struct hostapd_iface *iface)
+@@ -931,35 +971,63 @@ static void hostapd_afc_delete_data_from_server(struct hostapd_iface *iface)
  static void hostapd_afc_timeout_handler(void *eloop_ctx, void *timeout_ctx)
  {
  	struct hostapd_iface *iface = eloop_ctx;
@@ -276,7 +257,7 @@ index 27c2a8061..3650237d7 100644
  	eloop_register_timeout(iface->afc.timeout, 0,
  			       hostapd_afc_timeout_handler, iface, NULL);
  }
-@@ -1109,6 +1176,24 @@ void hostap_afc_disable_channels(struct hostapd_iface *iface)
+@@ -1024,6 +1092,24 @@ void hostap_afc_disable_channels(struct hostapd_iface *iface)
  }
  
  
@@ -301,15 +282,15 @@ index 27c2a8061..3650237d7 100644
  int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
  				       int *power)
  {
-@@ -1140,11 +1225,253 @@ int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
+@@ -1055,11 +1141,253 @@ int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
  				int j;
  
  				*power = 0;
 -				for (j = 0; j < ARRAY_SIZE(c->power); j++)
 -					*power = MAX(*power, 2 * c->power[j]);
 +				for (j = 0; j < 5; j++) {
-+					if (c->power[j] != AFC_INVALID_POWER)
-+						*power = MAX(*power, 2 * c->power[j]);
++					if ((int)c->power[j] != AFC_INVALID_POWER)
++						*power = MAX(*power, (int)(2 * c->power[j]));
 +				}
 +
  				return 0;
@@ -558,10 +539,10 @@ index 27c2a8061..3650237d7 100644
 +	return ret;
 +}
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index cbab54f08..dd75a3d70 100644
+index 37fde6db8..6dea8364e 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
-@@ -295,7 +295,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+@@ -300,7 +300,7 @@ struct hostapd_config * hostapd_config_defaults(void)
  	conf->he_6ghz_max_ampdu_len_exp = 7;
  	conf->he_6ghz_rx_ant_pat = 1;
  	conf->he_6ghz_tx_ant_pat = 1;
@@ -570,7 +551,7 @@ index cbab54f08..dd75a3d70 100644
  	conf->reg_def_cli_eirp_psd = -1;
  	conf->reg_sub_cli_eirp_psd = -1;
  	conf->reg_def_cli_eirp = -1;
-@@ -324,6 +324,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+@@ -329,6 +329,7 @@ struct hostapd_config * hostapd_config_defaults(void)
  
  	conf->lpi_psd = 0;
  	conf->sku_idx = 0;
@@ -579,18 +560,10 @@ index cbab54f08..dd75a3d70 100644
  
  	hostapd_set_and_check_bw320_offset(conf, 0);
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index b79cd870a..e266e0a5d 100644
+index 0a0a1f028..8fd3830c4 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1339,6 +1339,7 @@ struct hostapd_config {
- 		unsigned int n_op_class;
- 		unsigned int *op_class;
- 		int min_power;
-+		int max_timeout;
- 	} afc;
- #endif /* CONFIG_AFC */
- 
-@@ -1356,6 +1357,7 @@ struct hostapd_config {
+@@ -1362,6 +1362,7 @@ struct hostapd_config {
  	u8 pp_mode;
  	u8 lpi_psd;
  	u8 sku_idx;
@@ -599,10 +572,10 @@ index b79cd870a..e266e0a5d 100644
  };
  
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index c7c5fac54..9f13375ce 100644
+index 7eda37c60..004be6590 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1620,7 +1620,9 @@ int hostapd_drv_get_aval_bss_color_bmp(struct hostapd_data *hapd, u64 *aval_colo
+@@ -1611,7 +1611,9 @@ int hostapd_drv_get_aval_bss_color_bmp(struct hostapd_data *hapd, u64 *aval_colo
  
  int hostapd_drv_txpower_ctrl(struct hostapd_data *hapd)
  {
@@ -613,7 +586,7 @@ index c7c5fac54..9f13375ce 100644
  
  	if (!hapd->driver || !hapd->driver->txpower_ctrl)
  		return 0;
-@@ -1628,10 +1630,32 @@ int hostapd_drv_txpower_ctrl(struct hostapd_data *hapd)
+@@ -1619,10 +1621,32 @@ int hostapd_drv_txpower_ctrl(struct hostapd_data *hapd)
  	if (hapd->conf->mld_ap)
  		link_id = hapd->mld_link_id;
  
@@ -651,11 +624,11 @@ index c7c5fac54..9f13375ce 100644
  
  int hostapd_drv_ap_wireless(struct hostapd_data *hapd, u8 sub_vendor_id, int value)
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index b64fc6317..b21edda74 100644
+index 54fe11835..5112ebda5 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -817,17 +817,71 @@ struct hostapd_iface {
- 			int power[5];
+@@ -828,17 +828,71 @@ struct hostapd_iface {
+ 			double power[5];
  		} *chan_info_list;
  		bool data_valid;
 +		bool lpi_mode;
@@ -726,7 +699,7 @@ index b64fc6317..b21edda74 100644
  #else
  static inline int
  hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
-@@ -848,6 +902,12 @@ static inline void hostapd_afc_stop(struct hostapd_iface *iface)
+@@ -859,6 +913,12 @@ static inline void hostapd_afc_stop(struct hostapd_iface *iface)
  static inline void hostap_afc_disable_channels(struct hostapd_iface *iface)
  {
  }
@@ -740,10 +713,10 @@ index b64fc6317..b21edda74 100644
  
  int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 6d479c144..e6d848bf5 100644
+index 45554c039..23b9a2b77 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
-@@ -319,6 +319,8 @@ enum mtk_vendor_attr_txpower_ctrl {
+@@ -303,6 +303,8 @@ enum mtk_vendor_attr_txpower_ctrl {
  	MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX,
  	MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE,
  	MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID,
@@ -753,10 +726,10 @@ index 6d479c144..e6d848bf5 100644
  	/* keep last */
  	NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL,
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 2e8a73168..bae3c1744 100644
+index 5f4f11865..58e6c5dd8 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5774,9 +5774,11 @@ struct wpa_driver_ops {
+@@ -5853,9 +5853,11 @@ struct wpa_driver_ops {
  	* @lpi_bcn_enhance: 1 to enable beacon duplicate enhancement in 6G lpi mode, 0 to disable enhancement
  	* @sku_idx: index used to indicate which sku table should be used
  	* @link_id: MLD link id. -1 if this is an non-MLD AP
@@ -771,7 +744,7 @@ index 2e8a73168..bae3c1744 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index c8bbedfc7..71e12a00b 100644
+index cee556107..b8ee732f9 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -43,6 +43,7 @@
@@ -782,7 +755,7 @@ index c8bbedfc7..71e12a00b 100644
  
  #ifdef CONFIG_IEEE80211BE
  #include "ap/scs.h"
-@@ -208,6 +209,8 @@ txpower_ctrl_policy[NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL] = {
+@@ -207,6 +208,8 @@ txpower_ctrl_policy[NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL] = {
  	[MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX] = { .type = NLA_U8 },
  	[MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE] = { .type = NLA_U8 },
  	[MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID] = { .type = NLA_U8 },
@@ -791,7 +764,7 @@ index c8bbedfc7..71e12a00b 100644
  };
  
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
-@@ -16618,14 +16621,15 @@ fail:
+@@ -17106,14 +17109,15 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -810,7 +783,7 @@ index c8bbedfc7..71e12a00b 100644
  
  	if (!drv->mtk_txpower_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -16649,8 +16653,18 @@ static int nl80211_txpower_ctrl(void *priv, u8 lpi_psd, u8 sku_idx, u8 lpi_bcn_e
+@@ -17137,8 +17141,18 @@ static int nl80211_txpower_ctrl(void *priv, u8 lpi_psd, u8 sku_idx, u8 lpi_bcn_e
  	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_PSD, lpi_psd);
  	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX, sku_idx);
  	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE, lpi_bcn_enhance);

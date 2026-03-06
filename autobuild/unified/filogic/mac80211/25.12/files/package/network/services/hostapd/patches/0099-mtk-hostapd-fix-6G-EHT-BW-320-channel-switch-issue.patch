@@ -1,7 +1,7 @@
-From 406cf42e203a6975a32996d2486980411ed8690b Mon Sep 17 00:00:00 2001
+From fd165ccef46b26ec0a59e4aff754b3c0848f5d09 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 5 Aug 2024 14:56:17 +0800
-Subject: [PATCH 099/254] mtk: hostapd: fix 6G EHT BW 320 channel switch issue
+Subject: [PATCH 099/260] mtk: hostapd: fix 6G EHT BW 320 channel switch issue
 
 When channel switching from BW 320 to BW 160, the op class is not
 changed for building csa after beacon.
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  2 files changed, 27 insertions(+), 17 deletions(-)
 
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 6b3f7841f..ad419e8f3 100644
+index e244d786a..4bc892e75 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -4648,23 +4648,26 @@ static int hostapd_change_config_freq(struct hostapd_data *hapd,
+@@ -4675,23 +4675,26 @@ int hostapd_change_config_freq(struct hostapd_data *hapd,
  	mode = hapd->iface->current_mode;
  
  	/* if a pointer to old_params is provided we save previous state */
@@ -63,7 +63,7 @@ index 6b3f7841f..ad419e8f3 100644
  
  	switch (params->bandwidth) {
  	case 0:
-@@ -4709,6 +4712,7 @@ static int hostapd_change_config_freq(struct hostapd_data *hapd,
+@@ -4736,6 +4739,7 @@ int hostapd_change_config_freq(struct hostapd_data *hapd,
  	conf->ieee80211n = params->ht_enabled;
  	conf->ieee80211ac = params->vht_enabled;
  	conf->secondary_channel = params->sec_channel_offset;
@@ -71,7 +71,7 @@ index 6b3f7841f..ad419e8f3 100644
  	if (params->center_freq1 &&
  	    ieee80211_freq_to_chan(params->center_freq1, &seg0) ==
  	    NUM_HOSTAPD_MODES)
-@@ -4785,6 +4789,7 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
+@@ -4827,6 +4831,7 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
  
  	settings->freq_params.channel = chan;
  
@@ -80,10 +80,10 @@ index 6b3f7841f..ad419e8f3 100644
  					 &settings->freq_params,
  					 &old_freq);
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 24f68c5f6..2e8a73168 100644
+index b4edee88e..5f4f11865 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -939,6 +939,11 @@ struct hostapd_freq_params {
+@@ -942,6 +942,11 @@ struct hostapd_freq_params {
  	 * link_id: If >=0 indicates the link of the AP MLD to configure
  	 */
  	int link_id;

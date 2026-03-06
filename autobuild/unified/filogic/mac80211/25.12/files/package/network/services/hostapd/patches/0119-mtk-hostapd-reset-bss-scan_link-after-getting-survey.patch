@@ -1,7 +1,7 @@
-From b19b40983e40f30ac6a0d8362b2b3451f3103121 Mon Sep 17 00:00:00 2001
+From af1629e0400fc932b620ac86bc86e0df81aa28d4 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 28 Nov 2024 14:19:18 +0800
-Subject: [PATCH 119/254] mtk: hostapd: reset bss->scan_link after getting
+Subject: [PATCH 119/260] mtk: hostapd: reset bss->scan_link after getting
  survey
 
 The bss->scan_link is used for AP MLD to record the link that
@@ -16,10 +16,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index ab754e3f6..9ff66e790 100644
+index 3b0fd6116..3a395ce79 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -10902,6 +10902,7 @@ static int wpa_driver_nl80211_get_survey(void *priv, unsigned int freq,
+@@ -11240,6 +11240,7 @@ static int wpa_driver_nl80211_get_survey(void *priv, unsigned int freq,
  		wpa_supplicant_event(ctx, EVENT_SURVEY, &data);
  
  	clean_survey_results(survey_results);

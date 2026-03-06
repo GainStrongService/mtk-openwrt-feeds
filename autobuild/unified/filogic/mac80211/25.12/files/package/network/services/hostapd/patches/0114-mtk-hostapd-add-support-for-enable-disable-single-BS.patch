@@ -1,7 +1,7 @@
-From 8ea41947afb0796b838688d5d4402986bb5b9c2b Mon Sep 17 00:00:00 2001
+From a2f8262151e8d2e75e636aecb09190684064ede7 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 18 Dec 2023 11:35:34 +0800
-Subject: [PATCH 114/254] mtk: hostapd: add support for enable/disable single
+Subject: [PATCH 114/260] mtk: hostapd: add support for enable/disable single
  BSS
 
 This function is ported from wifi 6.
@@ -38,10 +38,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  6 files changed, 121 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index c86a06c66..e98ba830f 100644
+index eda481d32..ee8c35561 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -1515,6 +1515,24 @@ static int hostapd_ctrl_iface_enable(struct hostapd_iface *iface)
+@@ -1516,6 +1516,24 @@ static int hostapd_ctrl_iface_enable(struct hostapd_iface *iface)
  }
  
  
@@ -66,7 +66,7 @@ index c86a06c66..e98ba830f 100644
  static int hostapd_ctrl_iface_reload(struct hostapd_iface *iface)
  {
  	if (hostapd_reload_iface(iface) < 0) {
-@@ -1545,6 +1563,24 @@ static int hostapd_ctrl_iface_disable(struct hostapd_iface *iface)
+@@ -1546,6 +1564,24 @@ static int hostapd_ctrl_iface_disable(struct hostapd_iface *iface)
  }
  
  
@@ -91,7 +91,7 @@ index c86a06c66..e98ba830f 100644
  static int
  hostapd_ctrl_iface_kick_mismatch_psk_sta_iter(struct hostapd_data *hapd,
  					      struct sta_info *sta, void *ctx)
-@@ -5824,6 +5860,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5647,6 +5683,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strcmp(buf, "ENABLE") == 0) {
  		if (hostapd_ctrl_iface_enable(hapd->iface))
  			reply_len = -1;
@@ -101,7 +101,7 @@ index c86a06c66..e98ba830f 100644
  	} else if (os_strcmp(buf, "RELOAD_WPA_PSK") == 0) {
  		if (hostapd_ctrl_iface_reload_wpa_psk(hapd))
  			reply_len = -1;
-@@ -5847,6 +5886,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5670,6 +5709,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strcmp(buf, "DISABLE") == 0) {
  		if (hostapd_ctrl_iface_disable(hapd->iface))
  			reply_len = -1;
@@ -112,10 +112,10 @@ index c86a06c66..e98ba830f 100644
  		if (ieee802_11_set_beacon(hapd))
  			reply_len = -1;
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index eed4a0b70..65e02c2f8 100644
+index 333eeed95..fb6385275 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
-@@ -1252,6 +1252,13 @@ static int hostapd_cli_cmd_enable(struct wpa_ctrl *ctrl, int argc,
+@@ -1259,6 +1259,13 @@ static int hostapd_cli_cmd_enable(struct wpa_ctrl *ctrl, int argc,
  }
  
  
@@ -129,7 +129,7 @@ index eed4a0b70..65e02c2f8 100644
  static int hostapd_cli_cmd_reload(struct wpa_ctrl *ctrl, int argc,
  				  char *argv[])
  {
-@@ -1280,6 +1287,13 @@ static int hostapd_cli_cmd_disable(struct wpa_ctrl *ctrl, int argc,
+@@ -1287,6 +1294,13 @@ static int hostapd_cli_cmd_disable(struct wpa_ctrl *ctrl, int argc,
  }
  
  
@@ -143,7 +143,7 @@ index eed4a0b70..65e02c2f8 100644
  static int hostapd_cli_cmd_enable_mld(struct wpa_ctrl *ctrl, int argc,
  				      char *argv[])
  {
-@@ -1915,6 +1929,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -1934,6 +1948,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
  	  "  = send vendor driver command" },
  	{ "enable", hostapd_cli_cmd_enable, NULL,
  	  "= enable hostapd on current interface" },
@@ -152,7 +152,7 @@ index eed4a0b70..65e02c2f8 100644
  	{ "reload", hostapd_cli_cmd_reload, NULL,
  	  "= reload configuration for current interface" },
  	{ "reload_bss", hostapd_cli_cmd_reload_bss, NULL,
-@@ -1923,6 +1939,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -1942,6 +1958,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
  	  "= reload configuration for current interface" },
  	{ "disable", hostapd_cli_cmd_disable, NULL,
  	  "= disable hostapd on current interface" },
@@ -160,12 +160,12 @@ index eed4a0b70..65e02c2f8 100644
 +	  "= disable hostapd on current BSS" },
  	{ "enable_mld", hostapd_cli_cmd_enable_mld, NULL,
  	  "= enable AP MLD to which the interface is affiliated" },
- 	{ "disable_mld", hostapd_cli_cmd_disable_mld, NULL,
+ #ifdef CONFIG_TESTING_OPTIONS
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index c00f6452c..2dd7c6d1b 100644
+index e5b5ef9c6..a89c16314 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -3827,6 +3827,20 @@ int hostapd_reload_bss_only(struct hostapd_data *bss)
+@@ -3844,6 +3844,20 @@ int hostapd_reload_bss_only(struct hostapd_data *bss)
  }
  
  
@@ -186,7 +186,7 @@ index c00f6452c..2dd7c6d1b 100644
  int hostapd_disable_iface(struct hostapd_iface *hapd_iface)
  {
  	size_t j;
-@@ -3878,6 +3892,29 @@ int hostapd_disable_iface(struct hostapd_iface *hapd_iface)
+@@ -3895,6 +3909,29 @@ int hostapd_disable_iface(struct hostapd_iface *hapd_iface)
  }
  
  
@@ -216,7 +216,7 @@ index c00f6452c..2dd7c6d1b 100644
  static struct hostapd_iface *
  hostapd_iface_alloc(struct hapd_interfaces *interfaces)
  {
-@@ -4987,6 +5024,9 @@ int hostapd_switch_channel(struct hostapd_data *hapd,
+@@ -5029,6 +5066,9 @@ int hostapd_switch_channel(struct hostapd_data *hapd,
  	struct hostapd_data *link_bss;
  	int ret;
  
@@ -227,10 +227,10 @@ index c00f6452c..2dd7c6d1b 100644
  		wpa_printf(MSG_INFO, "CSA is not supported");
  		return -1;
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index a1f2fa2c7..081b1373b 100644
+index 21295806a..05b9092ee 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -945,7 +945,9 @@ void hostapd_cleanup_unused_mlds(struct hapd_interfaces *interfaces);
+@@ -956,7 +956,9 @@ void hostapd_cleanup_unused_mlds(struct hapd_interfaces *interfaces);
  int hostapd_enable_iface(struct hostapd_iface *hapd_iface);
  int hostapd_reload_iface(struct hostapd_iface *hapd_iface);
  int hostapd_reload_bss_only(struct hostapd_data *bss);
@@ -241,10 +241,10 @@ index a1f2fa2c7..081b1373b 100644
  void hostapd_free_hapd_data(struct hostapd_data *hapd);
  void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index d1d8328b3..ab754e3f6 100644
+index 50048b970..3b0fd6116 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -5464,6 +5464,17 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -5761,6 +5761,17 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  	wpa_printf(MSG_DEBUG, "nl80211: dtim_period=%d", params->dtim_period);
  	wpa_printf(MSG_DEBUG, "nl80211: ssid=%s",
  		   wpa_ssid_txt(params->ssid, params->ssid_len));
@@ -263,10 +263,10 @@ index d1d8328b3..ab754e3f6 100644
  	    nla_put(msg, NL80211_ATTR_BEACON_HEAD, params->head_len,
  		    params->head) ||
 diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
-index 01819641d..efe4735f3 100644
+index 8a289ce45..99c9546fa 100644
 --- a/src/drivers/driver_nl80211_event.c
 +++ b/src/drivers/driver_nl80211_event.c
-@@ -1860,6 +1860,7 @@ static void mlme_event(struct i802_bss *bss,
+@@ -1866,6 +1866,7 @@ static void mlme_event(struct i802_bss *bss,
  	size_t len;
  	int link_id = -1;
  	struct i802_link *mld_link = NULL;
@@ -274,7 +274,7 @@ index 01819641d..efe4735f3 100644
  
  	if (timed_out && addr) {
  		mlme_timeout_event(drv, cmd, addr);
-@@ -1883,6 +1884,13 @@ static void mlme_event(struct i802_bss *bss,
+@@ -1889,6 +1890,13 @@ static void mlme_event(struct i802_bss *bss,
  	if (nl80211_link_valid(bss->valid_links, link_id))
  		mld_link = nl80211_get_link(bss, link_id);
  

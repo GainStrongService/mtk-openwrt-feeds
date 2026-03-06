@@ -1,7 +1,7 @@
-From dbae3da01e9005f1a28100cba75437ba14c214c8 Mon Sep 17 00:00:00 2001
+From 8efa5d0351efae505ffefbf9ae152be0ff023d5c Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 31 Oct 2024 14:28:05 +0800
-Subject: [PATCH 117/254] mtk: hostapd: Fix bugs in FT initial mobility domain
+Subject: [PATCH 117/260] mtk: hostapd: Fix bugs in FT initial mobility domain
  association
 
 1. Fix generating PTK by using mld addr.
@@ -16,7 +16,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  3 files changed, 53 insertions(+), 21 deletions(-)
 
 diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
-index b2af3b6d3..e8704c7d2 100644
+index 4f913b5b8..9c00383ed 100644
 --- a/src/ap/wpa_auth.c
 +++ b/src/ap/wpa_auth.c
 @@ -87,7 +87,7 @@ static const int dot11RSNAConfigPMKReauthThreshold = 70;
@@ -37,7 +37,7 @@ index b2af3b6d3..e8704c7d2 100644
  {
  #ifdef CONFIG_IEEE80211BE
  	if (sm->mld_assoc_link_id >= 0)
-@@ -4647,6 +4647,7 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
+@@ -4738,6 +4738,7 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
  	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
  		struct wpa_authenticator *wpa_auth;
  		const u8 *rsne, *rsnxe, *rsnoe, *rsno2e, *rsnxoe;
@@ -45,7 +45,7 @@ index b2af3b6d3..e8704c7d2 100644
  		size_t rsne_len, rsnxe_len, rsnoe_len, rsno2e_len, rsnxoe_len;
  		size_t kde_len;
  
-@@ -4675,6 +4676,7 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
+@@ -4766,6 +4767,7 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
  
  		/* MLO Link KDE */
  		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
@@ -53,7 +53,7 @@ index b2af3b6d3..e8704c7d2 100644
  		*pos++ = RSN_SELECTOR_LEN + 1 + ETH_ALEN +
  			rsne_len + rsnxe_len;
  
-@@ -4695,6 +4697,24 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
+@@ -4786,6 +4788,24 @@ static u8 * wpa_auth_ml_kdes(struct wpa_state_machine *sm, u8 *pos)
  		if (rsne_len) {
  			os_memcpy(pos, rsne, rsne_len);
  			pos += rsne_len;
@@ -78,7 +78,7 @@ index b2af3b6d3..e8704c7d2 100644
  		}
  
  		if (rsnxe_len) {
-@@ -4993,23 +5013,24 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
+@@ -5191,23 +5211,24 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
  	if (!is_mld) {
  		os_memcpy(pos, wpa_ie, wpa_ie_len);
  		pos += wpa_ie_len;
@@ -116,7 +116,7 @@ index b2af3b6d3..e8704c7d2 100644
  	hdr[1] = 0;
  
  	if (sm->use_ext_key_id) {
-@@ -5064,6 +5085,15 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
+@@ -5262,6 +5283,15 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
  		*pos++ = WLAN_TIMEOUT_KEY_LIFETIME;
  		WPA_PUT_LE32(pos, conf->r0_key_lifetime);
  		pos += 4;
@@ -133,21 +133,21 @@ index b2af3b6d3..e8704c7d2 100644
  #endif /* CONFIG_IEEE80211R_AP */
  #ifdef CONFIG_P2P
 diff --git a/src/ap/wpa_auth.h b/src/ap/wpa_auth.h
-index 7b82b0881..35f41f275 100644
+index 0f0a1ac7d..74708f0df 100644
 --- a/src/ap/wpa_auth.h
 +++ b/src/ap/wpa_auth.h
-@@ -713,4 +713,6 @@ bool wpa_auth_sm_known_sta_identification(struct wpa_state_machine *sm,
- 					  const u8 *timestamp,
- 					  const u8 *mic, size_t mic_len);
+@@ -736,4 +736,6 @@ void wpa_auth_set_sae_pw_id(struct wpa_state_machine *sm,
+ 			    const struct wpabuf *pw_id,
+ 			    unsigned int counter);
  
 +const u8 * wpa_auth_get_aa(const struct wpa_state_machine *sm);
 +const u8 * wpa_auth_get_spa(const struct wpa_state_machine *sm);
  #endif /* WPA_AUTH_H */
 diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
-index d5400a9f7..f59ea74be 100644
+index d90808339..c32b9d61c 100644
 --- a/src/ap/wpa_auth_ft.c
 +++ b/src/ap/wpa_auth_ft.c
-@@ -2151,17 +2151,17 @@ int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, struct wpa_ptk *ptk,
+@@ -2138,17 +2138,17 @@ int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, struct wpa_ptk *ptk,
  	}
  
  	if (wpa_derive_pmk_r0(mpmk, mpmk_len, ssid, ssid_len, mdid,

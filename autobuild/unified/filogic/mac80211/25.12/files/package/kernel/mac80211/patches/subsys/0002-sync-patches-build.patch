@@ -1,12 +1,16 @@
-From 54877db62848afac79c77db59fa3924f4ca47929 Mon Sep 17 00:00:00 2001
+From dcec106d00f42ea83aca0ba028c6aad2a637d37a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:42:08 +0800
-Subject: [PATCH 002/128] sync patches/build
+Subject: [PATCH 002/137] sync patches/build
+
+
+sync patches/build to fix build for for 6.12.64
 
 ---
  Kconfig.sources                               |   2 -
  Makefile                                      | 115 ++++++++++--------
  Makefile.real                                 |  29 ++++-
+ backport-include/linux/hrtimer.h              |   2 +
  compat/main.c                                 |  25 ----
  drivers/bus/mhi/host/trace.h                  |  12 +-
  drivers/net/wireless/ath/ath10k/snoc.c        |   6 +-
@@ -29,7 +33,7 @@ Subject: [PATCH 002/128] sync patches/build
  kconf/conf.c                                  |  46 ++-----
  kconf/confdata.c                              |   4 +-
  local-symbols                                 |   8 --
- 25 files changed, 205 insertions(+), 225 deletions(-)
+ 26 files changed, 207 insertions(+), 225 deletions(-)
 
 diff --git a/Kconfig.sources b/Kconfig.sources
 index 0aa62a35..d74affd4 100644
@@ -265,6 +269,25 @@ index 65508028..971a543f 100644
  	@echo " done."
  
  .PHONY: modules
+diff --git a/backport-include/linux/hrtimer.h b/backport-include/linux/hrtimer.h
+index 3c351922..855fdd0a 100644
+--- a/backport-include/linux/hrtimer.h
++++ b/backport-include/linux/hrtimer.h
+@@ -17,12 +17,14 @@ static inline enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
+ 	return HRTIMER_NORESTART;
+ }
+ 
++#if LINUX_VERSION_IS_LESS(6,12,64)
+ static inline void
+ hrtimer_update_function(struct hrtimer *timer,
+ 			enum hrtimer_restart (*function)(struct hrtimer *))
+ {
+ 	timer->function = function;
+ }
++#endif /* < 6.12.64 */
+ 
+ static inline void
+ hrtimer_setup(struct hrtimer *timer, enum hrtimer_restart (*function)(struct hrtimer *),
 diff --git a/compat/main.c b/compat/main.c
 index d4f3340d..651ab630 100644
 --- a/compat/main.c
@@ -360,10 +383,10 @@ index 3e0c4177..502e2ff0 100644
  	),
  
 diff --git a/drivers/net/wireless/ath/ath10k/snoc.c b/drivers/net/wireless/ath/ath10k/snoc.c
-index b3f6424c..71529ebf 100644
+index f72f236f..77c0aa7d 100644
 --- a/drivers/net/wireless/ath/ath10k/snoc.c
 +++ b/drivers/net/wireless/ath/ath10k/snoc.c
-@@ -1630,10 +1630,10 @@ static int ath10k_fw_init(struct ath10k *ar)
+@@ -1646,10 +1646,10 @@ static int ath10k_fw_init(struct ath10k *ar)
  
  	ar_snoc->fw.dev = &pdev->dev;
  
@@ -1097,7 +1120,7 @@ index df26c7b0..1038c30f 100644
  	 * We have different type of choice blocks.
  	 * If curr.tri equals to mod then we can select several
 diff --git a/local-symbols b/local-symbols
-index 88bf6741..9e3cfc24 100644
+index 3a0780e4..a3c420d3 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -53,14 +53,6 @@ MAC80211_MESH_PS_DEBUG=

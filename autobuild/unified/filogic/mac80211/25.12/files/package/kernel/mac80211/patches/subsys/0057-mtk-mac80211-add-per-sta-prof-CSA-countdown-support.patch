@@ -1,7 +1,7 @@
-From 16be856f441f0a10e9af94fa9fee93a47ee3af1f Mon Sep 17 00:00:00 2001
+From 72f50e5cd375ba687550e010259d75d772f9b5f2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 9 Apr 2024 11:01:51 +0800
-Subject: [PATCH 057/128] mtk: mac80211: add per-sta prof CSA countdown support
+Subject: [PATCH 057/137] mtk: mac80211: add per-sta prof CSA countdown support
 
 Add CSA/eCSA offset of per-sta profile
 
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 54 insertions(+), 14 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 2061fe9a..c1d18bca 100644
+index 5c07fa31..eff4d323 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1572,8 +1572,12 @@ struct cfg80211_ap_update {
+@@ -1610,8 +1610,12 @@ struct cfg80211_ap_update {
   * @beacon_csa: beacon data while performing the switch
   * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
   * @counter_offsets_presp: offsets of the counters within the probe response
@@ -33,7 +33,7 @@ index 2061fe9a..c1d18bca 100644
   * @beacon_after: beacon data to be used on the new channel
   * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
   * @radar_required: whether radar detection is required on the new channel
-@@ -1587,8 +1591,10 @@ struct cfg80211_csa_settings {
+@@ -1625,8 +1629,10 @@ struct cfg80211_csa_settings {
  	struct cfg80211_beacon_data beacon_csa;
  	const u16 *counter_offsets_beacon;
  	const u16 *counter_offsets_presp;
@@ -45,10 +45,10 @@ index 2061fe9a..c1d18bca 100644
  	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
  	bool radar_required;
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 99e327bd..f0ef93e2 100644
+index 030e7804..b0f4fb2f 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -5561,6 +5561,9 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
+@@ -5612,6 +5612,9 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
   * @cntdwn_counter_offs: array of IEEE80211_MAX_CNTDWN_COUNTERS_NUM offsets
   *	to countdown counters.  This array can contain zero values which
   *	should be ignored.
@@ -58,7 +58,7 @@ index 99e327bd..f0ef93e2 100644
   * @mbssid_off: position of the multiple bssid element
   */
  struct ieee80211_mutable_offsets {
-@@ -5568,6 +5571,7 @@ struct ieee80211_mutable_offsets {
+@@ -5619,6 +5622,7 @@ struct ieee80211_mutable_offsets {
  	u16 tim_length;
  
  	u16 cntdwn_counter_offs[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
@@ -67,10 +67,10 @@ index 99e327bd..f0ef93e2 100644
  };
  
 diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
-index aabebbef..0e89ce53 100644
+index 6636b205..2f8fcbae 100644
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
-@@ -2910,6 +2910,9 @@ enum nl80211_commands {
+@@ -2911,6 +2911,9 @@ enum nl80211_commands {
   *
   * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
   *	A value of 0 means all radios.
@@ -80,7 +80,7 @@ index aabebbef..0e89ce53 100644
   *
   * @NL80211_ATTR_SUPPORTED_SELECTORS: supported BSS Membership Selectors, array
   *	of supported selectors as defined by IEEE Std 802.11-2020 9.4.2.3 but
-@@ -3543,6 +3546,9 @@ enum nl80211_attrs {
+@@ -3559,6 +3562,9 @@ enum nl80211_attrs {
  
  	/* add attributes here, update the policy in nl80211.c */
  
@@ -90,7 +90,7 @@ index aabebbef..0e89ce53 100644
  	__NL80211_ATTR_AFTER_LAST,
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
  	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
-@@ -3555,6 +3561,7 @@ enum nl80211_attrs {
+@@ -3571,6 +3577,7 @@ enum nl80211_attrs {
  #define NL80211_ATTR_SAE_DATA NL80211_ATTR_AUTH_DATA
  #define NL80211_ATTR_CSA_C_OFF_BEACON NL80211_ATTR_CNTDWN_OFFS_BEACON
  #define NL80211_ATTR_CSA_C_OFF_PRESP NL80211_ATTR_CNTDWN_OFFS_PRESP
@@ -99,10 +99,10 @@ index aabebbef..0e89ce53 100644
  /*
   * Allow user space programs to use #ifdef on new attributes by defining them
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index dbbbc5de..b28cf8ac 100644
+index 1178d438..24fbdb1f 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -1405,6 +1405,9 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -1403,6 +1403,9 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
  		memcpy(new->cntdwn_counter_offsets, csa->counter_offsets_beacon,
  		       csa->n_counter_offsets_beacon *
  		       sizeof(new->cntdwn_counter_offsets[0]));
@@ -112,7 +112,7 @@ index dbbbc5de..b28cf8ac 100644
  	} else if (cca) {
  		new->cntdwn_current_counter = cca->count;
  		new->cntdwn_counter_offsets[0] = cca->counter_offset_beacon;
-@@ -4243,8 +4246,10 @@ static int ieee80211_set_csa_beacon(struct ieee80211_link_data *link_data,
+@@ -4259,8 +4262,10 @@ static int ieee80211_set_csa_beacon(struct ieee80211_link_data *link_data,
  
  		csa.counter_offsets_beacon = params->counter_offsets_beacon;
  		csa.counter_offsets_presp = params->counter_offsets_presp;
@@ -123,7 +123,7 @@ index dbbbc5de..b28cf8ac 100644
  		csa.count = params->count;
  
  		err = ieee80211_assign_beacon(sdata, link_data,
-@@ -4413,17 +4418,19 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -4429,17 +4434,19 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  	if (err)
  		goto out;
  
@@ -140,12 +140,12 @@ index dbbbc5de..b28cf8ac 100644
 +			goto out;
  
 -	/* if reservation is invalid then this will fail */
--	err = ieee80211_check_combinations(sdata, NULL, chanctx->mode, 0, -1);
+-	err = ieee80211_check_combinations(sdata, NULL, 0, 0, -1);
 -	if (err) {
 -		ieee80211_link_unreserve_chanctx(link_data);
 -		goto out;
 +		/* if reservation is invalid then this will fail */
-+		err = ieee80211_check_combinations(sdata, NULL, chanctx->mode, 0, -1);
++		err = ieee80211_check_combinations(sdata, NULL, 0, 0, -1);
 +		if (err) {
 +			ieee80211_link_unreserve_chanctx(link_data);
 +			goto out;
@@ -154,7 +154,7 @@ index dbbbc5de..b28cf8ac 100644
  
  	/* if there is a color change in progress, abort it */
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index 2ca43131..b0b117f6 100644
+index 8e95a4b0..24f14dec 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
 @@ -267,9 +267,11 @@ struct ieee80211_rx_data {
@@ -178,10 +178,10 @@ index 2ca43131..b0b117f6 100644
  	struct cfg80211_rnr_elems *rnr_ies;
  	struct rcu_head rcu_head;
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index 6598a11f..e2b00b5a 100644
+index 794f0d83..688e448b 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -5351,11 +5351,13 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
+@@ -5355,11 +5355,13 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
  
  		for (i = 0; i < IEEE80211_MAX_CNTDWN_COUNTERS_NUM; i++) {
  			u16 csa_off = beacon->cntdwn_counter_offsets[i];
@@ -199,18 +199,18 @@ index 6598a11f..e2b00b5a 100644
  	}
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 5e09ce72..f20ddefe 100644
+index 39dd659f..e8bce622 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -957,6 +957,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
- 		NLA_POLICY_NESTED(nl80211_s1g_short_beacon),
- 	[NL80211_ATTR_BSS_PARAM] = { .type = NLA_FLAG },
- 	[NL80211_ATTR_S1G_PRIMARY_2MHZ] = { .type = NLA_FLAG },
+@@ -971,6 +971,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+ 	[NL80211_ATTR_UHR_CAPABILITY] =
+ 		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_uhr_capa, 255),
+ 	[NL80211_ATTR_DISABLE_UHR] = { .type = NLA_FLAG },
 +	[NL80211_ATTR_CNTDWN_OFFS_STA_PROF] = { .type = NLA_BINARY },
  };
  
  /* policy for the key attributes */
-@@ -11451,7 +11452,8 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
+@@ -11574,7 +11575,8 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
  	if (err)
  		goto free;
  
@@ -220,7 +220,7 @@ index 5e09ce72..f20ddefe 100644
  		err = -EINVAL;
  		goto free;
  	}
-@@ -11474,6 +11476,15 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
+@@ -11597,6 +11599,15 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
  	if (err)
  		goto free;
  

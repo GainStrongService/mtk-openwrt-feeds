@@ -1,7 +1,7 @@
-From 61cc4bd4aa09b6a994d9eb5f57c493dbbddb699c Mon Sep 17 00:00:00 2001
+From f2efc4546e28a4087b62cfdfb956a12f896510af Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 015/128] mtk: cfg80211: implement DFS status show, cac and nop
+Subject: [PATCH 015/137] mtk: cfg80211: implement DFS status show, cac and nop
  skip command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -20,10 +20,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 380 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index c57e729d..75f045ce 100644
+index 19ce10ac..004fdb3e 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -5220,6 +5220,7 @@ struct cfg80211_ops {
+@@ -5278,6 +5278,7 @@ struct cfg80211_ops {
  				   struct cfg80211_ml_reconf_req *req);
  	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
  			    bool val);
@@ -32,10 +32,10 @@ index c57e729d..75f045ce 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index d3cd146e..dc2d2593 100644
+index 89fc8cd8..e0a480f8 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5535,6 +5535,30 @@ ieee80211_set_epcs(struct wiphy *wiphy, struct net_device *dev, bool enable)
+@@ -5551,6 +5551,30 @@ ieee80211_set_epcs(struct wiphy *wiphy, struct net_device *dev, bool enable)
  	return ieee80211_mgd_set_epcs(sdata, enable);
  }
  
@@ -66,14 +66,14 @@ index d3cd146e..dc2d2593 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -5651,4 +5675,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5667,4 +5691,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.get_radio_mask = ieee80211_get_radio_mask,
  	.assoc_ml_reconf = ieee80211_assoc_ml_reconf,
  	.set_epcs = ieee80211_set_epcs,
 +	.skip_cac = ieee80211_skip_cac,
  };
 diff --git a/net/wireless/core.h b/net/wireless/core.h
-index 485abef7..14932737 100644
+index 657f884b..16af8092 100644
 --- a/net/wireless/core.h
 +++ b/net/wireless/core.h
 @@ -93,6 +93,9 @@ struct cfg80211_registered_device {
@@ -492,10 +492,10 @@ index a0128ed0..d3df5b85 100644
 +}
  #endif /* __CFG80211_RDEV_OPS */
 diff --git a/net/wireless/trace.h b/net/wireless/trace.h
-index 2ec326fa..7f50f791 100644
+index b2da2c93..8aacc6b5 100644
 --- a/net/wireless/trace.h
 +++ b/net/wireless/trace.h
-@@ -4226,6 +4226,20 @@ TRACE_EVENT(cfg80211_nan_cluster_joined,
+@@ -4229,6 +4229,20 @@ TRACE_EVENT(cfg80211_nan_cluster_joined,
  		  WDEV_PR_ARG, __entry->cluster_id,
  		  __entry->new_cluster ? " [new]" : "")
  );

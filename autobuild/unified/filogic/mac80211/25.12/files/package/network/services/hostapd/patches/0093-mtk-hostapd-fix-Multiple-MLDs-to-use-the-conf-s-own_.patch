@@ -1,7 +1,7 @@
-From 0b9f812b7b71f179b221e9a9fb803aea34298b3b Mon Sep 17 00:00:00 2001
+From 0f55511e4b1c9cb69f88366eb8dfa63e87dc79dd Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Wed, 10 Jul 2024 14:49:43 +0800
-Subject: [PATCH 093/254] mtk: hostapd: fix Multiple MLDs to use the conf's
+Subject: [PATCH 093/260] mtk: hostapd: fix Multiple MLDs to use the conf's
  own_addr/mld_addr.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -10,10 +10,10 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  1 file changed, 6 insertions(+)
 
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 8a1c98d59..acea44513 100644
+index f3ee6f7f0..643448542 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -1532,6 +1532,9 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+@@ -1566,6 +1566,9 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
  				goto setup_mld;
  			}
  			use_existing = true;
@@ -23,7 +23,7 @@ index 8a1c98d59..acea44513 100644
  		}
  #endif /* CONFIG_IEEE80211BE */
  
-@@ -1557,6 +1560,9 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+@@ -1591,6 +1594,9 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
  				   hapd->mld_link_id, hapd->conf->iface);
  			os_memcpy(hapd->mld->mld_addr, hapd->own_addr,
  				  ETH_ALEN);

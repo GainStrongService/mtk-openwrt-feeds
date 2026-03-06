@@ -1,7 +1,7 @@
-From a486cce8820f41cdda3158871e16d20d5cc561b8 Mon Sep 17 00:00:00 2001
+From 13b58a5cdc1687ea2ebd1405ae92a35ab4cf76c5 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 17 Oct 2024 15:50:35 +0800
-Subject: [PATCH 115/254] mtk: hostapd: add support for removing AP MLD
+Subject: [PATCH 115/260] mtk: hostapd: add support for removing AP MLD
 
 Add the support for removing AP MLD by a new hostapd_cli command:
 $ hostapd_cli -i global raw REMOVE_MLD <ifname>
@@ -31,10 +31,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 108 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index e98ba830f..49c25cef0 100644
+index ee8c35561..73086ee74 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -7156,6 +7156,17 @@ static int hostapd_ctrl_bss_remove(struct hapd_interfaces *interfaces,
+@@ -7004,6 +7004,17 @@ static int hostapd_ctrl_bss_remove(struct hapd_interfaces *interfaces,
  }
  
  
@@ -52,7 +52,7 @@ index e98ba830f..49c25cef0 100644
  static int hostapd_ctrl_iface_remove(struct hapd_interfaces *interfaces,
  				     char *buf)
  {
-@@ -7576,6 +7587,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
+@@ -7424,6 +7435,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
  	} else if (os_strncmp(buf, "REMOVE_BSS ", 11) == 0) {
  		if (hostapd_ctrl_bss_remove(interfaces, buf + 11) < 0)
  			reply_len = -1;
@@ -63,10 +63,10 @@ index e98ba830f..49c25cef0 100644
  		if (hostapd_global_ctrl_iface_attach(interfaces, &from,
  						     fromlen, NULL))
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 2dd7c6d1b..36f4fdd62 100644
+index a89c16314..9997095b3 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -4398,6 +4398,99 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
+@@ -4415,6 +4415,99 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
  }
  
  
@@ -167,10 +167,10 @@ index 2dd7c6d1b..36f4fdd62 100644
   * hostapd_new_assoc_sta - Notify that a new station associated with the AP
   * @hapd: Pointer to BSS data
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 081b1373b..f83a63746 100644
+index 05b9092ee..99f703b11 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -954,6 +954,7 @@ void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
+@@ -965,6 +965,7 @@ void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
  int hostapd_add_iface(struct hapd_interfaces *ifaces, char *buf);
  int hostapd_remove_bss(struct hapd_interfaces *ifaces, char *buf);
  int hostapd_remove_iface(struct hapd_interfaces *ifaces, char *buf);

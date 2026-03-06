@@ -93,15 +93,10 @@ function setup_phy(phy, config, data) {
 		rxantenna: config.rxantenna
 	});
 
-	if (config.txpower)
-		config.txpower = 'fixed ' + config.txpower + '00';
-	else
-		config.txpower = 'auto';
-
 	log(`Configuring '${phy}' txantenna: ${config.txantenna}, rxantenna: ${config.rxantenna} distance: ${config.distance}`);
 	system(`iw phy ${phy} set antenna ${config.txantenna} ${config.rxantenna} radio ${config.radio}`);
 	system(`iw phy ${phy} set distance ${config.distance}`);
-	system(`iw phy ${phy} set txpower ${config.txpower} radio ${config.radio}`);
+	system(`iw phy ${phy} set txpower auto radio ${config.radio}`);
 
 	if (config.frag)
 		system(`iw phy ${phy} set frag ${config.frag}`);
@@ -303,6 +298,13 @@ function setup() {
 
 	system(`echo "${data.config.sr_enable}" > /sys/kernel/debug/ieee80211/phy0/mt76/band${data.config.radio}/sr_enable`);
 	system(`echo "${data.config.sr_enhanced}" > /sys/kernel/debug/ieee80211/phy0/mt76/band${data.config.radio}/sr_enhanced_enable`);
+
+	if (data.config.txpower)
+		data.config.txpower = 'fixed ' + data.config.txpower + '00';
+	else
+		data.config.txpower = 'auto';
+
+	system(`iw phy ${data.phy} set txpower ${data.config.txpower} radio ${data.config.radio}`);
 
 	log(`Setup SMP Affinity`);
 	system(`/sbin/smp-mt76.sh`);

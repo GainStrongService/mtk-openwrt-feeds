@@ -1,7 +1,7 @@
-From 8197b50d03af3634a37a0e460d38bca8d95532c4 Mon Sep 17 00:00:00 2001
+From 5139a4459c9db3543e43c90f6e1549d74fe4f799 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 18 Dec 2024 22:40:07 +0800
-Subject: [PATCH 121/254] mtk: hostapd: change vendor cmd band idx into radio
+Subject: [PATCH 121/260] mtk: hostapd: change vendor cmd band idx into radio
  idx
 
 The purpose of this patch is to remove band idx from hostapd.
@@ -22,10 +22,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 116 insertions(+), 45 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 1f3d907f2..cc29908da 100644
+index ab172659d..a58f84fc7 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4645,17 +4645,18 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4501,17 +4501,18 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  	value = pos;
  
  	if (os_strcmp(config, "onoff") == 0) {
@@ -53,7 +53,7 @@ index 1f3d907f2..cc29908da 100644
  	}
  
  	if (hapd->iconf->muru_config == NULL)
-@@ -4819,27 +4820,33 @@ fail:
+@@ -4675,27 +4676,33 @@ fail:
  
  
  static int
@@ -96,7 +96,7 @@ index 1f3d907f2..cc29908da 100644
  }
  
  static int
-@@ -5571,7 +5578,7 @@ fail:
+@@ -5394,7 +5401,7 @@ hostapd_ctrl_iface_disable_beacon(struct hostapd_data *hapd, char *value,
  
  static int
  hostapd_ctrl_iface_set_csi(struct hostapd_data *hapd, char *cmd,
@@ -105,7 +105,7 @@ index 1f3d907f2..cc29908da 100644
  {
  	char *tmp;
  	u8 sta_mac[ETH_ALEN] = {0};
-@@ -5707,7 +5714,7 @@ static int mt76_csi_to_json(char *fname, struct csi_resp_data *resp_buf)
+@@ -5530,7 +5537,7 @@ static int mt76_csi_to_json(char *fname, struct csi_resp_data *resp_buf)
  
  static int
  hostapd_ctrl_iface_dump_csi(struct hostapd_data *hapd, char *cmd,
@@ -114,7 +114,7 @@ index 1f3d907f2..cc29908da 100644
  {
  	char *tmp, *fname;
  	int data_cnt = 0, ret = 0;
-@@ -6464,7 +6471,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6299,7 +6306,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							  reply_size);
  	} else if (os_strncmp(buf, "SET_MU ", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_set_mu(hapd, buf + 7, reply, reply_size);
@@ -123,7 +123,7 @@ index 1f3d907f2..cc29908da 100644
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "SET_THREE_WIRE ", 15) == 0) {
  		reply_len = hostapd_ctrl_iface_three_wire(hapd, buf + 15, reply, reply_size);
-@@ -6515,7 +6522,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6350,7 +6357,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							      reply_size);
  	} else if (os_strncmp(buf, "SET_CSI ", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_set_csi(hapd, buf + 8,
@@ -144,10 +144,10 @@ index 237b628f5..06a848394 100644
 -hostapd_get_hapd_by_band_idx(struct hostapd_data *hapd, u8 band_idx);
  #endif /* CTRL_IFACE_H */
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index c931bba2f..63b62b161 100644
+index 9a0445ced..2bb26bc00 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1502,16 +1502,28 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
+@@ -1493,16 +1493,28 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
  
  int hostapd_drv_mu_ctrl(struct hostapd_data *hapd, u8 mode)
  {
@@ -178,7 +178,7 @@ index c931bba2f..63b62b161 100644
  }
  
  static void hostapd_update_three_wire_ctrl(struct hostapd_data *hapd)
-@@ -1771,16 +1783,28 @@ int hostapd_drv_set_eml_omn(struct hostapd_data *hapd, const u8 *mac,
+@@ -1746,16 +1758,28 @@ int hostapd_drv_beacon_ctrl(struct hostapd_data *hapd, u8 beacon_mode)
  
  int hostapd_drv_csi_set(struct hostapd_data *hapd, u8 mode, u8 cfg, u8 v1, u32 v2, u8 *mac)
  {
@@ -210,10 +210,10 @@ index c931bba2f..63b62b161 100644
  
  #ifdef CONFIG_IEEE80211BE
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index e6d848bf5..90ba524cd 100644
+index 23b9a2b77..aaf2fe77c 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
-@@ -86,7 +86,7 @@ enum mtk_vendor_attr_csi_ctrl {
+@@ -85,7 +85,7 @@ enum mtk_vendor_attr_csi_ctrl {
  
  	MTK_VENDOR_ATTR_CSI_CTRL_DATA,
  
@@ -222,7 +222,7 @@ index e6d848bf5..90ba524cd 100644
  
  	/* keep last */
  	NUM_MTK_VENDOR_ATTRS_CSI_CTRL,
-@@ -222,6 +222,7 @@ enum mtk_vendor_attr_mu_ctrl {
+@@ -221,6 +221,7 @@ enum mtk_vendor_attr_mu_ctrl {
  	 * above data structure.
  	 */
  	MTK_VENDOR_ATTR_MU_CTRL_STRUCT,
@@ -231,10 +231,10 @@ index e6d848bf5..90ba524cd 100644
  	/* keep last */
  	NUM_MTK_VENDOR_ATTRS_MU_CTRL,
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index b9fc446a4..1a6646c95 100644
+index 963f313dc..ed75c9098 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5625,8 +5625,8 @@ struct wpa_driver_ops {
+@@ -5715,8 +5715,8 @@ struct wpa_driver_ops {
  	 * @priv: Private driver interface data
  	 *
  	 */
@@ -245,7 +245,7 @@ index b9fc446a4..1a6646c95 100644
  
  	/**
  	 * beacon_ctrl - ctrl on off for beacon
-@@ -5754,21 +5754,21 @@ struct wpa_driver_ops {
+@@ -5833,21 +5833,21 @@ struct wpa_driver_ops {
  	/**
  	 * csi_set - Set csi related mode and parameter
  	 * @priv: Private driver interface data
@@ -272,10 +272,10 @@ index b9fc446a4..1a6646c95 100644
  	* txpower_ctrl - ctrl txpower operation
  	* @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 9ff66e790..d5961e329 100644
+index 3a395ce79..a38607d7d 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -174,7 +174,7 @@ pp_ctrl_policy[NUM_MTK_VENDOR_ATTRS_PP_CTRL] = {
+@@ -173,7 +173,7 @@ pp_ctrl_policy[NUM_MTK_VENDOR_ATTRS_PP_CTRL] = {
  };
  
  static struct nla_policy csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -284,7 +284,7 @@ index 9ff66e790..d5961e329 100644
  	[MTK_VENDOR_ATTR_CSI_CTRL_CFG] = { .type = NLA_NESTED },
  	[MTK_VENDOR_ATTR_CSI_CTRL_CFG_MODE] = { .type = NLA_U8 },
  	[MTK_VENDOR_ATTR_CSI_CTRL_CFG_TYPE] = { .type = NLA_U8 },
-@@ -14975,14 +14975,17 @@ fail:
+@@ -15314,14 +15314,17 @@ fail:
  
  
  #ifdef CONFIG_IEEE80211AX
@@ -304,7 +304,7 @@ index 9ff66e790..d5961e329 100644
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -14990,6 +14993,11 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, void *config)
+@@ -15329,6 +15332,11 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, void *config)
  		return 0;
  	}
  
@@ -316,7 +316,7 @@ index 9ff66e790..d5961e329 100644
  	if (!(msg = nl80211_bss_msg(bss, 0, NL80211_CMD_VENDOR)) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_MU_CTRL) ||
-@@ -14998,7 +15006,11 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, void *config)
+@@ -15337,7 +15345,11 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, void *config)
  
  	switch (mode) {
  	case MU_CTRL_ONOFF:
@@ -329,7 +329,7 @@ index 9ff66e790..d5961e329 100644
  			goto fail;
  		break;
  	case MU_CTRL_UPDATE:
-@@ -15062,13 +15074,16 @@ static int mu_dump_handler(struct nl_msg *msg, void *arg)
+@@ -15401,13 +15413,16 @@ static int mu_dump_handler(struct nl_msg *msg, void *arg)
  	return 0;
  }
  
@@ -347,7 +347,7 @@ index 9ff66e790..d5961e329 100644
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -15076,9 +15091,17 @@ static int nl80211_mu_dump(void *priv, u8 *mu_onoff)
+@@ -15415,9 +15430,17 @@ static int nl80211_mu_dump(void *priv, u8 *mu_onoff)
  		return 0;
  	}
  
@@ -366,7 +366,7 @@ index 9ff66e790..d5961e329 100644
  		nlmsg_free(msg);
  		return -ENOBUFS;
  	}
-@@ -16472,14 +16495,17 @@ fail:
+@@ -16960,14 +16983,17 @@ fail:
  #endif
  
  static int
@@ -385,7 +385,7 @@ index 9ff66e790..d5961e329 100644
  
  	if (!drv->mtk_csi_vendor_cmd_avail) {
  		wpa_printf(MSG_ERROR,
-@@ -16487,6 +16513,12 @@ nl80211_csi_set(void *priv, u8 band_idx, u8 mode, u8 cfg, u8 v1, u32 v2, u8 *mac
+@@ -16975,6 +17001,12 @@ nl80211_csi_set(void *priv, u8 band_idx, u8 mode, u8 cfg, u8 v1, u32 v2, u8 *mac
  		return 0;
  	}
  
@@ -398,7 +398,7 @@ index 9ff66e790..d5961e329 100644
  	msg = nl80211_bss_msg(bss, 0, NL80211_CMD_VENDOR);
  	if (!msg)
  		goto fail;
-@@ -16500,7 +16532,7 @@ nl80211_csi_set(void *priv, u8 band_idx, u8 mode, u8 cfg, u8 v1, u32 v2, u8 *mac
+@@ -16988,7 +17020,7 @@ nl80211_csi_set(void *priv, u8 band_idx, u8 mode, u8 cfg, u8 v1, u32 v2, u8 *mac
  	if (!data)
  		goto fail;
  
@@ -407,7 +407,7 @@ index 9ff66e790..d5961e329 100644
  
  	tb1 = nla_nest_start(msg, MTK_VENDOR_ATTR_CSI_CTRL_CFG | NLA_F_NESTED);
  	if (!tb1)
-@@ -16626,15 +16658,18 @@ mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
+@@ -17114,15 +17146,18 @@ mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
  }
  
  static int
@@ -427,7 +427,7 @@ index 9ff66e790..d5961e329 100644
  
  	if (!drv->mtk_csi_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -16642,6 +16677,12 @@ nl80211_csi_dump(void *priv, u8 band_idx, void *dump_buf)
+@@ -17130,6 +17165,12 @@ nl80211_csi_dump(void *priv, u8 band_idx, void *dump_buf)
  		return 0;
  	}
  
@@ -440,7 +440,7 @@ index 9ff66e790..d5961e329 100644
  	csi_resp = (struct csi_resp_data *)dump_buf;
  	pkt_num =  csi_resp->usr_need_cnt;
  
-@@ -16663,7 +16704,7 @@ nl80211_csi_dump(void *priv, u8 band_idx, void *dump_buf)
+@@ -17151,7 +17192,7 @@ nl80211_csi_dump(void *priv, u8 band_idx, void *dump_buf)
  		if (!data)
  			goto fail;
  

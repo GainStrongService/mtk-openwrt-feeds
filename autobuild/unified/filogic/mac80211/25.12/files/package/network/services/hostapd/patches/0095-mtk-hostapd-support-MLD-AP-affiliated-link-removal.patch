@@ -1,7 +1,7 @@
-From d537af18d71e615cf17dd72591fe82d35c10c23c Mon Sep 17 00:00:00 2001
+From 725970bf90e9d6613ed6d48c39e12a92fee78d2d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 29 Apr 2024 12:04:52 +0800
-Subject: [PATCH 095/254] mtk: hostapd: support MLD AP affiliated link removal
+Subject: [PATCH 095/260] mtk: hostapd: support MLD AP affiliated link removal
 
 Support ap link removal of MLD reconfiguration. Main changes include:
 - support to trigger it from hostapd_cli, with the following command:
@@ -36,10 +36,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  10 files changed, 146 insertions(+), 29 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9764df25b..6cf8d2a2e 100644
+index 8cba67d44..a802786ce 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3966,11 +3966,41 @@ static int hostapd_ctrl_iface_disable_mld(struct hostapd_iface *iface)
+@@ -3759,11 +3759,41 @@ static int hostapd_ctrl_iface_disable_mld(struct hostapd_iface *iface)
  static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
  					  char *buf, size_t buflen)
  {
@@ -85,10 +85,10 @@ index 9764df25b..6cf8d2a2e 100644
  	ret = hostapd_link_remove(hapd, count);
  	if (ret == 0) {
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 41ae904e1..3b101d89f 100644
+index f8009ae9e..dab2688c9 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
-@@ -1788,6 +1788,12 @@ static int hostapd_cli_cmd_link_add(struct wpa_ctrl *ctrl, int argc,
+@@ -1803,6 +1803,12 @@ static int hostapd_cli_cmd_link_add(struct wpa_ctrl *ctrl, int argc,
  	return hostapd_cli_cmd(ctrl, "LINK_ADD", 1, argc, argv);
  }
  
@@ -101,7 +101,7 @@ index 41ae904e1..3b101d89f 100644
  struct hostapd_cli_cmd {
  	const char *cmd;
  	int (*handler)(struct wpa_ctrl *ctrl, int argc, char *argv[]);
-@@ -2050,6 +2056,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -2071,6 +2077,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
  		" = <ac> [cwmin=] [cwmax=] [aifs=] [txop_limit=]"},
  	{ "link_add", hostapd_cli_cmd_link_add, NULL,
  		" = Add a new link to a MLD AP"},
@@ -111,7 +111,7 @@ index 41ae904e1..3b101d89f 100644
  };
  
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 4a973505d..88bdf235b 100644
+index a95f45137..21e234f9e 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -332,6 +332,13 @@ int hostapd_set_sta_flags(struct hostapd_data *hapd, struct sta_info *sta)
@@ -129,10 +129,10 @@ index 4a973505d..88bdf235b 100644
  	flags_and = total_flags | ~set_flags;
  	return hostapd_sta_set_flags(hapd, sta->addr, total_flags,
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 28e4d8747..a1892d9f8 100644
+index 164c0e53e..6c980a035 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -2778,6 +2778,10 @@ static int __ieee802_11_set_beacon(struct hostapd_data *hapd)
+@@ -2829,6 +2829,10 @@ static int __ieee802_11_set_beacon(struct hostapd_data *hapd)
  	if (hapd->conf->mld_ap && !hapd->mld->started && hapd->beacon_set_done)
  		return 0;
  
@@ -144,10 +144,10 @@ index 28e4d8747..a1892d9f8 100644
  		wpa_printf(MSG_ERROR, "Interface is disabled");
  		return -1;
 diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
-index 85a54f244..d46a2baa5 100644
+index 879085f33..e6b5403f3 100644
 --- a/src/ap/drv_callbacks.c
 +++ b/src/ap/drv_callbacks.c
-@@ -3053,6 +3053,9 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
+@@ -3076,6 +3076,9 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
  			   hapd->conf->iface);
  		hostapd_event_color_change(hapd, true);
  		break;
@@ -158,10 +158,10 @@ index 85a54f244..d46a2baa5 100644
  #ifdef CONFIG_IEEE80211BE
  	case EVENT_MLD_INTERFACE_FREED:
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 6ca48116b..43a0dd71e 100644
+index 541c4f560..d4c2b1c6c 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -434,26 +434,21 @@ static void hostapd_link_remove_timeout_handler(void *eloop_data,
+@@ -442,26 +442,21 @@ static void hostapd_link_remove_timeout_handler(void *eloop_data,
  						void *user_ctx)
  {
  	struct hostapd_data *hapd = (struct hostapd_data *) eloop_data;
@@ -198,7 +198,7 @@ index 6ca48116b..43a0dd71e 100644
  }
  
  
-@@ -467,18 +462,34 @@ int hostapd_link_remove(struct hostapd_data *hapd, u32 count)
+@@ -475,18 +470,34 @@ int hostapd_link_remove(struct hostapd_data *hapd, u32 count)
  		   hapd->mld_link_id, count);
  
  	hapd->eht_mld_link_removal_count = count;
@@ -240,7 +240,7 @@ index 6ca48116b..43a0dd71e 100644
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  
-@@ -869,7 +880,9 @@ static int hostapd_flush_old_stations(struct hostapd_data *hapd, u16 reason)
+@@ -893,7 +904,9 @@ static int hostapd_flush_old_stations(struct hostapd_data *hapd, u16 reason)
  void hostapd_bss_deinit_no_free(struct hostapd_data *hapd)
  {
  	hostapd_free_stas(hapd);
@@ -251,7 +251,7 @@ index 6ca48116b..43a0dd71e 100644
  #ifdef CONFIG_WEP
  	hostapd_clear_wep(hapd);
  #endif /* CONFIG_WEP */
-@@ -1355,7 +1368,7 @@ static int hostapd_start_beacon(struct hostapd_data *hapd,
+@@ -1379,7 +1392,7 @@ static int hostapd_start_beacon(struct hostapd_data *hapd,
  	}
  
  	if (flush_old_stations && !conf->start_disabled &&
@@ -261,18 +261,18 @@ index 6ca48116b..43a0dd71e 100644
  
  		/* Should any previously associated STA not have noticed that
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index d5c4f7b6d..30850dafc 100644
+index 1748e37c5..504b511d4 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -578,6 +578,7 @@ struct hostapd_mld {
+@@ -586,6 +586,7 @@ struct hostapd_mld {
  	bool started;
  	u16 link_reconf_in_progress;
  	u16 active_links;
 +	u16 removed_links;
  	u8 eml_disable;
- 	u8 eml_resp;
  
-@@ -964,6 +965,7 @@ int hostapd_mbssid_get_bss_index(struct hostapd_data *hapd);
+ 	struct hostapd_data *fbss;
+@@ -979,6 +980,7 @@ int hostapd_mbssid_get_bss_index(struct hostapd_data *hapd);
  struct hostapd_data * hostapd_mld_get_link_bss(struct hostapd_data *hapd,
  					       u8 link_id);
  int hostapd_link_remove(struct hostapd_data *hapd, u32 count);
@@ -281,10 +281,10 @@ index d5c4f7b6d..30850dafc 100644
  			   struct hostapd_data *hapd2);
  u8 hostapd_get_mld_id(struct hostapd_data *hapd);
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index e89897745..4ce438619 100644
+index 392704cd2..6950093fc 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -7365,7 +7365,7 @@ union wpa_event_data {
+@@ -7469,7 +7469,7 @@ union wpa_event_data {
  	} t2l_map_info;
  
  	/**
@@ -293,19 +293,19 @@ index e89897745..4ce438619 100644
  	 */
  	struct reconfig_info {
  		u16 added_links;
-@@ -7373,6 +7373,7 @@ union wpa_event_data {
+@@ -7477,6 +7477,7 @@ union wpa_event_data {
  		const u8 *status_list;
  		const u8 *resp_ie; /* Starting from Group Key Data */
  		size_t resp_ie_len;
 +		u16 removed_links;
  	} reconfig_info;
- };
  
+ 	struct nan_cluster_join_info {
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index a4a043042..b76c02c76 100644
+index 50bcac675..947033f75 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -1151,6 +1151,11 @@ static void nl80211_put_wiphy_data_ap(struct i802_bss *bss)
+@@ -1287,6 +1287,11 @@ static void nl80211_put_wiphy_data_ap(struct i802_bss *bss)
  
  	if (w == NULL)
  		return;
@@ -318,10 +318,10 @@ index a4a043042..b76c02c76 100644
  	dl_list_del(&bss->wiphy_list);
  
 diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
-index ed069b80c..a951d5be0 100644
+index 7cb5e43b5..f1c299f04 100644
 --- a/src/drivers/driver_nl80211_event.c
 +++ b/src/drivers/driver_nl80211_event.c
-@@ -4198,6 +4198,49 @@ static void nl80211_obss_color_event(struct i802_bss *bss,
+@@ -4234,6 +4234,49 @@ static void nl80211_obss_color_event(struct i802_bss *bss,
  
  #endif /* CONFIG_IEEE80211AX */
  
@@ -369,9 +369,9 @@ index ed069b80c..a951d5be0 100644
 +}
 +
  
- static void do_process_drv_event(struct i802_bss *bss, int cmd,
- 				 struct nlattr **tb)
-@@ -4463,7 +4506,8 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
+ #ifdef CONFIG_NAN
+ 
+@@ -4547,7 +4590,8 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
  		break;
  #endif /* CONFIG_IEEE80211AX */
  	case NL80211_CMD_LINKS_REMOVED:
