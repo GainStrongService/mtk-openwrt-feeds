@@ -1,0 +1,41 @@
+--- a/target/linux/mediatek/image/filogic-extra.mk
++++ b/target/linux/mediatek/image/filogic-extra.mk
+@@ -59,3 +59,38 @@ define Device/bananapi_bpi-r4-pro
+   $(call Device/bananapi_bpi-r4-pro-common)
+ endef
+ TARGET_DEVICES += bananapi_bpi-r4-pro
++
++define Device/bananapi_bpi-r4-mini
++  DEVICE_VENDOR := Bananapi
++  DEVICE_MODEL := BPi-R4 Mini
++  DEVICE_DTS := mt7987a-bananapi-bpi-r4-mini
++  DEVICE_DTS_OVERLAY:= \
++	mt7987a-bananapi-bpi-r4-mini-nand \
++	mt7987a-bananapi-bpi-r4-mini-nand-nmbm \
++	mt7987a-bananapi-bpi-r4-mini-emmc \
++	mt7987a-bananapi-bpi-r4-mini-sd
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  DEVICE_PACKAGES := kmod-eeprom-at24 kmod-gpio-pca953x kmod-i2c-mux-pca954x \
++		     kmod-rtc-pcf8563 kmod-sfp kmod-usb3 e2fsprogs mkf2fs \
++		     mt798x-2p5g-phy-firmware-internal blkid kmod-hwmon-pwmfan
++  BLOCKSIZE := 128k
++  PAGESIZE := 2048
++  KERNEL_IN_UBI := 1
++  UBOOTENV_IN_UBI := 1
++  KERNEL_LOADADDR := 0x40000000
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  IMAGES := sysupgrade.itb
++  KERNEL_INITRAMFS_SUFFIX := -recovery.itb
++  KERNEL_IN_UBI := 1
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++ifeq ($(DUMP),)
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++endif
++endef
++TARGET_DEVICES += bananapi_bpi-r4-mini
++
