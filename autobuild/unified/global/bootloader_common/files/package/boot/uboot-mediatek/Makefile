@@ -525,6 +525,60 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-sdmmc
   DEPENDS:=+trusted-firmware-a-mt7987-sdmmc-comb
 endef
 
+define U-Boot/mt7987_bananapi_bpi-r4-mini-snand
+  NAME:=BananaPi BPi-R4-MINI NAND-UBI
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-mini
+  UBOOT_CONFIG:=bananapi_r4_mini_spim_nand_ubi
+  UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  BL2_BOOTDEV:=spim-nand0-ubi
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-ubi-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-mini-snand-nmbm
+  NAME:=BananaPi BPi-R4-MINI NAND-NMBM
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-mini
+  UBOOT_CONFIG:=bananapi_r4_mini_spim_nand_nmbm
+  UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  BL2_BOOTDEV:=spim-nand0-nmbm
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-nmbm-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-mini-emmc
+  NAME:=BananaPi BPi-R4-MINI EMMC
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-mini
+  UBOOT_CONFIG:=bananapi_r4_mini_emmc
+  UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_EMMC_mt798x_itb.bin
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-emmc-comb
+endef
+
+define U-Boot/mt7987_bananapi_bpi-r4-mini-sdmmc
+  NAME:=BananaPi BPi-R4-MINI SD
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=bananapi_bpi-r4-mini
+  UBOOT_CONFIG:=bananapi_r4_mini_sd
+  UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_SD_mt798x_itb.bin
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-sdmmc-comb
+endef
+
 UBOOT_TARGETS := \
 	mt7981_rfb-spim-nand-nmbm \
 	mt7981_rfb-nor \
@@ -543,6 +597,10 @@ UBOOT_TARGETS := \
 	mt7987_bananapi_bpi-r4-lite-snand-nmbm \
 	mt7987_bananapi_bpi-r4-lite-emmc \
 	mt7987_bananapi_bpi-r4-lite-sdmmc \
+	mt7987_bananapi_bpi-r4-mini-snand \
+	mt7987_bananapi_bpi-r4-mini-snand-nmbm \
+	mt7987_bananapi_bpi-r4-mini-emmc \
+	mt7987_bananapi_bpi-r4-mini-sdmmc \
 	mt7988_rfb-spim-nand \
 	mt7988_rfb-spim-nand-nmbm \
 	mt7988_rfb-nor \

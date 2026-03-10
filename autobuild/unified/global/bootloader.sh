@@ -37,6 +37,10 @@ platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-sdmmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-snand
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-lite-snand-nmbm
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-mini-emmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-mini-sdmmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-mini-snand
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_bananapi_bpi-r4-mini-snand-nmbm
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-emmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-sd
@@ -89,6 +93,7 @@ filogic_collect_bootloader_images() {
 			mt7986*)		subfolder="bootloader-mt7986" ;;
 			mt7987*)		subfolder="bootloader-mt7987" ;;
 			bananapi_bpi-r4-lite*)	subfolder="bootloader-mt7987" ;;
+			bananapi_bpi-r4-mini*)	subfolder="bootloader-mt7987" ;;
 			mt7988*)		subfolder="bootloader-mt7988" ;;
 			bananapi_bpi-r4*)	subfolder="bootloader-mt7988" ;;
 			*)			subfolder="" ;;
