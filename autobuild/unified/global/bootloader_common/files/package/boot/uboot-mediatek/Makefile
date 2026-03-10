@@ -241,6 +241,7 @@ define U-Boot/mt7986_rfb-emmc
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:=mt7986a_emmc_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=emmc
   BL2_SOC:=mt7986
   BL2_DDRTYPE:=ddr4
@@ -253,6 +254,7 @@ define U-Boot/mt7986_rfb-sd
   BUILD_DEVICES:=mediatek_mt7986a-rfb
   UBOOT_CONFIG:=mt7986a_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=sdmmc
   BL2_SOC:=mt7986
   BL2_DDRTYPE:=ddr4
@@ -387,6 +389,7 @@ define U-Boot/mt7988_bananapi_bpi-r4-snand
   BUILD_DEVICES:=bananapi_bpi-r4
   UBOOT_CONFIG:=mt7988_spim_nand_ubi_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand-ubi
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -399,6 +402,7 @@ define U-Boot/mt7988_bananapi_bpi-r4-snand-nmbm
   BUILD_DEVICES:=bananapi_bpi-r4
   UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -411,6 +415,8 @@ define U-Boot/mt7988_bananapi_bpi-r4-emmc
   BUILD_DEVICES:=bananapi_bpi-r4
   UBOOT_CONFIG:=mt7988_emmc_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_EMMC_mt798x_itb.bin
   BL2_BOOTDEV:=emmc
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -423,6 +429,8 @@ define U-Boot/mt7988_bananapi_bpi-r4-sdmmc
   BUILD_DEVICES:=bananapi_bpi-r4
   UBOOT_CONFIG:=mt7988_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_SD_mt798x_itb.bin
   BL2_BOOTDEV:=sdmmc
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -435,6 +443,7 @@ define U-Boot/mt7988_bananapi_bpi-r4-poe-snand
   BUILD_DEVICES:=bananapi_bpi-r4-poe
   UBOOT_CONFIG:=mt7988_spim_nand_ubi_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand-ubi
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -447,6 +456,7 @@ define U-Boot/mt7988_bananapi_bpi-r4-poe-snand-nmbm
   BUILD_DEVICES:=bananapi_bpi-r4-poe
   UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand-ubi
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -459,6 +469,8 @@ define U-Boot/mt7988_bananapi_bpi-r4-poe-emmc
   BUILD_DEVICES:=bananapi_bpi-r4-poe
   UBOOT_CONFIG:=mt7988_emmc_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_EMMC_mt798x_itb.bin
   BL2_BOOTDEV:=emmc
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -471,6 +483,8 @@ define U-Boot/mt7988_bananapi_bpi-r4-poe-sdmmc
   BUILD_DEVICES:=bananapi_bpi-r4-poe
   UBOOT_CONFIG:=mt7988_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_SD_mt798x_itb.bin
   BL2_BOOTDEV:=sdmmc
   BL2_SOC:=mt7988
   BL2_DDRTYPE:=comb
@@ -483,6 +497,7 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-snand
   BUILD_DEVICES:=bananapi_bpi-r4-lite
   UBOOT_CONFIG:=bananapi_r4_lite_spim_nand_ubi
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand0-ubi
   BL2_SOC:=mt7987
   BL2_DDRTYPE:=comb
@@ -495,6 +510,7 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-snand-nmbm
   BUILD_DEVICES:=bananapi_bpi-r4-lite
   UBOOT_CONFIG:=bananapi_r4_lite_spim_nand_nmbm
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
   BL2_BOOTDEV:=spim-nand0-nmbm
   BL2_SOC:=mt7987
   BL2_DDRTYPE:=comb
@@ -507,6 +523,8 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-emmc
   BUILD_DEVICES:=bananapi_bpi-r4-lite
   UBOOT_CONFIG:=mt7987_emmc_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_EMMC_mt798x_itb.bin
   BL2_BOOTDEV:=emmc
   BL2_SOC:=mt7987
   BL2_DDRTYPE:=comb
@@ -519,6 +537,8 @@ define U-Boot/mt7987_bananapi_bpi-r4-lite-sdmmc
   BUILD_DEVICES:=bananapi_bpi-r4-lite
   UBOOT_CONFIG:=mt7987_sd_rfb
   UBOOT_IMAGE:=u-boot.fip
+  CHAINLOAD_IMAGE:=chainload.img
+  GPT_TABLE_IMAGE:=GPT_SD_mt798x_itb.bin
   BL2_BOOTDEV:=sdmmc
   BL2_SOC:=mt7987
   BL2_DDRTYPE:=comb
@@ -626,6 +646,42 @@ ifdef CONFIG_TARGET_mediatek
 UBOOT_MAKE_FLAGS += $(UBOOT_IMAGE:.fip=.bin)
 endif
 
+define Build/gpt-emmc-mt798x-itb
+	$(STAGING_DIR_HOST)/bin/ptgen \
+	-g \
+	-o $(PKG_BUILD_DIR)/GPT_EMMC_mt798x_itb.bin \
+	-a 1 -l 1024 \
+	-t 0x83 -N u-boot-env -r -p 4M@8192 \
+	-t 0x83 -N factory    -r -p 4M@16384 \
+	-t 0xef -N fip        -r -p 4M@24576 \
+	-t 0x2e -N firmware   -p 256M@32768
+endef
+
+define Build/gpt-sd-mt798x-itb
+	$(STAGING_DIR_HOST)/bin/ptgen \
+	-g \
+	-o $(PKG_BUILD_DIR)/GPT_SD_mt798x_itb.bin \
+	-a 1 -l 1024 \
+	-H \
+	-t 0x83 -N bl2        -r -p 3M@2048 \
+	-t 0x83 -N u-boot-env -r -p 4M@8192 \
+	-t 0x83 -N factory    -r -p 4M@16384 \
+	-t 0xef -N fip        -r -p 4M@24576 \
+	-t 0x2e -N firmware   -p 256M@32768
+endef
+
+define Build/chainload-image
+	$(STAGING_DIR_HOST)/bin/mkimage \
+		-A arm64 \
+		-T standalone \
+		-a 0x41e00000 \
+		-e 0x41e00000 \
+		-C none \
+		-O u-boot \
+		-d $(PKG_BUILD_DIR)/u-boot.bin \
+		$(PKG_BUILD_DIR)/chainload.img
+endef
+
 define Build/fip-image
 	$(if $(FIP_COMPRESS),\
 		xz -f -e -k -9 -C crc32 $(STAGING_DIR_IMAGE)/$(if $(BL2_SOC),$(BL2_SOC),$(BUILD_SUBTARGET))-$(BL2_BOOTDEV)-$(if $(BL2_DDRTYPE),$(BL2_DDRTYPE)-)$(if $(BL2_DDRBLOB),$(BL2_DDRBLOB)ddr-)bl31.bin ;\
@@ -648,6 +704,15 @@ define Build/Compile
 ifeq ($(UBOOT_IMAGE),u-boot.fip)
 	$(call Build/fip-image)
 endif
+ifeq ($(CHAINLOAD_IMAGE),chainload.img)
+	$(call Build/chainload-image)
+endif
+ifeq ($(GPT_TABLE_IMAGE),GPT_EMMC_mt798x_itb.bin)
+	$(call Build/gpt-emmc-mt798x-itb)
+endif
+ifeq ($(GPT_TABLE_IMAGE),GPT_SD_mt798x_itb.bin)
+	$(call Build/gpt-sd-mt798x-itb)
+endif
 endef
 
 # don't stage files to bindir, let target/linux/mediatek/image/*.mk do that
@@ -659,6 +724,15 @@ endif
 define Build/InstallDev
 	$(INSTALL_DIR) $(STAGING_DIR_IMAGE)
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/$(UBOOT_IMAGE) $(STAGING_DIR_IMAGE)/$(BUILD_VARIANT)-$(UBOOT_IMAGE)
+ifeq ($(CHAINLOAD_IMAGE),chainload.img)
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/$(CHAINLOAD_IMAGE) $(STAGING_DIR_IMAGE)/$(BUILD_VARIANT)-$(CHAINLOAD_IMAGE)
+endif
+ifeq ($(GPT_TABLE_IMAGE),GPT_EMMC_mt798x_itb.bin)
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/$(GPT_TABLE_IMAGE) $(STAGING_DIR_IMAGE)/$(GPT_TABLE_IMAGE)
+endif
+ifeq ($(GPT_TABLE_IMAGE),GPT_SD_mt798x_itb.bin)
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/$(GPT_TABLE_IMAGE) $(STAGING_DIR_IMAGE)/$(GPT_TABLE_IMAGE)
+endif
 endef
 
 $(eval $(call BuildPackage/U-Boot))

@@ -80,7 +80,7 @@ filogic_collect_bootloader_images() {
 		build_time=$(date +%Y%m%d%H%M%S)
 	fi
 
-	files=$(find "${bootloader_dir}" -maxdepth 1 -name '*bl2.img' -o -name "*u-boot.fip")
+	files=$(find "${bootloader_dir}" -maxdepth 1 -name '*bl2.img' -o -name "*u-boot.fip" -o -name "*chainload.img" -o -name "*.bin")
 
 	for file in ${files}; do
 		local file_no_ext=${file%.*}
@@ -102,6 +102,9 @@ filogic_collect_bootloader_images() {
 		if [ -n "$subfolder" ]; then
 			local release_dir="${ab_bin_release}/${subfolder}"
 			exec_log "cp -rf \"${file}\" \"${release_dir}/${file_name}-${build_time}.${file_ext}\""
+			((file_count++))
+		else
+			exec_log "cp -rf \"${file}\" \"${ab_bin_release}/${file_name}-${build_time}.${file_ext}\""
 			((file_count++))
 		fi
 	done
