@@ -1,6 +1,6 @@
 --- a/arch/arm64/boot/dts/mediatek/mt7981-rfb.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7981-rfb.dts
-@@ -25,6 +25,44 @@
+@@ -26,6 +26,44 @@
  		device_type = "memory";
  	};
  
@@ -45,26 +45,10 @@
  	reg_3p3v: regulator-3p3v {
  		compatible = "regulator-fixed";
  		regulator-name = "fixed-3.3V";
-@@ -168,6 +206,32 @@
- 			};
- 		};
+@@ -151,6 +189,18 @@
  	};
-+
-+ 	pwm_pins: pwm-pins {
-+		mux {
-+			function = "pwm";
-+			groups = "pwm0_0";
-+		};
-+	};
-+
-+	pwm_rgb_pins: pwm-rgb-pins {
-+		mux {
-+			function = "pwm";
-+			groups = "pwm0_0", "pwm1_1", "pwm2";
-+		};
-+	};
-+};
-+
+ };
+ 
 +&pwm_led {
 + 	pinctrl-names = "default";
 +	pinctrl-0 = <&pwm_pins>;
@@ -75,6 +59,8 @@
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pwm_rgb_pins>;
 +	status = "disabled";
- };
- 
++};
++
  &xhci {
+ 	vusb33-supply = <&reg_3p3v>;
+ 	vbus-supply = <&reg_5v>;
