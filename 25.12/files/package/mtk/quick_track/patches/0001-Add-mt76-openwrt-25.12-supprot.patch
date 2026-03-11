@@ -1,4 +1,4 @@
-From 0144d6422bca04c605cef6ce010f688bb3e0be8e Mon Sep 17 00:00:00 2001
+From 955865f692d3b96cdc513a78542f309a73bba1e5 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 3 Jun 2025 11:34:45 +0800
 Subject: [PATCH] Add mt76 openwrt-25.12 supprot
@@ -6,10 +6,10 @@ Subject: [PATCH] Add mt76 openwrt-25.12 supprot
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
  Makefile                  |  9 ++--
- indigo_api_callback_dut.c | 18 +++++++-
+ indigo_api_callback_dut.c | 26 ++++++++++-
  vendor_specific.h         | 12 +++---
  vendor_specific_dut.c     | 90 ++++++++++++++++++++++-----------------
- 4 files changed, 77 insertions(+), 52 deletions(-)
+ 4 files changed, 85 insertions(+), 52 deletions(-)
 
 diff --git a/Makefile b/Makefile
 index ccbf797..7204c5a 100644
@@ -39,28 +39,31 @@ index ccbf797..7204c5a 100644
  endif
  
 diff --git a/indigo_api_callback_dut.c b/indigo_api_callback_dut.c
-index cfef0aa..4033a6b 100644
+index cfef0aa..a537ba7 100644
 --- a/indigo_api_callback_dut.c
 +++ b/indigo_api_callback_dut.c
 @@ -318,6 +318,7 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
      int hs20_icons_attached = 0;
      int is_multiple_bssid = 0;
      int enable_be = 0, enable_beacon_prot = 0;
-+    int enable_n = 0;
++    int enable_n = 0, enable_rekey = 0;
  
  #if HOSTAPD_SUPPORT_MBSSID
      if ((wlanp->mbssid_enable && !wlanp->transmitter) || (band_first_wlan[wlanp->band] && !wlanp->link_conf_file[0])) {
-@@ -369,6 +370,9 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
+@@ -369,6 +370,12 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
              continue;
          }
  
 +        if (tlv->id == TLV_IEEE80211_N)
 +            enable_n = 1;
 +
++        if (tlv->id == TLV_WPA_GROUP_REKEY)
++            enable_rekey = 1;
++
          /* This is used when hostapd will use multiple lines to 
           * configure multiple items in the same configuration parameter
           * (use semicolon to separate multiple configurations) */
-@@ -501,6 +505,12 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
+@@ -501,6 +508,12 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
              continue;
          }
  
@@ -73,7 +76,7 @@ index cfef0aa..4033a6b 100644
          cfg = find_tlv_config(tlv->id);
          if (!cfg) {
              indigo_logger(LOG_LEVEL_ERROR, "Unknown AP configuration name: TLV ID 0x%04x", tlv->id);
-@@ -809,6 +819,10 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
+@@ -809,6 +822,10 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
          strcat(output, "local_pwr_constraint=3\n");
      }
  #endif
@@ -84,7 +87,19 @@ index cfef0aa..4033a6b 100644
      if (enable_hs20) {
          strcat(output, "hs20_release=3\n");
          strcat(output, "manage_p2p=1\n");
-@@ -1686,7 +1700,7 @@ static int send_ap_btm_handler(struct packet_wrapper *req, struct packet_wrapper
+@@ -831,6 +848,11 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
+ #endif
+     }
+ 
++    if (enable_beacon_prot && enable_rekey) {
++        system("echo 6 > /sys/kernel/debug/ieee80211/phy0/mt76/fw_debug_module");
++        system("echo 0 > /sys/kernel/debug/ieee80211/phy0/mt76/fw_debug_level");
++    }
++
+     /* vendor specific config, not via hostapd */
+     configure_ap_radio_params(band, country, channel, chwidth);
+ 
+@@ -1686,7 +1708,7 @@ static int send_ap_btm_handler(struct packet_wrapper *req, struct packet_wrapper
      /*  disassoc_imminent=%s */
      if (strlen(disassoc_imminent)) {
          memset(buffer, 0, sizeof(buffer));
@@ -93,7 +108,7 @@ index cfef0aa..4033a6b 100644
          strcat(request, buffer);
      }
      /* disassoc_timer=%s */
-@@ -3474,7 +3488,7 @@ static int start_wps_ap_handler(struct packet_wrapper *req, struct packet_wrappe
+@@ -3474,7 +3496,7 @@ static int start_wps_ap_handler(struct packet_wrapper *req, struct packet_wrappe
          /* Please implement the wsc pin validation function to
           * identify the invalid PIN code and DONOT start wps.
           * */
