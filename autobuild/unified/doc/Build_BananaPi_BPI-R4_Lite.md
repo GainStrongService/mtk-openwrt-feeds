@@ -1,5 +1,5 @@
-Document to Build BananaPi BPI-R4 Lite for Mediatek OpenWrt 24.10 SDK
-=====================================================================
+Document to Build BananaPi BPI-R4 Lite for MediaTek OpenWrt SDK (25.12/24.10)
+=============================================================================
 
 Index
 -----
@@ -14,7 +14,7 @@ Index
 Introduction
 ------------
 
-This document provides step-by-step instructions for building the OpenWrt 24.10 firmware for the BananaPi BPI-R4 Lite using the Mediatek SDK. The process involves setting up a build environment, downloading the source code, configuring the build settings, and compiling the firmware image.
+This document provides step-by-step instructions for building the OpenWrt 25.12 (MediaTek SDK) and 24.10 (OpenWrt official) firmware for the BananaPi BPI-R4 Lite using the MediaTek SDK. The process involves setting up a build environment, downloading the source code, configuring the build settings, and compiling the firmware image.
 
 Official BananaPi BPI-R4 Lite documentation: [BananaPi BPI-R4 Lite Documentation](https://docs.banana-pi.org/en/BPI-R4_Lite/BananaPi_BPI-R4_Lite)
 
@@ -45,7 +45,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds for BPI-R4-Lite:
     ```bash
     git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
     cd openwrt
-    git checkout 6d7fbcccacb70f2c9425e78b063175ff3cd39297
+    git checkout 568caba81fd53007606d58e834393012d80236ff
     cd -
     ```
 
@@ -53,7 +53,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds for BPI-R4-Lite:
     ```bash
     git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
-    git checkout d700864a98353c5e344277177f574c30a6d7159d
+    git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
     cd -
     ```
 
@@ -67,9 +67,10 @@ Create or update the feed revision file to ensure the correct package versions a
 
 ```bash
 cat <<EOF > ./mtk-openwrt-feeds/autobuild/unified/feed_revision
-luci 946f77ac26de60b4f5209d4d33cf2bc0ef08f878
-routing b43e4ac560ccbafba21dc3ab0dbe57afc07e7b88
-packages 11068c4abfa02a36f89d542354af70a41b4059b8
+luci 5b394904d05fcba8771014552ddeb16965657aed
+routing 662b57dff7d20634f2b8676400cf4299611cfe4b
+packages 6f585a2b7c20cac2f0b7003d14b6c0e61a00f487
+video 094bf58da6682f895255a35a84349a79dab4bf95
 EOF
 ```
 
@@ -82,14 +83,25 @@ cd openwrt
 
 - Platform Only
     ```bash
-    bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7987_rfb-bpi_r4_lite bootloader=1 log_file=make
+    bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic bootloader=1 log_file=make
     ```
 This command will:
 - Build the OpenWrt firmware for BPI-R4-Lite
 - Build and package the MediaTek official U-Boot & ATF for BPI-R4-Lite
-- Output all images (including bootloader) to the autobuild_release directory
+- Generate chainload image(s) and GPT table image(s) (for SD/eMMC) under `autobuild_release/filogic` (bootloader images under `autobuild_release/filogic/bootloader-mt7987`)
+- Output all images (including bootloader) to the `autobuild_release` directory
 
 All images will be output to the `autobuild_release` directory.
+
+Note:
+- For OpenWrt 25.12 SDK, BPI-R4-Lite now uses board-specific DTS overlay names for boot devices:
+  - NAND (NMBM): `mt7987a-bananapi-bpi-r4-lite-nand-nmbm`
+  - NAND (Full-UBI): `mt7987a-bananapi-bpi-r4-lite-nand`
+  - NOR: `mt7987a-bananapi-bpi-r4-lite-nor`
+  - eMMC: `mt7987a-bananapi-bpi-r4-lite-emmc`
+  - SD: `mt7987a-bananapi-bpi-r4-lite-sd`
+  - PCIe options: `mt7987a-bananapi-bpi-r4-lite-1pcie-2L`, `mt7987a-bananapi-bpi-r4-lite-2pcie-1L`
+  Please refer to the flashing guide for usage details.
 
 #### Incremental Build
 
@@ -311,6 +323,7 @@ For instructions on flashing the firmware onto the BananaPi BPI-R4 Lite, please 
 [Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
 
 ***
-| Revision | Date       | Author   | Description     |
-|:---      |:---        |:---      |:---             |
-| v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |
+| Revision | Date       | Author    | Description                                                   |
+|:---      |:---        |:---       |:---                                                           |
+| v2.1     | 2026/03/11 | Sam Shih  | Update feed_revision commits, mtk-openwrt-feeds commit; add chainload/GPT artifacts note; document BPI-R4-Lite DTSO overlay names for 25.12 |
+| v2.0     | 2025/12/15 | Sam Shih  | Migrate to OpenWrt 25.12                                      |

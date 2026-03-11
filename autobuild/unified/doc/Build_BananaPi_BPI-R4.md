@@ -35,7 +35,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds:
     ```bash
     git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
     cd openwrt
-    git checkout 6d7fbcccacb70f2c9425e78b063175ff3cd39297
+    git checkout 568caba81fd53007606d58e834393012d80236ff
     cd -
     ```
 
@@ -43,7 +43,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds:
     ```bash
     git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
-    git checkout d700864a98353c5e344277177f574c30a6d7159d
+    git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
     cd -
     ```
 
@@ -57,9 +57,10 @@ Create or update the feed revision file to ensure the correct package versions a
 
 ```bash
 cat <<EOF > ./mtk-openwrt-feeds/autobuild/unified/feed_revision
-luci 946f77ac26de60b4f5209d4d33cf2bc0ef08f878
-routing b43e4ac560ccbafba21dc3ab0dbe57afc07e7b88
-packages 11068c4abfa02a36f89d542354af70a41b4059b8
+luci 5b394904d05fcba8771014552ddeb16965657aed
+routing 662b57dff7d20634f2b8676400cf4299611cfe4b
+packages 6f585a2b7c20cac2f0b7003d14b6c0e61a00f487
+video 094bf58da6682f895255a35a84349a79dab4bf95
 EOF
 ```
 
@@ -259,6 +260,7 @@ For instructions on flashing the firmware and the autobuild-generated bootloader
 
 
 ***
-| Revision | Date       | Author   | Description     |
-|:---      |:---        |:---      |:---             |
-| v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |
+| Revision | Date       | Author            | Description                                                                                   |
+|:---      |:---        |:---               |:---                                                                                           |
+| v2.1     | 2026/03/11 | Sam Shih          | Update OpenWrt/feeds commit IDs and feed_revision; reference autobuild-generated GPT images; minor typo fixes |
+| v2.0     | 2025/12/15 | Sam Shih          | Migrate to OpenWrt 25.12                                                                      |
