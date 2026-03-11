@@ -43,64 +43,15 @@ if test -z "${MTK_OPENWRT_DL_REPO_URL}"; then
 fi
 
 # Case 3: internal download flow
-REPO_DIR="${MTK_OPENWRT_SHARED_DL_REPO}/repo"
-TMP_DIR="${MTK_OPENWRT_SHARED_DL_REPO}/tmp"
+LOCK="${MTK_OPENWRT_SHARED_DL_REPO}/.lock"
 
-if ! mkdir -p "${TMP_DIR}"; then
-	echo "Failed to create directory \"${TMP_DIR}\""
+if ! mkdir -p "${MTK_OPENWRT_SHARED_DL_REPO}"; then
+	echo "Failed to create directory \"${MTK_OPENWRT_SHARED_DL_REPO}\""
 	exit 1
 fi
 
-if test -d "${REPO_DIR}"; then
-	if test ! -d "${REPO_DIR}/.git"; then
-		echo "\"${REPO_DIR}\" is not a git repository"
-		exit 1
-	fi
-else
-	# Clone the dl repo
-	if ! git -c "lfs.fetchexclude=*" clone ${MTK_OPENWRT_DL_REPO_URL} "${REPO_DIR}" --depth 1 -b master; then
-		echo "Failed to clone dl repo to ${REPO_DIR}"
-		exit 1
-	fi
+if test ! -f "${LOCK}"; then
+	touch "${LOCK}"
 fi
 
-if ! mkdir -p "${DL_DIR}"; then
-	echo "Failed to create directory \"${DL_DIR}\""
-	exit 1
-fi
-
-if test ! -f "${REPO_DIR}/${FILE}"; then
-	# Update repo if file not exist
-	git -C "${REPO_DIR}" checkout .
-	git -C "${REPO_DIR}" clean -f -d
-
-	git -C "${REPO_DIR}" ls-files --others --exclude-standard | while read file; do
-		mv "${file}" ${TMP_DIR}/
-	done
-
-	git -C "${REPO_DIR}" -c "lfs.fetchexclude=*" pull --rebase
-
-	mv ${TMP_DIR}/* ${REPO_DIR}/
-
-	if test ! -f "${REPO_DIR}/${FILE}"; then
-		# Need to replace the parameter for download.pl
-		shift; shift
-
-		# Call the download script if file still not exist
-		if ! ${script_root}/download.pl "${REPO_DIR}" "${FILE}" "$@"; then
-			echo "Failed to download \"${FILE}\""
-			exit 1
-		fi
-	else
-		git -C "${REPO_DIR}" lfs pull --include="${FILE}"
-	fi
-else
-	git -C "${REPO_DIR}" lfs pull --include="${FILE}"
-fi
-
-# Create symlink
-ln -sf "${REPO_DIR}/${FILE}" "${DL_DIR}/${FILE}"
-
-echo "Created symbolic link: ${DL_DIR}/${FILE} -> ${REPO_DIR}/${FILE}"
-
-exit 0
+flock "${LOCK}" ${script_root}/download-lfs.sh "$@"
