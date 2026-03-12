@@ -72,8 +72,8 @@
  * @MT76_TM_ATTR_EEPROM_VAL: values for writing into a 16-byte data block
  *	(nested, u8 attrs)
  *
- * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &mt76_testmode_cfg)
- * @MT76_TM_ATTR_TXBF_ACT: txbf setting actions (u8)
+ * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &enum mt76_testmode_cfg)
+ * @MT76_TM_ATTR_TXBF_ACT: txbf setting actions (u8, see &enum mt76_testmode_txbf_act)
  * @MT76_TM_ATTR_TXBF_PARAM: txbf parameters (nested)
  *
  * @MT76_TM_ATTR_OFF_CH_SCAN_CH: config the channel of background chain (ZWDFS) (u8)
@@ -88,7 +88,7 @@
  *	the histogram of specific IPI index (u8)
  * @MT76_TM_ATTR_IPI_RESET: reset the IPI counter
  *
- * @MT76_TM_ATTR_LM_ACT: list mode setting actions (u8)
+ * @MT76_TM_ATTR_LM_ACT: list mode setting actions (u8, see &enum mt76_testmode_list_act)
  * @MT76_TM_ATTR_LM_SEG_IDX: segment index used in list mode (u8)
  * @MT76_TM_ATTR_LM_CENTER_CH: center channel used in list mode (u8)
  * @MT76_TM_ATTR_LM_CBW: system index used in list mode (u8)
@@ -106,7 +106,7 @@
  * @MT76_TM_ATTR_PAYLOAD_RULE: payload generating rule
  *	(u8, see &enum mt76_testmode_payload_rule)
  * @MT76_TM_ATTR_PAYLOAD: payload content for repeat mode (u8)
- * @MT76_TM_ATTR_MAX_PKT_EXT: max packet extension (u8)
+ * @MT76_TM_ATTR_MAX_PKT_EXT: max packet extension (u8, see &enum mt76_testmode_max_pkt_ext)
  *
  * @MT76_TM_ATTR_RU_STA_NUM: the number of RU STAs (u8)
  * @MT76_TM_ATTR_RU_STA_IDX: the RU STA index to be configured (u8)
@@ -132,13 +132,18 @@
  * @MT76_TM_ATTR_ICAP_STATS: icap statistic
  *	(nested, see &enum mt76_testmode_icap_stats_attr)
  *
- * @MT76_TM_ATTR_TX_TONE_TYPE: config the TX tone to be single or dual (u8)
- * @MT76_TM_ATTR_TX_TONE_BW: config the tone bandwidth (u8)
+ * @MT76_TM_ATTR_TX_TONE_TYPE: config the TX tone to be single or dual
+ *	(u8, see &enum mt76_testmode_tx_tone_type)
+ * @MT76_TM_ATTR_TX_TONE_FREQ_OFFSET: config the frequency offset of the tone
+ *	(u8, see &enum mt76_testmode_tx_tone_freq_offs)
  * @MT76_TM_ATTR_TX_TONE_DC_OFFSET: config the DC offset of the tone
  *	including in-phase and quadrature data (nested, u16 attrs)
  *
  * @MT76_TM_ATTR_TX_PP_BITMAP: config the TX preamble puncture bitmap, where 0
  *	means the sub-channel is punctured and 1 means it is not (u16)
+ *
+ * @MT76_TM_ATTR_TX_LEN_MODE: show the current tx length mode
+ *	(u8, see &enum mt76_testmode_tx_len_mode)
  */
 enum mt76_testmode_attr {
 	MT76_TM_ATTR_UNSPEC,
@@ -246,10 +251,12 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_ICAP_STATS,
 
 	MT76_TM_ATTR_TX_TONE_TYPE,
-	MT76_TM_ATTR_TX_TONE_BW,
+	MT76_TM_ATTR_TX_TONE_FREQ_OFFSET,
 	MT76_TM_ATTR_TX_TONE_DC_OFFSET,
 
 	MT76_TM_ATTR_TX_PP_BITMAP,
+
+	MT76_TM_ATTR_TX_LEN_MODE,
 
 	/* keep last */
 	NUM_MT76_TM_ATTRS,
@@ -657,23 +664,38 @@ enum mt76_testmode_tx_tone_type {
 };
 
 /**
- * enum mt76_testmode_tx_tone_bw - tx tone bandwidth
+ * enum mt76_testmode_tx_tone_freq_offs - tx tone frequency offset
  *
- * @MT76_TM_TX_TONE_BW_DC: DC tone
- * @MT76_TM_TX_TONE_BW_5: 5 MHz tone
- * @MT76_TM_TX_TONE_BW_10: 10 MHz tone
- * @MT76_TM_TX_TONE_BW_20: 20 MHz tone
- * @MT76_TM_TX_TONE_BW_40: 40 MHz tone
+ * @MT76_TM_TX_TONE_FREQ_OFFS_DC: DC tone
+ * @MT76_TM_TX_TONE_FREQ_OFFS_5: 5 MHz frequency offset
+ * @MT76_TM_TX_TONE_FREQ_OFFS_10: 10 MHz frequency offset
+ * @MT76_TM_TX_TONE_FREQ_OFFS_20: 20 MHz frequency offset
+ * @MT76_TM_TX_TONE_FREQ_OFFS_40: 40 MHz frequency offset
  */
-enum mt76_testmode_tx_tone_bw {
-	MT76_TM_TX_TONE_BW_DC,
-	MT76_TM_TX_TONE_BW_5,
-	MT76_TM_TX_TONE_BW_10,
-	MT76_TM_TX_TONE_BW_20,
-	MT76_TM_TX_TONE_BW_40,
+enum mt76_testmode_tx_tone_freq_offs {
+	MT76_TM_TX_TONE_FREQ_OFFS_DC,
+	MT76_TM_TX_TONE_FREQ_OFFS_5,
+	MT76_TM_TX_TONE_FREQ_OFFS_10,
+	MT76_TM_TX_TONE_FREQ_OFFS_20,
+	MT76_TM_TX_TONE_FREQ_OFFS_40,
 
 	/* keep last */
-	NUM_MT76_TM_TX_TONE_BW,
-	MT76_TM_TX_TONE_BW_MAX = NUM_MT76_TM_TX_TONE_BW - 1,
+	NUM_MT76_TM_TX_TONE_FREQ_OFFS,
+	MT76_TM_TX_TONE_FREQ_OFFS_MAX = NUM_MT76_TM_TX_TONE_FREQ_OFFS - 1,
+};
+
+/**
+ * enum mt76_testmode_tx_len_mode - tx length mode
+ *
+ * @MT76_TM_TX_LEN_MODE_LENGTH: directly use tx length
+ * @MT76_TM_TX_LEN_MODE_TIME: specify the tx length of a packet by tx time
+ */
+enum mt76_testmode_tx_len_mode {
+	MT76_TM_TX_LEN_MODE_LENGTH,
+	MT76_TM_TX_LEN_MODE_TIME,
+
+	/* keep last */
+	NUM_MT76_TM_TX_LEN_MODE,
+	MT76_TM_TX_LEN_MODE_MAX = NUM_MT76_TM_TX_LEN_MODE - 1,
 };
 #endif
