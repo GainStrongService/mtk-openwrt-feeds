@@ -410,7 +410,7 @@ openwrt_feeds_set_revision() {
 					farr[4]="${2}"
 				fi
 
-				farr[1]="src-git-full"
+				farr[1]="src-git"
 				farr[5]="^"
 				farr[6]="${rev_line[1]}"
 
