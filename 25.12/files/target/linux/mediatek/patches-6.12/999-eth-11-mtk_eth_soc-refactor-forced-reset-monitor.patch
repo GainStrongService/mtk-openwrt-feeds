@@ -25,7 +25,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  	}
  }
  
-@@ -3794,7 +3794,7 @@ static void mtk_dma_free(struct mtk_eth
+@@ -3797,7 +3797,7 @@ static void mtk_dma_free(struct mtk_eth
  
  static bool mtk_hw_reset_check(struct mtk_eth *eth)
  {
@@ -34,7 +34,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  
  	return (val & MTK_FE_INT_FQ_EMPTY) || (val & MTK_FE_INT_RFIFO_UF) ||
  	       (val & MTK_FE_INT_RFIFO_OV) || (val & MTK_FE_INT_TSO_FAIL) ||
-@@ -4560,80 +4560,232 @@ static void mtk_hw_warm_reset(struct mtk
+@@ -4563,80 +4563,232 @@ static void mtk_hw_warm_reset(struct mtk
  			val, rst_mask);
  }
  
@@ -324,7 +324,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  /* CDMP Ingress Control Register */
  #define MTK_CDMQ_IG_CTRL	0x1400
  #define MTK_CDMQ_STAG_EN	BIT(0)
-@@ -350,8 +353,6 @@
+@@ -351,8 +354,6 @@
  #define MTK_TX_DONE_INT0	BIT(0)
  #define MTK_TX_DONE_INT		MTK_TX_DONE_DLY
  
@@ -333,7 +333,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  /* QDMA Interrupt grouping registers */
  #define MTK_RLS_DONE_INT	BIT(0)
  
-@@ -710,6 +711,12 @@
+@@ -711,6 +712,12 @@
  #define MTK_FE_DROP_FC		0x248
  #define MTK_FE_DROP_PPE		0x24C
  
@@ -345,8 +345,8 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
 +
  #define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
  
- #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-@@ -991,6 +998,12 @@ enum mtk_pse_port {
+ struct mtk_rx_dma {
+@@ -952,6 +959,12 @@ enum mtk_pse_port {
  	PSE_PORT_MAX
  };
  
@@ -359,7 +359,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
  /* GMAC Identifier */
  enum mtk_gmac_id {
  	MTK_GMAC1_ID = 0,
-@@ -1545,10 +1558,21 @@ struct mtk_eth {
+@@ -1506,10 +1519,21 @@ struct mtk_eth {
  	struct {
  		struct delayed_work monitor_work;
  		atomic_t force;

@@ -119,7 +119,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	} else {
  		ring->dma = dma_alloc_coherent(eth->dma_dev, ring_size * sz,
  					       &ring->phys, GFP_KERNEL);
-@@ -3012,7 +3031,6 @@ static int mtk_tx_alloc(struct mtk_eth *
+@@ -3012,7 +3031,6 @@ no_tx_mem:
  
  static void mtk_tx_clean(struct mtk_eth *eth)
  {
@@ -167,7 +167,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		ring->dma = tx_ring->dma + offset;
  		ring->phys = tx_ring->phys + offset;
  		ring->in_sram = true;
-@@ -3934,15 +3954,15 @@ static void mtk_dma_free(struct mtk_eth
+@@ -3937,15 +3957,15 @@ static void mtk_dma_free(struct mtk_eth
  			netdev_tx_reset_subqueue(eth->netdev[i], j);
  	}
  
@@ -188,7 +188,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_rx_clean(eth, &eth->rx_ring_qdma, false);
  
  	if (eth->hwlro) {
-@@ -3959,8 +3979,8 @@ static void mtk_dma_free(struct mtk_eth
+@@ -3962,8 +3982,8 @@ static void mtk_dma_free(struct mtk_eth
  	}
  
  	for (i = 0; i < DIV_ROUND_UP(soc->tx.fq_dma_size, MTK_FQ_DMA_LENGTH); i++) {
@@ -199,7 +199,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	}
  }
  
-@@ -6479,11 +6499,18 @@ static int mtk_probe(struct platform_dev
+@@ -6485,11 +6505,18 @@ static int mtk_probe(struct platform_dev
  		 * functions to read from or write to SRAM.
  		 */
  		if (mtk_is_netsys_v3_or_greater(eth)) {
@@ -218,7 +218,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		}
  	}
  
-@@ -6570,9 +6597,9 @@ static int mtk_probe(struct platform_dev
+@@ -6576,9 +6603,9 @@ static int mtk_probe(struct platform_dev
  					err = -EINVAL;
  					goto err_destroy_sgmii;
  				}
@@ -232,7 +232,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	}
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1108,6 +1108,19 @@ struct mtk_rx_ring {
+@@ -1106,6 +1106,19 @@ struct mtk_rx_ring {
  	struct xdp_rxq_info xdp_q;
  };
  
@@ -252,7 +252,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  /* struct mtk_rss_params -	This is the structure holding parameters
  				for the RSS ring
   * @hash_key			The element is used to record the
-@@ -1335,7 +1348,7 @@ enum mkt_eth_capabilities {
+@@ -1333,7 +1346,7 @@ enum mkt_eth_capabilities {
  #define MT7987_CAPS  (MTK_36BIT_DMA | MTK_GMAC1_SGMII | \
  		      MTK_GMAC2_2P5GPHY_V2 | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
  		      MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX_GMAC2_TO_2P5GPHY | \
@@ -261,7 +261,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		      MTK_QDMA | MTK_PDMA_INT | MTK_RSS | MTK_HWLRO | \
  		      MTK_GLO_MEM_ACCESS | MTK_RSTCTRL_PPE1)
  
-@@ -1513,9 +1526,6 @@ struct mtk_soc_data {
+@@ -1511,9 +1524,6 @@ struct mtk_soc_data {
   * @tx_packets:		Net DIM TX packet counter
   * @tx_bytes:		Net DIM TX byte counter
   * @tx_dim:		Net DIM TX context
@@ -271,7 +271,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
   * @clks:		clock array for all clocks required
   * @mii_bus:		If there is a bus we need to create an instance for it
   * @pending_work:	The workqueue used to reset the dma ring
-@@ -1529,6 +1539,8 @@ struct mtk_eth {
+@@ -1527,6 +1537,8 @@ struct mtk_eth {
  	void __iomem			*base;
  	void __iomem			*esw_base;
  	void				*sram_base;
@@ -280,7 +280,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	spinlock_t			page_lock;
  	spinlock_t			tx_irq_lock;
  	spinlock_t			rx_irq_lock;
-@@ -1550,13 +1561,11 @@ struct mtk_eth {
+@@ -1548,13 +1560,11 @@ struct mtk_eth {
  	struct mtk_tx_ring		tx_ring;
  	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
  	struct mtk_rx_ring		rx_ring_qdma;

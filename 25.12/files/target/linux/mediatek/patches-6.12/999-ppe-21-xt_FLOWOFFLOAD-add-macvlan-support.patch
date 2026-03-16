@@ -12,11 +12,9 @@ Signed-off-by: chak-kei.lam <chak-kei.lam@mediatek.com>
  net/netfilter/xt_FLOWOFFLOAD.c |  4 +++-
  2 files changed, 14 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/net/macvlan.c b/drivers/net/macvlan.c
-index e1a5010..4285a18 100644
 --- a/drivers/net/macvlan.c
 +++ b/drivers/net/macvlan.c
-@@ -889,6 +889,16 @@ static int macvlan_hwtstamp_set(struct net_device *dev,
+@@ -895,6 +895,16 @@ static int macvlan_hwtstamp_set(struct n
  	return generic_hwtstamp_set_lower(real_dev, cfg, extack);
  }
  
@@ -33,7 +31,7 @@ index e1a5010..4285a18 100644
  /*
   * macvlan network devices have devices nesting below it and are a special
   * "super class" of normal network devices; split their locks off into a
-@@ -1196,6 +1206,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
+@@ -1202,6 +1212,7 @@ static const struct net_device_ops macvl
  	.ndo_features_check	= passthru_features_check,
  	.ndo_hwtstamp_get	= macvlan_hwtstamp_get,
  	.ndo_hwtstamp_set	= macvlan_hwtstamp_set,
@@ -41,11 +39,9 @@ index e1a5010..4285a18 100644
  };
  
  static void macvlan_dev_free(struct net_device *dev)
-diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 0597cff..423e6d2 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -352,10 +352,12 @@ static void nf_dev_path_info(const struct net_device_path_stack *stack,
+@@ -352,10 +352,12 @@ static void nf_dev_path_info(const struc
  		case DEV_PATH_DSA:
  		case DEV_PATH_VLAN:
  		case DEV_PATH_PPPOE:
@@ -59,6 +55,3 @@ index 0597cff..423e6d2 100644
  				break;
  			if (path->type == DEV_PATH_DSA) {
  				i = stack->num_paths;
--- 
-2.45.2
-

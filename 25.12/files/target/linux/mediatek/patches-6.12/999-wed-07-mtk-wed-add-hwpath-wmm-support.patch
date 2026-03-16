@@ -12,11 +12,9 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  include/linux/netdevice.h                     |  1 +
  5 files changed, 22 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 90e2d19..d36c45c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -613,7 +613,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -655,7 +655,7 @@ int mtk_foe_entry_set_tops_entry(struct
  
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
@@ -25,7 +23,7 @@ index 90e2d19..d36c45c 100644
  {
  	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
  	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
-@@ -626,6 +626,7 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -668,6 +668,7 @@ int mtk_foe_entry_set_wdma(struct mtk_et
  		l2->w3info = FIELD_PREP(MTK_FOE_WINFO_WCID_V3, wcid) |
  			     FIELD_PREP(MTK_FOE_WINFO_BSS_V3, bss);
  		l2->amsdu = FIELD_PREP(MTK_FOE_WINFO_AMSDU_EN, amsdu_en);
@@ -33,12 +31,10 @@ index 90e2d19..d36c45c 100644
  		break;
  	case 2:
  		*ib2 &= ~MTK_FOE_IB2_PORT_MG_V2;
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 2af664b..fdb1619 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -410,7 +410,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
- 			    int sid);
+@@ -422,7 +422,7 @@ int mtk_foe_entry_set_tops_entry(struct
+ 				 int tops_entry);
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
 -			   bool amsdu_en);
@@ -46,11 +42,9 @@ index 2af664b..fdb1619 100644
  int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			    unsigned int queue);
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 47086cb..344eb54 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -93,31 +93,31 @@ mtk_flow_offload_mangle_eth(const struct flow_action_entry *act, void *eth)
+@@ -99,31 +99,31 @@ mtk_flow_offload_mangle_eth(const struct
  static int
  mtk_flow_get_wdma_info(struct net_device *dev, const u8 *addr, struct mtk_wdma_info *info)
  {
@@ -97,7 +91,7 @@ index 47086cb..344eb54 100644
  
  	return 0;
  }
-@@ -284,9 +284,10 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -294,9 +294,10 @@ mtk_flow_set_output_device(struct mtk_et
  	u32 ct_mark = 0;
  	int pse_port, dsa_port, dsa_proto, queue;
  
@@ -109,8 +103,6 @@ index 47086cb..344eb54 100644
  		if (mtk_is_netsys_v2_or_greater(eth)) {
  			switch (info.wdma_idx) {
  			case 0:
-diff --git a/drivers/net/ethernet/mediatek/mtk_wed.h b/drivers/net/ethernet/mediatek/mtk_wed.h
-index b49aee9..aa8fe81 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.h
 @@ -59,6 +59,7 @@ struct mtk_wdma_info {
@@ -121,8 +113,6 @@ index b49aee9..aa8fe81 100644
  };
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
-diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index b49de4d..2c9b642 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -869,6 +869,7 @@ struct net_device_path {
@@ -133,6 +123,3 @@ index b49de4d..2c9b642 100644
  		} mtk_wdma;
  	};
  };
--- 
-2.45.2
-

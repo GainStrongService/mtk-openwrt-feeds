@@ -3244,7 +3244,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  {
  	int ret;
  
-@@ -2801,6 +2813,12 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2830,6 +2842,12 @@ static int mtk_poll_rx(struct napi_struc
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
  			mtk_ppe_check_skb(eth->ppe[ppe_idx], skb, hash);
  
@@ -3257,7 +3257,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  		skb_record_rx_queue(skb, 0);
  		napi_gro_receive(napi, skb);
  
-@@ -5640,6 +5658,12 @@ static void mtk_restore_qdma_cfg(struct
+@@ -5681,6 +5699,12 @@ static void mtk_restore_qdma_cfg(struct
  			reg_map->qdma.tx_sch_rate + 0x4);
  }
  
@@ -3270,7 +3270,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  static void mtk_prepare_for_reset(struct mtk_eth *eth)
  {
  	struct mtk_mac *mac;
-@@ -6217,6 +6241,7 @@ static const struct net_device_ops mtk_n
+@@ -6258,6 +6282,7 @@ static const struct net_device_ops mtk_n
  	.ndo_set_mac_address	= mtk_set_mac_address,
  	.ndo_validate_addr	= eth_validate_addr,
  	.ndo_eth_ioctl		= mtk_do_ioctl,
@@ -3278,8 +3278,8 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  	.ndo_change_mtu		= mtk_change_mtu,
  	.ndo_tx_timeout		= mtk_tx_timeout,
  	.ndo_get_stats64        = mtk_get_stats64,
-@@ -7089,6 +7114,8 @@ static int mtk_probe(struct platform_dev
- 		}
+@@ -7137,6 +7162,8 @@ static int mtk_probe(struct platform_dev
+ 			goto err_deinit_ppe;
  	}
  
 +	mtk_eth_debugfs_init(eth);
@@ -3289,7 +3289,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  	 */
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -347,6 +347,8 @@
+@@ -351,6 +351,8 @@
  #define MTK_LRO_RING_AGG_CNT_H_OFFSET	(0)
  
  /* QDMA TX Queue Configuration Registers */
@@ -3298,7 +3298,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  #define MTK_QTX_OFFSET		0x10
  #define QDMA_RES_THRES		4
  
-@@ -374,8 +376,16 @@
+@@ -378,8 +380,16 @@
  /* QDMA Page Configuration Register */
  #define MTK_QTX_PER_PAGE	(16)
  
@@ -3315,7 +3315,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  
  /* QDMA Global Configuration Register */
  #define MTK_RX_2B_OFFSET	BIT(31)
-@@ -853,6 +863,7 @@
+@@ -871,6 +881,7 @@
  #define MTK_FE_CDM4_FSM		0x298
  #define MTK_FE_CDM5_FSM		0x318
  #define MTK_FE_CDM6_FSM		0x328
@@ -3323,7 +3323,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  #define MTK_FE_GDM1_FSM		0x228
  #define MTK_FE_GDM2_FSM		0x22C
  #define MTK_FE_GDM3_FSM		0x23C
-@@ -1573,9 +1584,12 @@ struct mtk_reg_map {
+@@ -1554,9 +1565,12 @@ struct mtk_reg_map {
  		u32	delay_irq;	/* delay interrupt */
  		u32	fc_th;		/* flow control */
  		u32	int_grp;
@@ -3336,7 +3336,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  		u32	crx_ptr;	/* tx release cpu pointer */
  		u32	drx_ptr;	/* tx release dma pointer */
  		u32	fq_head;	/* fq head pointer */
-@@ -1730,6 +1744,7 @@ struct mtk_eth {
+@@ -1712,6 +1726,7 @@ struct mtk_eth {
  	struct mtk_qdma_shaper		qdma_shaper;
  	struct clk			*clks[MTK_CLK_MAX];
  

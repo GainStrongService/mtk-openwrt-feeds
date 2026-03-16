@@ -12,8 +12,6 @@ when the below command is configured.
  net/netfilter/xt_FLOWOFFLOAD.c           | 15 ++++++++++++++-
  2 files changed, 15 insertions(+), 1 deletion(-)
 
-diff --git a/include/net/netfilter/nf_conntrack_qos.h b/include/net/netfilter/nf_conntrack_qos.h
-index 3d5ffe7..2916a07 100644
 --- a/include/net/netfilter/nf_conntrack_qos.h
 +++ b/include/net/netfilter/nf_conntrack_qos.h
 @@ -15,6 +15,7 @@ struct nf_conn_tos {
@@ -24,8 +22,6 @@ index 3d5ffe7..2916a07 100644
  };
  
  static inline
-diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 40cc97f..92be992 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -44,6 +44,7 @@ struct nf_forward_info {
@@ -36,7 +32,7 @@ index 40cc97f..92be992 100644
  	enum flow_offload_xmit_type xmit_type;
  };
  
-@@ -364,6 +365,7 @@ static void nf_dev_path_info(const struct net_device_path_stack *stack,
+@@ -364,6 +365,7 @@ static void nf_dev_path_info(const struc
  {
  	const struct net_device_path *path;
  	int i;
@@ -44,7 +40,7 @@ index 40cc97f..92be992 100644
  
  	memcpy(info->h_dest, ha, ETH_ALEN);
  
-@@ -396,6 +398,13 @@ static void nf_dev_path_info(const struct net_device_path_stack *stack,
+@@ -396,6 +398,13 @@ static void nf_dev_path_info(const struc
  				info->outdev = path->dev;
  			info->encap[info->num_encaps].id = path->encap.id;
  			info->encap[info->num_encaps].proto = path->encap.proto;
@@ -58,7 +54,7 @@ index 40cc97f..92be992 100644
  			info->num_encaps++;
  			if (path->type == DEV_PATH_PPPOE)
  				memcpy(info->h_dest, path->encap.h_dest, ETH_ALEN);
-@@ -503,7 +512,10 @@ static int nf_dev_forward_path(struct sk_buff *skb,
+@@ -503,7 +512,10 @@ static int nf_dev_forward_path(struct sk
  	struct net_device_path_ctx ctx = {
  		.dev	= dst->dev,
  	};
@@ -70,7 +66,7 @@ index 40cc97f..92be992 100644
  	struct ethhdr *eth;
  	enum ip_conntrack_dir skb_dir;
  	unsigned char ha[ETH_ALEN];
-@@ -740,6 +752,7 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -740,6 +752,7 @@ flowoffload_tg(struct sk_buff *skb, cons
  
  		qos->tos[dir].value = tos;
  		atomic64_add(1, &qos->tos[dir].counter);
@@ -78,6 +74,3 @@ index 40cc97f..92be992 100644
  
  		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
  			return XT_CONTINUE;
--- 
-2.45.2
-

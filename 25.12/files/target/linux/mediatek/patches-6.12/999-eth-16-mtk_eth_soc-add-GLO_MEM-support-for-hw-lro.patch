@@ -132,7 +132,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	}
  
  	/* IPv4 checksum update enable */
-@@ -3333,8 +3396,17 @@ static void mtk_hwlro_rx_uninit(struct m
+@@ -3336,8 +3399,17 @@ static void mtk_hwlro_rx_uninit(struct m
  	}
  
  	/* invalidate lro rings */
@@ -152,7 +152,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  
  	/* disable HW LRO */
  	mtk_w32(eth, 0, MTK_PDMA_LRO_CTRL_DW0);
-@@ -3345,15 +3417,36 @@ static void mtk_hwlro_val_ipaddr(struct
+@@ -3348,15 +3420,36 @@ static void mtk_hwlro_val_ipaddr(struct
  	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
  	u32 reg_val;
  
@@ -195,7 +195,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  }
  
  static void mtk_hwlro_inval_ipaddr(struct mtk_eth *eth, int idx)
-@@ -3361,12 +3454,21 @@ static void mtk_hwlro_inval_ipaddr(struc
+@@ -3364,12 +3457,21 @@ static void mtk_hwlro_inval_ipaddr(struc
  	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
  	u32 reg_val;
  
@@ -221,7 +221,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  }
  
  static int mtk_hwlro_get_ip_cnt(struct mtk_mac *mac)
-@@ -3392,7 +3494,11 @@ static int mtk_hwlro_add_ipaddr_idx(stru
+@@ -3395,7 +3497,11 @@ static int mtk_hwlro_add_ipaddr_idx(stru
  
  	/* check for duplicate IP address in the current DIP list */
  	for (i = 1; i <= MTK_HW_LRO_DIP_NUM; i++) {
@@ -234,7 +234,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		if (reg_val == ip4dst)
  			break;
  	}
-@@ -3404,7 +3510,11 @@ static int mtk_hwlro_add_ipaddr_idx(stru
+@@ -3407,7 +3513,11 @@ static int mtk_hwlro_add_ipaddr_idx(stru
  
  	/* find out available DIP index */
  	for (i = 1; i <= MTK_HW_LRO_DIP_NUM; i++) {
@@ -247,7 +247,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		if (reg_val == 0UL)
  			break;
  	}
-@@ -3427,7 +3537,11 @@ static int mtk_hwlro_get_ipaddr_idx(stru
+@@ -3430,7 +3540,11 @@ static int mtk_hwlro_get_ipaddr_idx(stru
  
  	/* find out DIP index that matches the given IP address */
  	for (i = 1; i <= MTK_HW_LRO_DIP_NUM; i++) {
@@ -315,7 +315,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_HW_LRO_RING_NUM		(mtk_is_netsys_v3_or_greater(eth) ? 4 : 3)
  #define MTK_HW_LRO_RING(x)		((x) + (mtk_is_netsys_v3_or_greater(eth) ? 4 : 1))
  #define MTK_HW_LRO_IRQ(x)		((x) + (mtk_is_netsys_v3_or_greater(eth) ? 0 : 1))
-@@ -1131,6 +1168,7 @@ enum mkt_eth_capabilities {
+@@ -1092,6 +1129,7 @@ enum mkt_eth_capabilities {
  	MTK_MUX_BIT,
  	MTK_INFRA_BIT,
  	MTK_SHARED_SGMII_BIT,
@@ -323,7 +323,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	MTK_HWLRO_BIT,
  	MTK_RSS_BIT,
  	MTK_SHARED_INT_BIT,
-@@ -1182,6 +1220,7 @@ enum mkt_eth_capabilities {
+@@ -1143,6 +1181,7 @@ enum mkt_eth_capabilities {
  #define MTK_MUX			BIT_ULL(MTK_MUX_BIT)
  #define MTK_INFRA		BIT_ULL(MTK_INFRA_BIT)
  #define MTK_SHARED_SGMII	BIT_ULL(MTK_SHARED_SGMII_BIT)
@@ -331,7 +331,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_HWLRO		BIT_ULL(MTK_HWLRO_BIT)
  #define MTK_RSS			BIT_ULL(MTK_RSS_BIT)
  #define MTK_SHARED_INT		BIT_ULL(MTK_SHARED_INT_BIT)
-@@ -1308,7 +1347,8 @@ enum mkt_eth_capabilities {
+@@ -1269,7 +1308,8 @@ enum mkt_eth_capabilities {
  		      MTK_GMAC2_2P5GPHY_V2 | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
  		      MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX_GMAC2_TO_2P5GPHY | \
  		      MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | \

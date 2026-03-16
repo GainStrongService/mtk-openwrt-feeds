@@ -28,8 +28,8 @@
 +
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
- 			   int tid, bool amsdu_en)
-@@ -1401,6 +1423,62 @@ mtk_ppe_check_wdma_path(struct mtk_eth *
+ 			   bool amsdu_en)
+@@ -1399,6 +1421,62 @@ mtk_ppe_check_wdma_path(struct mtk_eth *
  	return 0;
  }
  
@@ -124,7 +124,7 @@
 +			   int cdrt);
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
- 			   int tid, bool amsdu_en);
+ 			   bool amsdu_en);
 @@ -422,5 +432,6 @@ void mtk_foe_entry_get_stats(struct mtk_
  int mtk_flow_entry_match_len(struct mtk_eth *eth, struct mtk_foe_entry *entry);
  bool mtk_flow_entry_match(struct mtk_eth *eth, struct mtk_flow_entry *entry,
@@ -154,7 +154,7 @@
  static int
  mtk_flow_set_ipv4_addr(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		       struct mtk_flow_data *data, bool egress)
-@@ -508,6 +514,14 @@ mtk_flow_offload_replace(struct mtk_eth
+@@ -507,6 +513,14 @@ mtk_flow_offload_replace(struct mtk_eth
  			data.pppoe.sid = act->pppoe.sid;
  			data.pppoe.num++;
  			break;
@@ -169,7 +169,7 @@
  		default:
  			return -EOPNOTSUPP;
  		}
-@@ -606,6 +620,11 @@ mtk_flow_offload_replace(struct mtk_eth
+@@ -605,6 +619,11 @@ mtk_flow_offload_replace(struct mtk_eth
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
  

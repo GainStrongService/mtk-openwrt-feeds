@@ -15,11 +15,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed.c     |  3 +++
  2 files changed, 15 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 0084390..9d5c3ad 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1973,6 +1973,18 @@ static inline void mtk_ppe_drop_config(struct mtk_eth *eth, u32 config)
+@@ -2022,6 +2022,18 @@ static inline void mtk_ppe_drop_config(s
  		mtk_w32(eth, config, PSE_PPE_DROP(2));
  }
  
@@ -38,11 +36,9 @@ index 0084390..9d5c3ad 100644
  int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
-diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index e169a89..4a0791a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -2106,6 +2106,8 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -2106,6 +2106,8 @@ mtk_wed_reset_dma(struct mtk_wed_device
  	u32 val;
  	int i;
  
@@ -51,7 +47,7 @@ index e169a89..4a0791a 100644
  	for (i = 0; i < ARRAY_SIZE(dev->tx_ring); i++) {
  		if (!dev->tx_ring[i].desc)
  			continue;
-@@ -2771,6 +2773,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -2771,6 +2773,7 @@ mtk_wed_start(struct mtk_wed_device *dev
  	mtk_wed_amsdu_init(dev);
  
  	mtk_wed_dma_enable(dev);
@@ -59,6 +55,3 @@ index e169a89..4a0791a 100644
  	dev->running = true;
  }
  
--- 
-2.45.2
-

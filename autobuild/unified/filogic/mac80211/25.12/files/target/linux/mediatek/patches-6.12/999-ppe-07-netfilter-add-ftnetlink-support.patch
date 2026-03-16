@@ -15,8 +15,6 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  4 files changed, 247 insertions(+), 1 deletion(-)
  create mode 100644 net/netfilter/nf_flow_table_netlink.c
 
-diff --git a/include/uapi/linux/netfilter/nfnetlink.h b/include/uapi/linux/netfilter/nfnetlink.h
-index 6cd58cd..71cd2d0 100644
 --- a/include/uapi/linux/netfilter/nfnetlink.h
 +++ b/include/uapi/linux/netfilter/nfnetlink.h
 @@ -61,7 +61,8 @@ struct nfgenmsg {
@@ -29,8 +27,6 @@ index 6cd58cd..71cd2d0 100644
  
  /* Reserved control nfnetlink messages */
  #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE
-diff --git a/net/netfilter/Kconfig b/net/netfilter/Kconfig
-index e10e3b8..caf7a60 100644
 --- a/net/netfilter/Kconfig
 +++ b/net/netfilter/Kconfig
 @@ -742,6 +742,15 @@ config NF_FLOW_TABLE_PROCFS
@@ -49,11 +45,9 @@ index e10e3b8..caf7a60 100644
  config NETFILTER_XTABLES
  	tristate "Netfilter Xtables support (required for ip_tables)"
  	default m if NETFILTER_ADVANCED=n
-diff --git a/net/netfilter/Makefile b/net/netfilter/Makefile
-index e9d1185..08e0910 100644
 --- a/net/netfilter/Makefile
 +++ b/net/netfilter/Makefile
-@@ -151,6 +151,7 @@ nf_flow_table-$(CONFIG_DEBUG_INFO_BTF) += nf_flow_table_bpf.o
+@@ -151,6 +151,7 @@ nf_flow_table-$(CONFIG_DEBUG_INFO_BTF) +
  endif
  
  obj-$(CONFIG_NF_FLOW_TABLE_INET) += nf_flow_table_inet.o
@@ -61,9 +55,6 @@ index e9d1185..08e0910 100644
  
  # generic X tables
  obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
-diff --git a/net/netfilter/nf_flow_table_netlink.c b/net/netfilter/nf_flow_table_netlink.c
-new file mode 100644
-index 0000000..c1c86f2
 --- /dev/null
 +++ b/net/netfilter/nf_flow_table_netlink.c
 @@ -0,0 +1,235 @@
@@ -302,6 +293,3 @@ index 0000000..c1c86f2
 +MODULE_LICENSE("GPL");
 +module_init(ftnetlink_init);
 +module_exit(ftnetlink_exit);
--- 
-2.45.2
-

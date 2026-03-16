@@ -10,11 +10,9 @@ Subject: [PATCH] net: ethernet: mtk_ppe: add mt7988 l4s support
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  7 +-
  4 files changed, 108 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 625aba0..1296f89 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -642,6 +642,17 @@ int mtk_foe_entry_set_cdrt(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -642,6 +642,17 @@ int mtk_foe_entry_set_cdrt(struct mtk_et
  	return 0;
  }
  
@@ -31,12 +29,10 @@ index 625aba0..1296f89 100644
 +
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
- 			   int tid, bool amsdu_en)
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index c93bda9..3989824 100644
+ 			   bool amsdu_en)
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -416,6 +416,8 @@ int mtk_foe_entry_set_tport(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -418,6 +418,8 @@ int mtk_foe_entry_set_tport(struct mtk_e
  			    int tport);
  int mtk_foe_entry_set_cdrt(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int cdrt);
@@ -44,16 +40,13 @@ index c93bda9..3989824 100644
 +				 int tops_entry);
  int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			   int wdma_idx, int txq, int bss, int wcid,
- 			   int tid, bool amsdu_en);
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-index 48f67c0..8b07fcf 100644
+ 			   bool amsdu_en);
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-@@ -363,6 +363,91 @@ static const struct file_operations mtk_ppe_internal_debugfs_level_fops = {
- 	.release = single_release,
+@@ -364,6 +364,91 @@ static const struct file_operations mtk_
  };
  
-+static int
+ static int
 +mtk_ppe_internal_debugfs_show_l4s(struct seq_file *m, void *private)
 +{
 +	struct mtk_eth *eth = m->private;
@@ -138,10 +131,11 @@ index 48f67c0..8b07fcf 100644
 +	.release = single_release,
 +};
 +
- static int
++static int
  mtk_ppe_internal_debugfs_foe_all_show(struct seq_file *m, void *private)
  {
-@@ -426,6 +511,10 @@ int mtk_ppe_internal_debugfs_init(struct mtk_eth *eth)
+ 	struct mtk_eth *eth = m->private;
+@@ -426,6 +511,10 @@ int mtk_ppe_internal_debugfs_init(struct
  			    &mtk_ppe_internal_debugfs_qos_fops);
  	debugfs_create_file("debug_level", S_IRUGO, root, eth,
  			    &mtk_ppe_internal_debugfs_level_fops);
@@ -152,11 +146,9 @@ index 48f67c0..8b07fcf 100644
  
  	for (i = 0; i < (mtk_is_netsys_v2_or_greater(eth) ? 4 : 2); i++) {
  		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 326a6a9..2bf0192 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -345,7 +345,12 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -344,7 +344,12 @@ mtk_flow_set_output_device(struct mtk_et
  		ct_mark = ct->mark;
  	}
  
@@ -170,6 +162,3 @@ index 326a6a9..2bf0192 100644
  		if ((dsa_port >= 0) && ct && nf_ct_protonum(ct) == IPPROTO_TCP) {
  			/* Dispatch the IPv4/IPv6 TCP Ack packets to the high-priority
  			 * queue, assuming they are less than 64 bytes.
--- 
-2.45.2
-

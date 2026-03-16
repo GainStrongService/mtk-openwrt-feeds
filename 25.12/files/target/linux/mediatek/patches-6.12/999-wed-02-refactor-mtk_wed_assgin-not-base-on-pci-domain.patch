@@ -7,8 +7,6 @@ Subject: [PATCH 02/15] refactor mtk_wed_assgin not base on pci domain
  drivers/net/ethernet/mediatek/mtk_wed.c | 31 +++++++------------------
  1 file changed, 8 insertions(+), 23 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 8774c99..e37d172 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -495,34 +495,21 @@ void mtk_wed_fe_reset_complete(void)
@@ -53,7 +51,7 @@ index 8774c99..e37d172 100644
  }
  
  static int
-@@ -2424,9 +2411,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2424,9 +2411,7 @@ mtk_wed_attach(struct mtk_wed_device *de
  	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
  			 "mtk_wed_attach without holding the RCU read lock");
  
@@ -64,6 +62,3 @@ index 8774c99..e37d172 100644
  		ret = -ENODEV;
  
  	rcu_read_unlock();
--- 
-2.45.2
-

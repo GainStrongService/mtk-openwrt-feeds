@@ -10,11 +10,9 @@ WiFi roams.
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +
  2 files changed, 12 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 025ff77..929b489 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4306,6 +4306,11 @@ static int mtk_open(struct net_device *dev)
+@@ -4497,6 +4497,11 @@ static int mtk_open(struct net_device *d
  		for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  			mtk_ppe_start(eth->ppe[i]);
  
@@ -26,7 +24,7 @@ index 025ff77..929b489 100644
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
  				continue;
-@@ -4458,6 +4463,8 @@ static int mtk_stop(struct net_device *dev)
+@@ -4674,6 +4679,8 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -35,11 +33,9 @@ index 025ff77..929b489 100644
  	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  		mtk_ppe_stop(eth->ppe[i]);
  
-diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 84a243a..5d07e3d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1709,9 +1709,14 @@ struct mtk_eth {
+@@ -1741,9 +1741,14 @@ struct mtk_eth {
  
  	struct metadata_dst		*dsa_meta[MTK_MAX_DSA_PORTS];
  
@@ -54,6 +50,3 @@ index 84a243a..5d07e3d 100644
  	struct bpf_prog			__rcu *prog;
  
  	struct {
--- 
-2.45.2
-

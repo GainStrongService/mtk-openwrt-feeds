@@ -16,8 +16,6 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nft_flow_offload.c | 46 +++++++++++++++++++++++++++++++-
  1 file changed, 45 insertions(+), 1 deletion(-)
 
-diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
-index aa73265..4aaf60e 100644
 --- a/net/netfilter/nft_flow_offload.c
 +++ b/net/netfilter/nft_flow_offload.c
 @@ -12,6 +12,7 @@
@@ -48,7 +46,7 @@ index aa73265..4aaf60e 100644
  static enum flow_offload_xmit_type nft_xmit_type(struct dst_entry *dst)
  {
  	if (dst_xfrm(dst))
-@@ -477,6 +491,11 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -486,6 +500,11 @@ static void nft_flow_offload_eval(const
  	struct flow_offload *flow;
  	enum ip_conntrack_dir dir;
  	struct nf_conn *ct;
@@ -60,7 +58,7 @@ index aa73265..4aaf60e 100644
  	int ret;
  
  	if (nft_flow_offload_skip(pkt->skb, nft_pf(pkt)))
-@@ -522,10 +541,33 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -531,10 +550,33 @@ static void nft_flow_offload_eval(const
  	if (!nf_ct_is_confirmed(ct))
  		goto out;
  
@@ -95,7 +93,7 @@ index aa73265..4aaf60e 100644
  	if (nft_flow_offload_is_bridging(pkt->skb)) {
  		if (nft_flow_route_bridging(pkt, ct, &route, dir, priv->flowtable) < 0)
  			goto err_flow_route;
-@@ -542,6 +584,8 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -551,6 +593,8 @@ static void nft_flow_offload_eval(const
  	if (tcph)
  		flow_offload_ct_tcp(ct);
  
@@ -104,6 +102,3 @@ index aa73265..4aaf60e 100644
  	__set_bit(NF_FLOW_HW_BIDIRECTIONAL, &flow->flags);
  	ret = flow_offload_add(flowtable, flow);
  	if (ret < 0)
--- 
-2.45.2
-

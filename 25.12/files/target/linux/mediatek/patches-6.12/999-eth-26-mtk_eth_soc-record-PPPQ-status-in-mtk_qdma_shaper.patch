@@ -64,7 +64,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	ofs = MTK_QTX_OFFSET * idx;
  	mtk_w32(eth, val, soc->reg_map->qdma.qtx_sch + ofs);
  }
-@@ -6547,6 +6585,7 @@ static int mtk_probe(struct platform_dev
+@@ -6555,6 +6593,7 @@ static int mtk_probe(struct platform_dev
  	spin_lock_init(&eth->tx_irq_lock);
  	spin_lock_init(&eth->rx_irq_lock);
  	spin_lock_init(&eth->dim_lock);
@@ -82,7 +82,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_QDMA_PAGE_SIZE	2048
  #define MTK_MAX_RX_LENGTH	1536
  #define MTK_MAX_RX_LENGTH_2K	2048
-@@ -1196,6 +1197,20 @@ struct mtk_qdma_params {
+@@ -1157,6 +1158,20 @@ struct mtk_qdma_params {
  	u32	tx_sch[2];
  };
  
@@ -103,7 +103,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  enum mkt_eth_capabilities {
  	MTK_RGMII_BIT = 0,
  	MTK_TRGMII_BIT,
-@@ -1603,6 +1618,7 @@ struct mtk_eth {
+@@ -1565,6 +1580,7 @@ struct mtk_eth {
  	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
  	struct mtk_rss_params		rss_params;
  	struct mtk_qdma_params		qdma_params;
@@ -111,7 +111,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	struct clk			*clks[MTK_CLK_MAX];
  
  	struct mii_bus			*mii_bus;
-@@ -1854,5 +1870,7 @@ int mtk_flow_offload_cmd(struct mtk_eth
+@@ -1816,5 +1832,7 @@ int mtk_flow_offload_cmd(struct mtk_eth
  void mtk_flow_offload_cleanup(struct mtk_eth *eth, struct list_head *list);
  void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
  

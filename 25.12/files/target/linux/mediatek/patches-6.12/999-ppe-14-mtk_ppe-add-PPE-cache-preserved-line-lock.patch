@@ -14,11 +14,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h |  14 ++
  3 files changed, 174 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 32833ed..67c93d3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -79,6 +79,21 @@ static int mtk_ppe_wait_busy(struct mtk_ppe *ppe)
+@@ -79,6 +79,21 @@ static int mtk_ppe_wait_busy(struct mtk_
  	return ret;
  }
  
@@ -40,11 +38,10 @@ index 32833ed..67c93d3 100644
  static int mtk_ppe_mib_wait_busy(struct mtk_ppe *ppe)
  {
  	int ret;
-@@ -142,15 +157,147 @@ struct mtk_foe_accounting *mtk_ppe_mib_entry_read(struct mtk_ppe *ppe, u16 index
+@@ -142,15 +157,147 @@ struct mtk_foe_accounting *mtk_ppe_mib_e
  	return acct;
  }
  
--static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
 +static void mtk_ppe_cache_write(struct mtk_ppe *ppe, u32 line, u32 tag,
 +				u32 state, u32 *data)
 +{
@@ -110,7 +107,7 @@ index 32833ed..67c93d3 100644
 +	}
 +}
 +
-+static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
+ static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
  {
 +	static const u32 mask = MTK_PPE_ALERT_TCP_FIN_RST_SYN |
 +				MTK_PPE_MD_TOAP_BYP_CRSN0 |
@@ -190,7 +187,7 @@ index 32833ed..67c93d3 100644
  
  	ppe_m32(ppe, MTK_PPE_CACHE_CTL, MTK_PPE_CACHE_CTL_EN,
  		enable * MTK_PPE_CACHE_CTL_EN);
-@@ -558,6 +705,7 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
+@@ -558,6 +705,7 @@ __mtk_foe_entry_clear(struct mtk_ppe *pp
  		      bool set_state)
  {
  	struct hlist_node *tmp;
@@ -198,7 +195,7 @@ index 32833ed..67c93d3 100644
  
  	if (entry->type == MTK_FLOW_TYPE_L2) {
  		rhashtable_remove_fast(&ppe->l2_flows, &entry->l2_node,
-@@ -571,10 +719,13 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
+@@ -571,10 +719,13 @@ __mtk_foe_entry_clear(struct mtk_ppe *pp
  	if (entry->hash != 0xffff && set_state) {
  		struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, entry->hash);
  
@@ -213,7 +210,7 @@ index 32833ed..67c93d3 100644
  	}
  	entry->hash = 0xffff;
  
-@@ -733,8 +884,6 @@ __mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
+@@ -733,8 +884,6 @@ __mtk_foe_entry_commit(struct mtk_ppe *p
  		acct->packets = 0;
  		acct->bytes = 0;
  	}
@@ -222,7 +219,7 @@ index 32833ed..67c93d3 100644
  }
  
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
-@@ -985,6 +1134,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
+@@ -985,6 +1134,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_
  		ppe->acct_table = acct;
  	}
  
@@ -249,8 +246,6 @@ index 32833ed..67c93d3 100644
  	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
  
  	if (mtk_is_netsys_v2_or_greater(ppe->eth)) {
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 4d7f693..cca64f7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -344,6 +344,8 @@ struct mtk_ppe {
@@ -262,7 +257,7 @@ index 4d7f693..cca64f7 100644
  };
  
  struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index);
-@@ -357,7 +359,6 @@ int mtk_ppe_prepare_reset(struct mtk_ppe *ppe);
+@@ -357,7 +359,6 @@ int mtk_ppe_prepare_reset(struct mtk_ppe
  struct mtk_foe_accounting *mtk_ppe_mib_entry_read(struct mtk_ppe *ppe, u16 index);
  
  void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
@@ -270,8 +265,6 @@ index 4d7f693..cca64f7 100644
  static inline void
  mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
  {
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_regs.h b/drivers/net/ethernet/mediatek/mtk_ppe_regs.h
-index 7f4157b..0b9527a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_regs.h
 @@ -23,6 +23,7 @@
@@ -314,6 +307,3 @@ index 7f4157b..0b9527a 100644
 +#define MTK_PPE_CACHE_DBG_BUSY			GENMASK(3, 0)
 +
  #endif
--- 
-2.45.2
-

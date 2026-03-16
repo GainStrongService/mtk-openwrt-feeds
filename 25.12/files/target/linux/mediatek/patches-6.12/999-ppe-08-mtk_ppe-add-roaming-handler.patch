@@ -11,8 +11,6 @@ WiFi roams.
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  56 +++++
  3 files changed, 269 insertions(+)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index cd4e778..c785227 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -12,6 +12,7 @@
@@ -23,7 +21,7 @@ index cd4e778..c785227 100644
  
  #include "mtk_eth_soc.h"
  #include "mtk_ppe.h"
-@@ -525,6 +526,28 @@ mtk_flow_entry_match(struct mtk_eth *eth, struct mtk_flow_entry *entry,
+@@ -525,6 +526,28 @@ mtk_flow_entry_match(struct mtk_eth *eth
  	return !memcmp(&entry->data.data, &data->data, len - 4);
  }
  
@@ -244,8 +242,6 @@ index cd4e778..c785227 100644
 +
 +	return 0;
 +}
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index d505629..dc25724 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -349,6 +349,8 @@ struct mtk_ppe {
@@ -257,15 +253,12 @@ index d505629..dc25724 100644
  void mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
  int mtk_ppe_prepare_reset(struct mtk_ppe *ppe);
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-index af7d76c..3260be3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-@@ -252,6 +252,60 @@ static const struct file_operations mtk_ppe_internal_debugfs_qos_fops = {
- 	.release = single_release,
+@@ -253,6 +253,60 @@ static const struct file_operations mtk_
  };
  
-+static int
+ static int
 +mtk_ppe_internal_debugfs_level_show(struct seq_file *m, void *private)
 +{
 +	struct mtk_eth *eth = m->private;
@@ -319,10 +312,11 @@ index af7d76c..3260be3 100644
 +	.release = single_release,
 +};
 +
- static int
++static int
  mtk_ppe_internal_debugfs_foe_all_show(struct seq_file *m, void *private)
  {
-@@ -311,6 +365,8 @@ int mtk_ppe_internal_debugfs_init(struct mtk_eth *eth)
+ 	struct mtk_eth *eth = m->private;
+@@ -311,6 +365,8 @@ int mtk_ppe_internal_debugfs_init(struct
  			    &mtk_ppe_internal_debugfs_foe_bind_fops);
  	debugfs_create_file("qos_toggle", S_IRUGO, root, eth,
  			    &mtk_ppe_internal_debugfs_qos_fops);
@@ -331,6 +325,3 @@ index af7d76c..3260be3 100644
  
  	for (i = 0; i < (mtk_is_netsys_v2_or_greater(eth) ? 4 : 2); i++) {
  		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);
--- 
-2.45.2
-

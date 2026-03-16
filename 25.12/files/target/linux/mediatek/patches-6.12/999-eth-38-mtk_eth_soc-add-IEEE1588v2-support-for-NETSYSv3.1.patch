@@ -562,7 +562,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 +}
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2761,6 +2761,9 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2765,6 +2765,9 @@ static int mtk_poll_rx(struct napi_struc
  		skb->dev = netdev;
  		bytes += skb->len;
  
@@ -572,7 +572,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		if (mtk_is_netsys_v3_or_greater(eth)) {
  			reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON, trxd.rxd5);
  			hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY;
-@@ -2909,6 +2912,11 @@ static int mtk_poll_tx_qdma(struct mtk_e
+@@ -2913,6 +2916,11 @@ static int mtk_poll_tx_qdma(struct mtk_e
  		if (!tx_buf->data)
  			break;
  
@@ -584,7 +584,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		if (tx_buf->data != (void *)MTK_DMA_DUMMY_DESC) {
  			if (tx_buf->type == MTK_TYPE_SKB)
  				mtk_poll_tx_done(eth, state, tx_buf->mac_id,
-@@ -2949,6 +2957,11 @@ static int mtk_poll_tx_pdma(struct mtk_e
+@@ -2953,6 +2961,11 @@ static int mtk_poll_tx_pdma(struct mtk_e
  		if (!tx_buf->data)
  			break;
  
@@ -596,7 +596,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		if (tx_buf->data != (void *)MTK_DMA_DUMMY_DESC) {
  			if (tx_buf->type == MTK_TYPE_SKB)
  				mtk_poll_tx_done(eth, state, 0, tx_buf->data);
-@@ -4473,6 +4486,9 @@ static int mtk_open(struct net_device *d
+@@ -4480,6 +4493,9 @@ static int mtk_open(struct net_device *d
  			mtk_gdm_config(eth, target_mac->id, gdm_config);
  		}
  
@@ -606,7 +606,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  		napi_enable(&eth->tx_napi);
  		napi_enable(&eth->rx_napi[0].napi);
  		mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
-@@ -4623,6 +4639,9 @@ static int mtk_stop(struct net_device *d
+@@ -4628,6 +4644,9 @@ static int mtk_stop(struct net_device *d
  		mtk_stop_dma(eth, eth->soc->reg_map->qdma.glo_cfg);
  	mtk_stop_dma(eth, eth->soc->reg_map->pdma.glo_cfg);
  
@@ -616,7 +616,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	mtk_dma_free(eth);
  
  	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
-@@ -5519,6 +5538,10 @@ static int mtk_do_ioctl(struct net_devic
+@@ -5524,6 +5543,10 @@ static int mtk_do_ioctl(struct net_devic
  	struct mtk_mac *mac = netdev_priv(dev);
  
  	switch (cmd) {
@@ -627,7 +627,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	case SIOCGMIIPHY:
  	case SIOCGMIIREG:
  	case SIOCSMIIREG:
-@@ -6015,6 +6038,28 @@ static int mtk_set_pauseparam(struct net
+@@ -6020,6 +6043,28 @@ static int mtk_set_pauseparam(struct net
  	return phylink_ethtool_set_pauseparam(mac->phylink, pause);
  }
  
@@ -656,7 +656,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
  {
  	struct mtk_mac *mac = netdev_priv(dev);
-@@ -6159,6 +6204,7 @@ static const struct ethtool_ops mtk_etht
+@@ -6164,6 +6209,7 @@ static const struct ethtool_ops mtk_etht
  	.get_rxfh_indir_size	= mtk_get_rxfh_indir_size,
  	.get_rxfh		= mtk_get_rxfh,
  	.set_rxfh		= mtk_set_rxfh,
@@ -674,7 +674,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #include <linux/reset.h>
  #include <linux/rhashtable.h>
  #include <linux/dim.h>
-@@ -690,6 +691,63 @@
+@@ -694,6 +695,63 @@
  #define MTK_XMAC_CNT_CTRL(x)	(MTK_XMAC_BASE(x) + 0x100)
  #define XMAC_GLB_CNTCLR		BIT(0)
  
@@ -738,7 +738,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  /* GPIO port control registers for GMAC 2*/
  #define GPIO_OD33_CTRL8		0x4c0
  #define GPIO_BIAS_CTRL		0xed0
-@@ -1269,6 +1327,7 @@ enum mkt_eth_capabilities {
+@@ -1233,6 +1291,7 @@ enum mkt_eth_capabilities {
  	MTK_INFRA_BIT,
  	MTK_SHARED_SGMII_BIT,
  	MTK_GLO_MEM_ACCESS_BIT,
@@ -746,7 +746,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	MTK_HWLRO_BIT,
  	MTK_RSS_BIT,
  	MTK_SHARED_INT_BIT,
-@@ -1322,6 +1381,7 @@ enum mkt_eth_capabilities {
+@@ -1286,6 +1345,7 @@ enum mkt_eth_capabilities {
  #define MTK_INFRA		BIT_ULL(MTK_INFRA_BIT)
  #define MTK_SHARED_SGMII	BIT_ULL(MTK_SHARED_SGMII_BIT)
  #define MTK_GLO_MEM_ACCESS	BIT_ULL(MTK_GLO_MEM_ACCESS_BIT)
@@ -754,7 +754,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_HWLRO		BIT_ULL(MTK_HWLRO_BIT)
  #define MTK_RSS			BIT_ULL(MTK_RSS_BIT)
  #define MTK_SHARED_INT		BIT_ULL(MTK_SHARED_INT_BIT)
-@@ -1450,7 +1510,7 @@ enum mkt_eth_capabilities {
+@@ -1414,7 +1474,7 @@ enum mkt_eth_capabilities {
  		      MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX_GMAC2_TO_2P5GPHY | \
  		      MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | MTK_SRAM | \
  		      MTK_QDMA | MTK_PDMA_INT | MTK_RSS | MTK_HWLRO | \
@@ -763,7 +763,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  
  #define MT7988_CAPS  (MTK_36BIT_DMA | MTK_GDM1_ESW | MTK_GMAC1_SGMII | \
  		      MTK_GMAC2_2P5GPHY | MTK_GMAC2_SGMII | MTK_GMAC2_USXGMII | \
-@@ -1675,6 +1735,12 @@ struct mtk_eth {
+@@ -1640,6 +1700,12 @@ struct mtk_eth {
  	struct work_struct		pending_work;
  	unsigned long			state;
  
@@ -776,7 +776,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	const struct mtk_soc_data	*soc;
  
  	spinlock_t			dim_lock;
-@@ -1750,6 +1816,10 @@ struct mtk_mac {
+@@ -1715,6 +1781,10 @@ struct mtk_mac {
  	int				hwlro_ip_cnt;
  	unsigned int			syscfg0;
  	struct notifier_block		device_notifier;
@@ -787,7 +787,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  };
  
  #define MTK_MUX_CHANNELS_MAX	2
-@@ -1916,6 +1986,13 @@ int mtk_gmac_gephy_path_setup(struct mtk
+@@ -1881,6 +1951,13 @@ int mtk_gmac_gephy_path_setup(struct mtk
  int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_usxgmii_path_setup(struct mtk_eth *eth, int mac_id);
  

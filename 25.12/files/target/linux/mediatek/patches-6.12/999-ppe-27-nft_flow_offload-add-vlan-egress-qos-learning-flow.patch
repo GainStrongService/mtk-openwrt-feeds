@@ -11,8 +11,6 @@ when the below command is configured.
  net/netfilter/nft_flow_offload.c | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
 
-diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
-index a1a214e..f9e765b 100644
 --- a/net/netfilter/nft_flow_offload.c
 +++ b/net/netfilter/nft_flow_offload.c
 @@ -166,6 +166,7 @@ struct nft_forward_info {
@@ -23,7 +21,7 @@ index a1a214e..f9e765b 100644
  	enum flow_offload_xmit_type xmit_type;
  };
  
-@@ -199,6 +200,7 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
+@@ -199,6 +200,7 @@ static void nft_dev_path_info(const stru
  {
  	const struct net_device_path *path;
  	int i;
@@ -31,7 +29,7 @@ index a1a214e..f9e765b 100644
  
  	memcpy(info->h_dest, ha, ETH_ALEN);
  
-@@ -229,6 +231,13 @@ static void nft_dev_path_info(const struct net_device_path_stack *stack,
+@@ -229,6 +231,13 @@ static void nft_dev_path_info(const stru
  				info->outdev = path->dev;
  			info->encap[info->num_encaps].id = path->encap.id;
  			info->encap[info->num_encaps].proto = path->encap.proto;
@@ -45,7 +43,7 @@ index a1a214e..f9e765b 100644
  			info->num_encaps++;
  			if (path->type == DEV_PATH_PPPOE)
  				memcpy(info->h_dest, path->encap.h_dest, ETH_ALEN);
-@@ -301,7 +310,10 @@ static int nft_dev_forward_path(const struct nft_pktinfo *pkt,
+@@ -310,7 +319,10 @@ static int nft_dev_forward_path(const st
  	struct net_device_path_ctx ctx = {
  		.dev	= dst->dev,
  	};
@@ -57,7 +55,7 @@ index a1a214e..f9e765b 100644
  	struct ethhdr *eth;
  	enum ip_conntrack_dir skb_dir;
  	unsigned char ha[ETH_ALEN];
-@@ -591,6 +603,7 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -600,6 +612,7 @@ static void nft_flow_offload_eval(const
  
  		qos->tos[dir].value = tos;
  		atomic64_add(1, &qos->tos[dir].counter);
@@ -65,6 +63,3 @@ index a1a214e..f9e765b 100644
  
  		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
  			goto out;
--- 
-2.45.2
-
