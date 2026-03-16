@@ -13,7 +13,7 @@ sub_stage_sdk_release="pre_sdk_release do_sdk_release post_sdk_release"
 sub_stage_menuconfig="do_menuconfig_update"
 
 # Declare hooks of every substage
-hooks_pre_prepare=
+hooks_pre_prepare="prepare_openwrt_dl"
 hooks_mtk_feed_prepare="apply_mtk_feed_base_patches apply_mtk_feed_feed_patches remove_files_by_mtk_feed_list \
 			copy_mtk_feed_files"
 hooks_autobuild_prepare="patch_group_global_anchor patch_group_inheritance_anchor patch_group_append_anchor \
@@ -49,6 +49,8 @@ subtarget_name=
 openwrt_bin_dir=
 openwrt_config_file=
 kernel_config_file=
+
+openwrt_make_env=
 
 # Generic function for modifying openwrt config, to be compliant with menuconfig
 # $1:	Config name
@@ -117,6 +119,14 @@ mk_ab_tmp() {
 	exec_log "mkdir -p \"${ab_tmp}\""
 }
 
+prepare_openwrt_dl() {
+	if test -n "${internal_build}"; then
+		if test -z "${MTK_OPENWRT_SHARED_DL_REPO}" -a ! -d "${openwrt_root}/../dl"; then
+			openwrt_make_env="MTK_OPENWRT_SHARED_DL_REPO=\"${openwrt_root}/../dl\" MTK_OPENWRT_DL_REPO_URL=https://gerrit.mediatek.inc/openwrt/dl"
+		fi
+	fi
+}
+
 # Modify scripts for specific features:
 # 1. allow specify feed subdirectory for scanning
 # 2. allow config merging and diff
@@ -157,13 +167,6 @@ modify_feeds_conf() {
 	fi
 
 	openwrt_feeds_add mtk_openwrt_feed src-link "${feed_url_link}" --subdir=feed
-
-	# Add internal dl repo
-	if test -n "${internal_build}"; then
-		if test -z "${MTK_OPENWRT_SHARED_DL_REPO}" -a ! -d "${openwrt_root}/../dl"; then
-			openwrt_feeds_add dl src-git "https://gerrit.mediatek.inc/openwrt/dl"
-		fi
-	fi
 
 	# Checkout to specified revision if required
 	[ -n "${ab_variant_dir}" ] && list_append rev_file_list "${ab_variant_dir}/feed_revision"
@@ -363,12 +366,8 @@ enable_kernel_proc_config_gz() {
 
 create_dl_symlink() {
 	if test -n "${internal_build}"; then
-		if test -z "${MTK_OPENWRT_SHARED_DL_REPO}" -a ! -d "${openwrt_root}/dl"; then
-			if test -d "${openwrt_root}/../dl"; then
-				exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
-			elif test -d "${openwrt_root}/feeds/dl"; then
-				exec_log "ln -sf feeds/dl \"${openwrt_root}/dl\""
-			fi
+		if test -z "${openwrt_make_env}" -a -d "${openwrt_root}/../dl" -a ! -d "${openwrt_root}/dl"; then
+			exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
 		fi
 	fi
 }
@@ -385,7 +384,7 @@ prepare_stamp() {
 }
 
 download_openwrt_packages() {
-	exec_log "make -C \"${openwrt_root}\" V=1 -j\$((\$(nproc) + 1)) download"
+	exec_log "${openwrt_make_env} make -C \"${openwrt_root}\" V=1 -j\$((\$(nproc) + 1)) download"
 }
 
 build_openwrt() {
@@ -398,7 +397,7 @@ build_openwrt() {
 
 	build_time=$(date +%Y%m%d%H%M%S)
 
-	exec_log "make -C \"${openwrt_root}\" V=${verbose} -j\$((\$(nproc) + 1))"
+	exec_log "${openwrt_make_env} make -C \"${openwrt_root}\" V=${verbose} -j\$((\$(nproc) + 1))"
 
 	ret=$?
 
@@ -406,7 +405,7 @@ build_openwrt() {
 		log_warn "Build failed with error code ${ret}."
 		log_warn "Restart single-threaded building for debugging purpose."
 
-		exec_log "make -C \"${openwrt_root}\" V=s -j1"
+		exec_log "${openwrt_make_env} make -C \"${openwrt_root}\" V=s -j1"
 
 		ret=$?
 

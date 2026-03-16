@@ -28,6 +28,8 @@ else
 		echo "Failed to clone dl repo to ${REPO_DIR}"
 		exit 1
 	fi
+
+	git -C "${REPO_DIR}" lfs install --local --skip-smudge
 fi
 
 if test -L "${DL_DIR}"; then

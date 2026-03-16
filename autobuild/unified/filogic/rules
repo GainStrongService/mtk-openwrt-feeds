@@ -110,7 +110,7 @@ platform_build_optee_rpmb() {
 	make_defconfig
 
 	# re-build optee
-	exec_log "make -C \"${openwrt_root}\" package/mtk/optee/optee-mediatek/compile V=s"
+	exec_log "${openwrt_make_env} make -C \"${openwrt_root}\" package/mtk/optee/optee-mediatek/compile V=s"
 
 	# revert RPMB config
 	openwrt_config_disable CONFIG_OPTEE_RPMB_FS
@@ -131,7 +131,7 @@ platform_enable_security_config() {
 
 airoha_firmware_install() {
 	if test x"${internal_sync_set}" != x"yes"; then
-		exec_log "make -C \"${openwrt_root}\" V=s package/firmware/linux-firmware/{download,clean,prepare}"
+		exec_log "${openwrt_make_env} make -C \"${openwrt_root}\" V=s package/firmware/linux-firmware/{download,clean,prepare}"
 	fi
 }
 
