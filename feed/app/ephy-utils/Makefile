@@ -30,7 +30,7 @@ define Package/ephy-utils/install
 
 	cp ./files/ephy-utils.init $(1)/etc/init.d/ephy-utils
 	cp -r ./files/*.sh $(1)/usr/sbin/ephy-utils/
-	cp ./files/mtk_vct $(1)/usr/sbin/mtk_vct
+	cp ./files/mtk_ephy $(1)/usr/sbin/mtk_ephy
 endef
 
 $(eval $(call BuildPackage,ephy-utils))
