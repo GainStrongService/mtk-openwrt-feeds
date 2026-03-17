@@ -547,7 +547,7 @@ int main(int argc, char *argv[])
 	const char *datablocks, *datablock_size, *hashblock_size, *hash_algo, *salt, *root_hash;
 	const char *bootargs, *rootdev;
 	int ret, nodeoffset, len;
-	struct kvpair dmpairs[2];
+	struct kvpair dmpairs[3];
 	uint32_t datablocks_num;
 	char *dmstr, *nfdt;
 	size_t nlen = 0;
@@ -641,6 +641,10 @@ int main(int argc, char *argv[])
 	dmpairs[1].name = "dm-mod.create";
 	dmpairs[1].value = dmstr;
 	dmpairs[1].quoted_value = true;
+
+	/* add 'dm-mod.waitfor' */
+	dmpairs[2].name = "dm-mod.waitfor";
+	dmpairs[2].value = strdup(rootdev);
 
 	bootargs = merge_bootargs(dmpairs, ARRAY_SIZE(dmpairs));
 	if (!bootargs) {
