@@ -10,6 +10,12 @@ FILE="${2}"
 script_root="$(dirname "$(readlink -f "$0")")"
 
 if test -z "${MTK_OPENWRT_SHARED_DL_REPO}"; then
+	if test -f "${script_root}/../.ab/download-env.sh"; then
+		. "${script_root}/../.ab/download-env.sh"
+	fi
+fi
+
+if test -z "${MTK_OPENWRT_SHARED_DL_REPO}"; then
 	# Case 1: nothing specified, go original way
 	exec ${script_root}/download.pl "$@"
 fi
