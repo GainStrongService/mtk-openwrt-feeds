@@ -122,6 +122,14 @@ prepare_openwrt_dl() {
 		if test -z "${MTK_OPENWRT_SHARED_DL_REPO}" -a ! -d "${openwrt_root}/../dl"; then
 			echo "export MTK_OPENWRT_SHARED_DL_REPO=\"${openwrt_root}/../dl\"" > "${ab_tmp}/download-env.sh"
 			echo "export MTK_OPENWRT_DL_REPO_URL=https://gerrit.mediatek.inc/openwrt/dl" >> "${ab_tmp}/download-env.sh"
+
+			if test -L "${openwrt_root}/dl"; then
+				ltgt=$(readlink "${openwrt_root}/dl")
+
+				if test x"${ltgt}" = x"../dl"; then
+					exec_log "rm -rf \"${openwrt_root}/dl\""
+				fi
+			fi
 		fi
 	fi
 }
