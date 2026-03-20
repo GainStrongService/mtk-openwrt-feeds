@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=optee_client
-PKG_VERSION:=4.7.0
+PKG_VERSION:=4.9.0
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL_FILE:=$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/OP-TEE/optee_client/archive/refs/tags/
-PKG_HASH:=e6c6b93e2be417df57ceb05a2eb6505744e3fbdd3b2ae5e5bf79bf6028b6f84d
+PKG_HASH:=2ef152f25b682e59c3684d6d73d7c5a138495615f6b045e95266eb3d0bc0d04e
 PKG_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk

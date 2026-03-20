@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=optee_os-mediatek
-PKG_VERSION:=4.7.0
-PKG_HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
+PKG_VERSION:=4.9.0
+PKG_HASH:=9400e16c45bfa45f15585b2c933b86c449e7de05def0ecaaa62a4f38973a3a45
 
 include $(INCLUDE_DIR)/optee-os.mk
 include $(INCLUDE_DIR)/package.mk

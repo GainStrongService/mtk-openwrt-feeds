@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=optee_ta_devkit
-PKG_VERSION:=4.7.0
+PKG_VERSION:=4.9.0
 
 PKG_SOURCE:=optee_os-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL_FILE:=$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/OP-TEE/optee_os/archive/refs/tags/
-PKG_HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
+PKG_HASH:=9400e16c45bfa45f15585b2c933b86c449e7de05def0ecaaa62a4f38973a3a45
 TAR_OPTIONS+=--transform 's/optee_os-$(PKG_VERSION)/$(PKG_NAME)-$(PKG_VERSION)/'
 PKG_BUILD_DEPENDS:=openssl/host
 
