@@ -4675,9 +4675,12 @@ static int mtk_open(struct net_device *dev)
 	netif_tx_start_all_queues(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
 	if (!phy_node && mac->interface == PHY_INTERFACE_MODE_SGMII &&
-	    eth->sgmii && eth->sgmii->pcs[id].regmap)
+	    eth->sgmii && eth->sgmii->pcs[id].regmap) {
+		mutex_lock(&eth->sgmii->pcs[id].reset_lock);
 		regmap_write(eth->sgmii->pcs[id].regmap,
 			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+		mutex_unlock(&eth->sgmii->pcs[id].reset_lock);
+	}
 
 	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 
@@ -4767,11 +4770,13 @@ static int mtk_stop(struct net_device *dev)
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
 	if (!phy_node && mac->interface == PHY_INTERFACE_MODE_SGMII &&
 	    eth->sgmii && eth->sgmii->pcs[id].regmap) {
+		mutex_lock(&eth->sgmii->pcs[id].reset_lock);
 		regmap_read(eth->sgmii->pcs[id].regmap,
 			    SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
 		regmap_write(eth->sgmii->pcs[id].regmap,
 			     SGMSYS_QPHY_PWR_STATE_CTRL, val);
+		mutex_unlock(&eth->sgmii->pcs[id].reset_lock);
 	}
 
 	//GMAC RX disable

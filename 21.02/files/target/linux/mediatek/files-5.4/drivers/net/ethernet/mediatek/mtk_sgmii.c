@@ -480,12 +480,12 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	if (link_timer < 0)
 		return link_timer;
 
+	mutex_lock(&mpcs->regmap_lock);
+
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		mtk_sgmii_xfi_pll_enable(eth->sgmii);
 		mtk_sgmii_reset(mpcs);
 	}
-
-	mutex_lock(&mpcs->regmap_lock);
 
 	if (mode <= MLO_AN_INBAND && mpcs->interface != interface) {
 		mpcs->interface = interface;
@@ -640,9 +640,11 @@ void mtk_sgmii_pcs_restart_an(struct phylink_pcs *pcs)
 	if (!mpcs->regmap)
 		return;
 
+	mutex_lock(&mpcs->reset_lock);
 	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &val);
 	val |= SGMII_AN_RESTART;
 	regmap_write(mpcs->regmap, SGMSYS_PCS_CONTROL_1, val);
+	mutex_unlock(&mpcs->reset_lock);
 }
 
 static void mtk_sgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
@@ -669,9 +671,12 @@ exit:
 	/* If autoneg is enabled, the force speed and duplex
 	 * are not useful, so don't go any further.
 	 */
+	mutex_lock(&mpcs->reset_lock);
 	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &val);
-	if (val & SGMII_AN_ENABLE)
+	if (val & SGMII_AN_ENABLE) {
+		mutex_unlock(&mpcs->reset_lock);
 		return;
+	}
 
 	/* SGMII force speed and duplex setting */
 	if (speed == SPEED_10)
@@ -687,6 +692,7 @@ exit:
 	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
 			   SGMII_DUPLEX_HALF | SGMII_SPEED_MASK,
 			   sgm_mode);
+	mutex_unlock(&mpcs->reset_lock);
 }
 
 static const struct phylink_pcs_ops mtk_sgmii_pcs_ops = {
