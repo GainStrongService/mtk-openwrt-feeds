@@ -28,6 +28,30 @@ menu "OP-TEE OS Configuration"
 				bool "FLOW"
 		endchoice
 
+		config OPTEE_CONSOLE_RUNTIME_SET
+			bool "OP-TEE Set Runtime Log Level"
+			default n
+			help
+			  This allows for a different trace level during runtime
+			  than used during boot.
+
+		choice OPTEE_CONSOLE_RUNTIME_LOG_LEVEL
+			bool "OP-TEE Runtime Log Level"
+			depends on OPTEE_CONSOLE_RUNTIME_SET
+			default OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_NONE
+			config OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_NONE
+				bool "NONE"
+			config OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_ERROR
+				bool "ERROR"
+			config OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_INFO
+				bool "INFO"
+			config OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_DEBUG
+				bool "DEBUG"
+			config OPTEE_CONSOLE_RUNTIME_LOG_LEVEL_FLOW
+				bool "FLOW"
+		endchoice
+
+
 		config OPTEE_CORE_MALLOC_DEBUG
 			bool "OP-TEE Core Malloc Debug"
 			default n
