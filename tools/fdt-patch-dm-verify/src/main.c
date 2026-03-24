@@ -24,6 +24,7 @@
 #include <libfdt.h>
 
 #define ARRAY_SIZE(a)		(sizeof(a) / sizeof(a[0]))
+#define ALIGN(x, a)		(((x) + (a - 1)) & ~(a - 1))
 
 struct kvpair {
 	char *name;
@@ -653,7 +654,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Resize dtb buffer */
-	nlen += strlen(bootargs) + 1;
+	nlen += ALIGN(strlen(bootargs) + 1, sizeof(uint32_t));
 	nfdt = realloc(fdt, fdt_len + nlen);
 	if (!nfdt) {
 		fprintf(stderr, "Failed to extend fdt buffer\n");
