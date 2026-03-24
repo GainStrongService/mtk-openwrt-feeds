@@ -1,0 +1,32 @@
+From 74a90b1c054eb9e967c85f62a5f977e816a81bf9 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 13 Mar 2026 15:29:29 +0800
+Subject: [PATCH 3/3] mtk: mt76: mt7996: fix frequency separation for station
+ STR mode
+
+Fix frequency separation field for STR in MLD capabilities
+to allow prpl get correct chip capability.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/init.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index adfa23e96..0f18a4185 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -114,7 +114,9 @@ static const struct wiphy_iftype_ext_capab mt7996_iftypes_ext_capa[] = {
+ 		.extended_capabilities = mt7996_if_types_ext_capa_sta,
+ 		.extended_capabilities_mask = mt7996_if_types_ext_capa_sta,
+ 		.extended_capabilities_len = sizeof(mt7996_if_types_ext_capa_sta),
+-		.mld_capa_and_ops = 2 | MT7996_NEG_TTLM_SUPPORT,
++		.mld_capa_and_ops = 2 | MT7996_NEG_TTLM_SUPPORT |
++				    FIELD_PREP_CONST(IEEE80211_MLD_CAP_OP_FREQ_SEP_TYPE_IND,
++						     1),
+ 	},
+ 	{
+ 		.iftype = NL80211_IFTYPE_AP,
+-- 
+2.45.2
+

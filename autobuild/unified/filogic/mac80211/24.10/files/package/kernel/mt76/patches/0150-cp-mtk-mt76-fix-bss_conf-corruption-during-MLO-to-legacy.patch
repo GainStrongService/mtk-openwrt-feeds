@@ -1,0 +1,47 @@
+From 778fb63941b60e878d9a4031305cef041fd16c03 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 13 Mar 2026 09:38:30 +0800
+Subject: [PATCH 2/3] mtk: mt76: fix bss_conf corruption during MLO to
+legacy AP transition
+
+fixup! mtk: mt76: rework chanctx/scan/roc for mlo support
+
+When user use the following step leads to ping fail issue.
+1. Enable MLO AP
+2. Trigger scan
+3. Change to legacy AP without remove interface
+
+The mac address would be incorrect because vif->bss_conf
+is overwritten by the link configuration in the step 2 and
+step 3 would add bss_conf with incorrect mac address.
+Sync solution from MP4.3.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ scan.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/scan.c b/scan.c
+index b0c523abc..ccd75fe8f 100644
+--- a/scan.c
++++ b/scan.c
+@@ -19,6 +19,7 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
+ 		if (dev->scan.mlink == (struct mt76_vif_link *)vif->drv_priv)
+ 			dev->drv->vif_link_remove(phy, vif, NULL, dev->scan.mlink);
+ 
++	vif->bss_conf.link_id = 0;
+ 	ieee80211_scan_completed(phy->hw, &info);
+ 	memset(&dev->scan, 0, sizeof(dev->scan));
+ 	clear_bit(MT76_SCANNING, &phy->state);
+@@ -206,7 +207,7 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 				 * Here we use the default link to perform scan.
+ 				 */
+ 				mlink = (struct mt76_vif_link *)vif->drv_priv;
+-				memcpy(&vif->bss_conf, link_conf, sizeof(struct ieee80211_bss_conf));
++				vif->bss_conf.link_id = ffs(GENMASK(14, 0) & ~mvif->valid_links) - 1;
+ 				ret = dev->drv->vif_link_add(phy, vif, &vif->bss_conf, NULL);
+ 				if (ret)
+ 					goto out;
+-- 
+2.45.2
+
