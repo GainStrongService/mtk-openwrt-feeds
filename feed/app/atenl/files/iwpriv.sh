@@ -47,7 +47,8 @@ function record_config() {
     local config=$1
     local tmp_file=$3
 
-    # check it is SOC(mt7986)/Eagle/Kite or PCIE card (mt7915/7916), and write its config
+    # check it is SOC(mt7986)/mt7996/mt7992/mt7990/mt7999 or
+    # PCIE card (mt7915/7916), and write its config
     if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
@@ -76,7 +77,8 @@ function get_config() {
         return
     fi
 
-    # check it is SOC(mt7986)/Eagle/Kite or PCIE card (mt7915/7916), and write its config
+    # check it is SOC(mt7986)/mt7996/mt7992/mt7990/mt7999 or
+    # PCIE card (mt7915/7916), and write its config
     if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
@@ -126,7 +128,7 @@ function parse_sku {
             SOC_start_idx="0"
             SOC_end_idx="1"
             connac_ver="3"
-        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "80f0")" ]; then
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "80f2")" ]; then
             SOC_start_idx="0"
             SOC_end_idx="2"
             connac_ver="5"
@@ -145,19 +147,19 @@ function parse_sku {
             echo "      echo STARTIDX=1 >> ${interface_file}"
             echo "      echo ENDIDX=2 >> ${interface_file}"
             echo "      echo CONNAC_VER=2 >> ${interface_file}"
-            echo "For Eagle:"
+            echo "For MT7996:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=2 >> ${interface_file}"
             echo "      echo CONNAC_VER=3 >> ${interface_file}"
-            echo "For Kite:"
+            echo "For MT7992:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=1 >> ${interface_file}"
             echo "      echo CONNAC_VER=3 >> ${interface_file}"
-            echo "For Griffin:"
+            echo "For MT7990:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=1 >> ${interface_file}"
             echo "      echo CONNAC_VER=3 >> ${interface_file}"
-            echo "For Blackhawk:"
+            echo "For MT7999:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=2 >> ${interface_file}"
             echo "      echo CONNAC_VER=5 >> ${interface_file}"
