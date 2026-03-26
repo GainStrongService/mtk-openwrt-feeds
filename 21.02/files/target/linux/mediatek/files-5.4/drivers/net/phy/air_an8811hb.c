@@ -22,7 +22,7 @@
 #define AN8811HB_MD32_DM		"airoha/an8811hb/EthMD32_CRC.DM.bin"
 #define AN8811HB_MD32_DSP		"airoha/an8811hb/EthMD32_CRC.DSP.bin"
 
-#define AN8811HB_DRIVER_VERSION		"v0.0.9"
+#define AN8811HB_DRIVER_VERSION		"v1.0.0"
 
 #define AIR_FW_ADDR_DM	0x00000000
 #define AIR_FW_ADDR_DSP	0x00100000
@@ -94,7 +94,7 @@
 #define   AIR_PHY_LED_ON_POLARITY		BIT(14)
 #define   AIR_PHY_LED_ON_ENABLE			BIT(15)
 
-#define AIR_PHY_LED_BLINK(i)	       (0x025 + ((i) * 2))
+#define AIR_PHY_LED_BLINK(i)		(0x025 + ((i) * 2))
 #define   AIR_PHY_LED_BLINK_1000TX		BIT(0)
 #define   AIR_PHY_LED_BLINK_1000RX		BIT(1)
 #define   AIR_PHY_LED_BLINK_100TX		BIT(2)
@@ -108,10 +108,13 @@
 #define   AIR_PHY_LED_BLINK_2500TX		BIT(10)
 #define   AIR_PHY_LED_BLINK_2500RX		BIT(11)
 
+#define AIR_MDIO_EEE_2_5GT		0x0001	/* 2.5GT EEE cap */
+
 /* Registers on BUCKPBUS */
 #define AIR_PHY_CONTROL			0x3a9c
 #define   AIR_PHY_CONTROL_SURGE_5R		BIT(3)
 #define   AIR_PHY_CONTROL_INTERNAL		BIT(11)
+#define   AIR_PHY_CONTROL_EEE_2G5		BIT(31)
 
 #define AIR_PHY_MD32FW_VERSION		0x3b3c
 
@@ -135,13 +138,15 @@
 #define   AN8811HB_GPIO_OUTPUT_345		(BIT(3) | BIT(4) | BIT(5))
 #define   AN8811HB_GPIO_OUTPUT_0115		(BIT(0) | BIT(1) | BIT(15))
 
-#define AN8811HB_GPIO_SEL		0x5cf8bc
-#define   AN8811HB_GPIO_SEL_0_MASK		GENMASK(3, 0)
-#define   AN8811HB_GPIO_SEL_1_MASK		GENMASK(7, 4)
-#define   AN8811HB_GPIO_SEL_15_MASK		GENMASK(31, 28)
-#define   AN8811HB_GPIO_SEL_0			BIT(0)
-#define   AN8811HB_GPIO_SEL_1			0
-#define   AN8811HB_GPIO_SEL_15			BIT(29)
+#define AN8811HB_GPIO_SEL1		0x5cf8bc
+#define   AN8811HB_GPIO_SEL1_0_MASK		GENMASK(3, 0)
+#define   AN8811HB_GPIO_SEL1_1_MASK		GENMASK(7, 4)
+#define   AN8811HB_GPIO_SEL1_0			BIT(0)
+#define   AN8811HB_GPIO_SEL1_1			0
+
+#define AN8811HB_GPIO_SEL2		0x5cf8c0
+#define   AN8811HB_GPIO_SEL2_15_MASK	GENMASK(31, 28)
+#define   AN8811HB_GPIO_SEL2_15			BIT(29)
 
 #define AN8811HB_HWTRAP1		0x5cf910
 #define AN8811HB_HWTRAP2		0x5cf914
@@ -155,6 +160,12 @@
 #define   AN8811HB_CLK_DRV_CKOPWD1		BIT(12)
 #define   AN8811HB_CLK_DRV_CKOPWD2		BIT(13)
 #define   AN8811HB_CLK_DRV_CKOPWD3		BIT(14)
+
+#define AN8811HB_MCU_SW_RST		0x5cf9f8
+#define   AN8811HB_MCU_SW_RST_HOLD		BIT(16)
+#define   AN8811HB_MCU_SW_RST_RUN		(BIT(16) | BIT(0))
+#define AN8811HB_MCU_SW_START	0x5cf9fc
+#define   AN8811HB_MCU_SW_START_EN		BIT(16)
 
 #define AIR_PHY_FW_CTRL_1		0x0f0018
 #define   AIR_PHY_FW_CTRL_1_START		0x0
@@ -388,6 +399,8 @@ struct an8811hb_priv {
 	unsigned int		pro_id;
 	unsigned int		pkg_sel;
 	unsigned int		surge;
+	u16			on_crtl[3];
+	u16			blk_crtl[3];
 };
 
 enum {
@@ -468,10 +481,10 @@ struct cable_pair_coeffs {
 };
 
 static const struct cable_pair_coeffs cable_coeffs[] = {
-	[AIR_CABLE_PAIR_A] = {.multiplier = 163, .offset =  10 },
+	[AIR_CABLE_PAIR_A] = {.multiplier = 163, .offset = 10 },
 	[AIR_CABLE_PAIR_B] = {.multiplier = 163, .offset = -20 },
 	[AIR_CABLE_PAIR_C] = {.multiplier = 162, .offset = -40 },
-	[AIR_CABLE_PAIR_D] = {.multiplier = 164, .offset =  10 },
+	[AIR_CABLE_PAIR_D] = {.multiplier = 164, .offset = 10 },
 };
 
 static void airphy_debugfs_remove(struct phy_device *phydev);
@@ -776,6 +789,121 @@ static int air_phy_reg_modify(struct phy_device *phydev,
 	return phy_write(phydev, reg, newval);
 }
 
+static int __air_phy_read_mmd(struct phy_device *phydev, int devad, u16 regnum)
+{
+	struct mii_bus *bus = phydev->mdio.bus;
+	int phy_addr = phydev->mdio.addr;
+	int ret;
+
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devad);
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
+			      devad | MII_MMD_CTRL_NOINCR);
+	if (ret < 0)
+		return ret;
+
+	return __mdiobus_read(bus, phy_addr, MII_MMD_DATA);
+}
+
+static int __air_phy_write_mmd(struct phy_device *phydev, int devad, u16 regnum, u16 val)
+{
+	struct mii_bus *bus = phydev->mdio.bus;
+	int phy_addr = phydev->mdio.addr;
+	int ret;
+
+	/* Write the desired MMD Devad */
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devad);
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
+	if (ret < 0)
+		return ret;
+
+	ret = __mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
+			      devad | MII_MMD_CTRL_NOINCR);
+	if (ret < 0)
+		return ret;
+
+	return __mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
+}
+
+static int an8811hb_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+{
+	int ret;
+
+	ret = __air_phy_read_mmd(phydev, devnum, regnum);
+	if (ret >= 0)
+		phydev_dbg(phydev, "%s: devad=%d reg=0x%x value=0x%x\n",
+			   __func__, devnum, regnum, ret);
+
+	return ret;
+}
+
+static int an8811hb_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+			      u16 val)
+{
+	u16 cmd4_val;
+	int ret;
+
+	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
+		phydev_info(phydev, "%s: devad=%d reg=0x%x value=0x%x\n",
+			    __func__, devnum, regnum, val);
+
+		/* Special handling for EEE advertisement */
+		cmd4_val = (val == 0x6) ? 0xe7 : 0xe8;
+
+		ret = __air_phy_write_mmd(phydev, MDIO_MMD_VEND1,
+					  AIR_PHY_MCU_CMD_3,
+					  AIR_PHY_MCU_CMD_3_DOCMD);
+		if (ret < 0)
+			return ret;
+
+		ret = __air_phy_write_mmd(phydev, MDIO_MMD_VEND1,
+					  AIR_PHY_MCU_CMD_4, cmd4_val);
+		msleep(100);
+
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
+
+		u32 set;
+
+		phydev_info(phydev, "%s: devad=%d reg=0x%x value=0x%x\n",
+			    __func__, devnum, regnum, val);
+
+		/* Special handling for EEE advertisement */
+		cmd4_val = (val & AIR_MDIO_EEE_2_5GT) ? 0xEE : 0xe8;
+
+		ret = __air_phy_write_mmd(phydev, MDIO_MMD_VEND1,
+					  AIR_PHY_MCU_CMD_3,
+					  AIR_PHY_MCU_CMD_3_DOCMD);
+		if (ret < 0)
+			return ret;
+
+		ret = __air_phy_write_mmd(phydev, MDIO_MMD_VEND1,
+					  AIR_PHY_MCU_CMD_4, cmd4_val);
+		if (ret < 0)
+			return ret;
+
+		set = (val & AIR_MDIO_EEE_2_5GT) ? AIR_PHY_CONTROL_EEE_2G5 : 0;
+		ret = __air_buckpbus_reg_modify(phydev, AIR_PHY_CONTROL,
+						AIR_PHY_CONTROL_EEE_2G5, set);
+		if (ret < 0)
+			phydev_err(phydev, "%s 0x%08x failed: %d\n", __func__,
+				   AIR_PHY_CONTROL, ret);
+		msleep(100);
+	} else {
+		ret = __air_phy_write_mmd(phydev, devnum, regnum, val);
+	}
+
+	return ret;
+}
+
 static int air_phy_mmd_reg_modify(struct phy_device *phydev,
 				 int devnum, u16 reg, u16 mask, u16 set)
 {
@@ -921,13 +1049,12 @@ static int an8811hb_wait_mcu_ready(struct phy_device *phydev)
 			return 0;
 		}
 	} while (--retry);
-	phydev_err(phydev, "MD32 FW is not ready.(Status 0x%x, 0x%x)\n", ret, reg_value);
+	phydev_err(phydev, "MD32 FW is not ready.(Status 0x%x)\n", ret);
 	air_buckpbus_reg_read(phydev, 0x3b3c, &reg_value);
 	phydev_err(phydev,
 	"Check MD32 FW Version(0x3b3c) : %08x\n", reg_value);
 	phydev_err(phydev,
 	"AN8811HB initialize fail!\n");
-	phydev_err(phydev, "MCU not ready: 0x%x\n", reg_value);
 	return -ENODEV;
 #endif
 	return 0;
@@ -1188,6 +1315,13 @@ static int an8811hb_restart_mcu(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
+	ret = an8811hb_surge_protect_cfg(phydev);
+	if (ret < 0) {
+		phydev_err(phydev,
+			   "an8811hb_surge_protect_cfg fail. (ret=%d)\n", ret);
+		return ret;
+	}
+
 	retry = MAX_RETRY;
 	do {
 		msleep(300);
@@ -1248,16 +1382,20 @@ static int air_led_hw_control_set(struct phy_device *phydev, u8 index,
 	if (rules & BIT(AIR_TRIGGER_NETDEV_FULL_DUPLEX))
 		on |= AIR_PHY_LED_ON_FDX;
 
-	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_10) | BIT(AIR_TRIGGER_NETDEV_LINK)))
+	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_10) |
+		     BIT(AIR_TRIGGER_NETDEV_LINK)))
 		on |= AIR_PHY_LED_ON_LINK10;
 
-	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_100) | BIT(AIR_TRIGGER_NETDEV_LINK)))
+	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_100) |
+		     BIT(AIR_TRIGGER_NETDEV_LINK)))
 		on |= AIR_PHY_LED_ON_LINK100;
 
-	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_1000) | BIT(AIR_TRIGGER_NETDEV_LINK)))
+	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_1000) |
+		     BIT(AIR_TRIGGER_NETDEV_LINK)))
 		on |= AIR_PHY_LED_ON_LINK1000;
 
-	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_2500) | BIT(AIR_TRIGGER_NETDEV_LINK)))
+	if (rules & (BIT(AIR_TRIGGER_NETDEV_LINK_2500) |
+		     BIT(AIR_TRIGGER_NETDEV_LINK)))
 		on |= AIR_PHY_LED_ON_LINK2500;
 
 	if (rules & BIT(AIR_TRIGGER_NETDEV_RX)) {
@@ -1292,7 +1430,7 @@ static int air_led_hw_control_set(struct phy_device *phydev, u8 index,
 
 	return phy_write_mmd(phydev, MDIO_MMD_VEND2, AIR_PHY_LED_BLINK(index),
 			     blink);
-};
+}
 
 
 static int air_led_init(struct phy_device *phydev, u8 index, u8 state, u8 pol)
@@ -1367,6 +1505,9 @@ static int air_leds_init(struct phy_device *phydev, int num, int dur, int mode)
 			return ret;
 		}
 		air_led_hw_control_set(phydev, i, priv->led[i].rules);
+
+		priv->on_crtl[i] = phy_read_mmd(phydev, MDIO_MMD_VEND2, AIR_PHY_LED_ON(i));
+		priv->blk_crtl[i] = phy_read_mmd(phydev, MDIO_MMD_VEND2, AIR_PHY_LED_BLINK(i));
 	}
 
 	phydev_info(phydev, "LEDs initialized successfully\n");
@@ -1388,13 +1529,17 @@ static int an8811hb_config(struct phy_device *phydev)
 					      AN8811HB_GPIO_OUTPUT_0115);
 		if (ret < 0)
 			return ret;
-		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_SEL,
-					      AN8811HB_GPIO_SEL_0_MASK |
-					      AN8811HB_GPIO_SEL_1_MASK |
-					      AN8811HB_GPIO_SEL_15_MASK,
-					      AN8811HB_GPIO_SEL_0 |
-					      AN8811HB_GPIO_SEL_1 |
-					      AN8811HB_GPIO_SEL_15);
+		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_SEL1,
+					      AN8811HB_GPIO_SEL1_0_MASK |
+					      AN8811HB_GPIO_SEL1_1_MASK,
+					      AN8811HB_GPIO_SEL1_0 |
+					      AN8811HB_GPIO_SEL1_1);
+		if (ret < 0)
+			return ret;
+
+		ret = air_buckpbus_reg_modify(phydev, AN8811HB_GPIO_SEL2,
+					      AN8811HB_GPIO_SEL2_15_MASK,
+					      AN8811HB_GPIO_SEL2_15);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -1709,6 +1854,50 @@ static int an8811hb_read_status(struct phy_device *phydev)
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete)
 		phy_resolve_aneg_pause(phydev);
 
+	return 0;
+}
+
+static int an8811hb_led_control(struct phy_device *phydev, int force_mode)
+{
+	int ret = 0, id, on_evt;
+	struct an8811hb_priv *priv = phydev->priv;
+
+	for (id = 0; id < AIR_PHY_LED_COUNT; id++) {
+		if (force_mode) {
+			on_evt = phy_read_mmd(phydev, MDIO_MMD_VEND2,
+					      AIR_PHY_LED_ON(id));
+			if (on_evt < 0)
+				return on_evt;
+
+			on_evt &= ~(AIR_PHY_LED_ON_LINK2500 |
+				    AIR_PHY_LED_ON_LINK100 |
+				    AIR_PHY_LED_ON_LINK1000);
+
+			if (force_mode == AIR_LED_FORCE_ON)
+				on_evt |= AIR_PHY_LED_ON_FORCE_ON;
+			else
+				on_evt &= ~AIR_PHY_LED_ON_FORCE_ON;
+
+			ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+					    AIR_PHY_LED_ON(id), on_evt);
+			if (ret < 0)
+				return ret;
+
+			ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+					    AIR_PHY_LED_BLINK(id), 0);
+		} else {
+			/* Restore normal LED configuration from saved values */
+			ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+					    AIR_PHY_LED_ON(id), priv->on_crtl[id]);
+			if (ret < 0)
+				return ret;
+
+			ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+					    AIR_PHY_LED_BLINK(id), priv->blk_crtl[id]);
+		}
+		if (ret < 0)
+			return ret;
+	}
 	return 0;
 }
 
@@ -2946,6 +3135,17 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 			   reg, phy_read_mmd(phydev, MDIO_MMD_VEND2, reg));
 	}
 
+	seq_printf(seq, "| RG_AN_EEE_ADV       : 0x%08x |\n",
+		   phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV));
+	seq_printf(seq, "| RG_AN_EEE_LPABLE    : 0x%08x |\n",
+		   phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE));
+	seq_printf(seq, "| RG_AN_EEE_ADV2      : 0x%08x |\n",
+		   phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2));
+	seq_printf(seq, "| RG_AN_EEE_LPABLE2   : 0x%08x |\n",
+		   phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE2));
+	seq_printf(seq, "| RG_LPI_STATUS       : 0x%08x |\n",
+		   phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_STAT1));
+
 	seq_printf(seq, "| RG_LCH_STATUS       : 0x%08x |\n",
 		   phy_read_mmd(phydev, 0x1e, 0xa2));
 
@@ -2970,8 +3170,10 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 
 	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_OUTPUT, &val);
 	seq_printf(seq, "| RG_GPIO_OUT         : 0x%08x |\n", val);
-	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_SEL, &val);
-	seq_printf(seq, "| RG_GPIO_SEL         : 0x%08x |\n", val);
+	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_SEL1, &val);
+	seq_printf(seq, "| RG_GPIO_SEL1        : 0x%08x |\n", val);
+	air_buckpbus_reg_read(phydev, AN8811HB_GPIO_SEL2, &val);
+	seq_printf(seq, "| RG_GPIO_SEL2        : 0x%08x |\n", val);
 
 	air_buckpbus_reg_read(phydev, 0x21C100, &val);
 	seq_printf(seq, "| RG_MAC_CONF         : 0x%08x |\n", val);
@@ -3434,6 +3636,51 @@ static ssize_t airphy_cable_diag(struct file *file, const char __user *ptr,
 	return count;
 }
 
+static void airphy_led_mode_help(void)
+{
+	pr_notice("\nUsage:\n"
+			"[debugfs] = /sys/kernel/debug/mdio-bus\':[phy_addr]\n"
+			"echo 0 > /[debugfs]/led_mode\n"
+			"echo 1 > /[debugfs]/led_mode\n"
+			"echo normal > /[debugfs]/led_mode\n");
+}
+
+static ssize_t airphy_led_mode(struct file *file, const char __user *ptr,
+			       size_t len, loff_t *off)
+{
+	struct phy_device *phydev = file->private_data;
+	char buf[32], cmd[32];
+	int count = len;
+	int num, ret = 0;
+
+	memset(buf, 0, sizeof(buf));
+	memset(cmd, 0, sizeof(cmd));
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	num = sscanf(buf, "%8s", cmd);
+	if (num != 1)
+		return -EINVAL;
+
+	if (!strcmp(cmd, "0"))
+		ret = an8811hb_led_control(phydev, AIR_LED_FORCE_OFF);
+	else if (!strcmp(cmd, "1"))
+		ret = an8811hb_led_control(phydev, AIR_LED_FORCE_ON);
+	else if (!strcmp(cmd, "normal"))
+		ret = an8811hb_led_control(phydev, AIR_LED_NORMAL);
+	else
+		airphy_led_mode_help();
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
 static const struct file_operations airphy_info_fops = {
 	.owner = THIS_MODULE,
 	.open = airphy_info_open,
@@ -3515,6 +3762,13 @@ static const struct file_operations airphy_cable_diag_fops = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations airphy_led_mode_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = airphy_led_mode,
+	.llseek = noop_llseek,
+};
+
 static const struct file_operations airphy_temp_fops = {
 	.owner = THIS_MODULE,
 	.open = airphy_temp_show_open,
@@ -3570,6 +3824,9 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_CABLE_DIAG, S_IFREG | 0200,
 			    dir, phydev,
 			    &airphy_cable_diag_fops);
+	debugfs_create_file(DEBUGFS_LED_MODE, S_IFREG | 0200,
+			    dir, phydev,
+			    &airphy_led_mode_fops);
 	debugfs_create_file(DEBUGFS_TEMPERATURE, S_IFREG | 0444,
 			    dir, phydev,
 			    &airphy_temp_fops);
@@ -3612,6 +3869,8 @@ static struct phy_driver an8811hb_driver[] = {
 	.suspend		= an8811hb_suspend,
 	.read_page		= air_phy_read_page,
 	.write_page		= air_phy_write_page,
+	.read_mmd		= an8811hb_read_mmd,
+	.write_mmd		= an8811hb_write_mmd,
 } };
 
 module_phy_driver(an8811hb_driver);
