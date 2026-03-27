@@ -1,0 +1,52 @@
+---
+[v1] net: ethernet: mtk_eth_soc: add netdev open fail handling for xdp
+
+Reset eBPF program pointer to old_prog and do not decrease its ref-count
+if mtk_open routine in mtk_xdp_setup() fails.
+---
+v1: Add netdev open fail handling for XDP.
+---
+
+From a8a7fc664b0527414f7a29e313f13d947a861f92 Mon Sep 17 00:00:00 2001
+Date: Fri, 27 Mar 2026 15:00:24 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: add netdev open fail handling
+ for xdp
+
+Reset eBPF program pointer to old_prog and do not decrease its ref-count
+if mtk_open routine in mtk_xdp_setup() fails.
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 833756d..9f01c11 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -4732,12 +4732,21 @@ static int mtk_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
+ 		mtk_stop(dev);
+ 
+ 	old_prog = rcu_replace_pointer(eth->prog, prog, lockdep_rtnl_is_held());
++
++	if (netif_running(dev) && need_update) {
++		int err;
++
++		err = mtk_open(dev);
++		if (err) {
++			rcu_assign_pointer(eth->prog, old_prog);
++
++			return err;
++		}
++	}
++
+ 	if (old_prog)
+ 		bpf_prog_put(old_prog);
+ 
+-	if (netif_running(dev) && need_update)
+-		return mtk_open(dev);
+-
+ 	return 0;
+ }
+ 
+-- 
+2.45.2
+
