@@ -734,10 +734,10 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 
 	adapt_mode |= FIELD_PREP(USXGMII_RATE_ADAPT_MODE, USXGMII_RATE_ADAPT_MODE_X1);
 
+	mutex_lock(&mpcs->regmap_lock);
+
 	mtk_usxgmii_xfi_pll_enable(eth->usxgmii);
 	mtk_usxgmii_reset(mpcs);
-
-	mutex_lock(&mpcs->regmap_lock);
 
 	if (mode <= MLO_AN_INBAND && mpcs->interface != interface) {
 		mpcs->interface = interface;
@@ -876,9 +876,11 @@ void mtk_usxgmii_pcs_restart_an(struct phylink_pcs *pcs)
 	if (!mpcs->regmap)
 		return;
 
+	mutex_lock(&mpcs->reset_lock);
 	regmap_read(mpcs->regmap, RG_PCS_AN_CTRL0, &val);
 	val |= USXGMII_AN_RESTART;
 	regmap_write(mpcs->regmap, RG_PCS_AN_CTRL0, val);
+	mutex_unlock(&mpcs->reset_lock);
 }
 
 static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
