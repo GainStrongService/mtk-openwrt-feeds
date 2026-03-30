@@ -1429,11 +1429,15 @@ elif [ "${cmd_type}" = "dump" ]; then
     do_cmd "mt76-vendor $*"
 elif [ "${cmd_type}" = "switch" ]; then
     eeprom_mode_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom_mode
-    eeprom_mode=$(cat ${eeprom_mode_file} | grep "mode" | sed -n 2p | cut -d " " -f 4)
+    eeprom_mode=$(cat ${eeprom_mode_file} | grep "mode" | sed -n 2p | xargs)
     eeprom_testmode_offset="1af"
     testmode_enable="0"
 
-    if [ ${connac_ver} == "2" ]; then
+    if [ ${connac_ver} == "3" ]; then
+        chip_module="mt7996e"
+    elif [ ${connac_ver} == "5" ]; then
+        chip_module="mt7999e"
+    else
         return
     fi
 
@@ -1447,7 +1451,7 @@ elif [ "${cmd_type}" = "switch" ]; then
     do_cmd "uci set wireless.radio2.disabled=${testmode_enable}"
     do_cmd "uci commit"
 
-    if [ "${eeprom_mode}" = "flash" ]; then
+    if [ "${eeprom_mode}" = "flash mode" ]; then
         ## flash mode should set eeprom testmode offset bit
         ## efuse/bin file/default bin mode rely on module param only
         do_cmd "atenl -i ${interface} -c \"eeprom set 0x${eeprom_testmode_offset}=0x${testmode_enable}\""
@@ -1456,7 +1460,7 @@ elif [ "${cmd_type}" = "switch" ]; then
         do_cmd "atenl -i ${interface} -c \"sync eeprom all\""
     fi
 
-    do_cmd "rmmod mt7996e"
+    do_cmd "rmmod ${chip_module}"
     do_cmd "rmmod mt76-connac-lib"
     do_cmd "rmmod mt76"
     do_cmd "rmmod mac80211"
@@ -1467,7 +1471,7 @@ elif [ "${cmd_type}" = "switch" ]; then
     do_cmd "insmod mac80211"
     do_cmd "insmod mt76"
     do_cmd "insmod mt76-connac-lib"
-    do_cmd "insmod mt7996e testmode_enable=${testmode_enable}"
+    do_cmd "insmod ${chip_module} testmode_enable=${testmode_enable}"
     do_cmd "sleep 5"
     do_cmd "killall hostapd"
     do_cmd "killall netifd"
