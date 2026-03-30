@@ -1271,7 +1271,7 @@ if [ "${cmd_type}" = "set" ]; then
             param_new="${param},0,0,0"
             ;;
         "ATEMUAID")
-            cmd_new="aid"
+            cmd_new="mu_aid"
             param_new=${param}
             ;;
         "ATETXBW")
