@@ -9,7 +9,9 @@
     - Modify Feed Revisions
     - Build the Target
 4. [Bootloader Preparation and Flashing](#bootloader-preparation-and-flashing)
-5. [Flashing the Platform Firmware](#flashing-the-platform-firmware)
+5. [Flashing the OpenWrt Firmware](#flashing-the-openwrt-firmware)
+    - Understanding Device Tree Overlays
+    - Complete DT Overlay Reference Tables
 ---
 
 ## Introduction
@@ -508,6 +510,68 @@ After the flash write is complete, you must configure the device tree (DT) overl
 
 These images are suitable for SPIM-NAND (Full-UBI), SPIM-NAND (NMBM), and EMMC boot devices. You should adjust the DT overlay settings according to the U-Boot image type.
 
+---
+
+## Understanding Device Tree Overlays
+
+### What are DT Overlays?
+
+The Filogic image generation uses the DT-overlay technique to embed one kernel, one rootfs, and multiple DTBs (Device Tree Blobs) in ITB (Image Tree Blob) format. This allows a single firmware image to support multiple hardware configurations through runtime device tree overlays.
+
+### How to Configure DT Overlays
+
+#### Step 1: Identify Your Platform
+- **MT7981**
+- **MT7986A/B**
+- **MT7987A**
+- **MT7988A/D**
+
+#### Step 2: Select Storage Overlay (Required)
+Choose **ONE** storage overlay based on your boot device (match to bootloader):
+- **SPI-NOR**: Small capacity boot flash (typically 16MB-128MB)
+- **SPI-NAND (FULL-UBI)**: UBI/UBIFS bad block management for FIP/Linux
+- **SPI-NAND (NMBM)**: MediaTek NMBM bad block management for FIP
+- **eMMC**: High-speed embedded storage (MT7987A, MT7988A/D only)
+- **SD**: SD card boot support (MT7987A, MT7988A/D only)
+
+#### Step 3: Select Network Overlays (Optional)
+Choose network overlays based on your PHY/switch configuration:
+- **eth0**: Usually connected to WAN PHY or switch
+- **eth1**: Usually 2.5G/10G uplink port
+- **eth2**: Usually 2.5G/10G uplink port or SFP
+
+You can apply multiple network overlays if your design uses multiple interfaces.
+
+#### Step 4: Configure in U-Boot
+Set overlays via the boot menu option "`Change boot configuration`" or by setting environment variables:
+
+**For storage (bootconf):**
+```bash
+setenv bootconf <storage-overlay>
+```
+
+**For network/additional features (bootconf_extra):**
+```bash
+setenv bootconf_extra <overlay1>#<overlay2>#<overlay3>
+```
+
+**Save configuration:**
+```bash
+saveenv
+```
+
+### Bad Block Management Methods for SPI-NAND
+
+There are two bad block management approaches for SPI-NAND flash:
+
+- **FULL-UBI**: Uses standard Linux UBI (Unsorted Block Images) layer for bad block management and wear leveling.
+This is the upstream OpenWrt/Linux approach. Compatible with OpenWrt official U-Boot. typically used in upstream and MediaTek Wifi-8 production
+
+- **NMBM**: MediaTek's proprietary NAND Mapped-block Management. typically used in MediaTek Wifi-6/Wifi-7 production.
+
+**Important:** Only NMBM-based U-Boot supports flashing NMBM-based FIP/BL2, and only FULL-UBI-based U-Boot supports flashing FULL-UBI-based FIP/BL2.
+Choose your bootloader variant to match your intended flash layout.
+
 **Example configuration:**
 
 **MT7987 — Flash part**
@@ -560,9 +624,140 @@ mt7988a-rfb-eth2-mxl.dtso
 mt7988a-rfb-eth2-sfp.dtso
 ```
 
+---
+
+## Complete DT Overlay Reference Tables
+
+The following tables provide a comprehensive reference of all available device tree overlays for MediaTek Filogic RFB devices.
+
+### MT7981-RFB (Device/mediatek_mt7981-rfb)
+**Base DTS:** `mt7981-rfb`
+
+| Category | Overlay DTS | Description |
+|----------|-------------|-------------|
+| Storage | `mt7981-rfb-spim-nor` | SPI-NOR flash |
+| Storage | `mt7981-rfb-spim-nand` | SPI-NAND flash (FULL-UBI) |
+| Storage | `mt7981-rfb-spim-nand-nmbm` | SPI-NAND flash (NMBM) |
+| Network | `mt7981-rfb-sfp-eth1` | SFP transceiver on eth1 |
+| Network | `mt7981-rfb-mxl-2p5g-phy-eth1` | MaxLinear 2.5G PHY on eth1 |
+| Network | `mt7981-rfb-mxl-2p5g-phy-swp5` | MaxLinear 2.5G PHY on built-in switch port 5 |
+| Debug | `mt7981-spidev` | SPI userspace access for development |
+
+---
+
+### MT7986A-RFB (Device/mediatek_mt7986a-rfb)
+**Base DTS:** `mt7986a-rfb`
+
+| Category | Overlay DTS | Description |
+|----------|-------------|-------------|
+| Storage | `mt7986-spim-nand` | SPI-NAND flash (FULL-UBI) |
+| Storage | `mt7986-spim-nand-nmbm` | SPI-NAND flash (NMBM) |
+| Storage | `mt7986-spim-nor` | SPI-NOR flash |
+| Network | `mt7986-sfp-eth1` | SFP transceiver on eth1 |
+| Debug | `mt7986-spidev` | SPI userspace access for development |
+
+---
+
+### MT7986B-RFB (Device/mediatek_mt7986b-rfb)
+**Base DTS:** `mt7986b-rfb`
+
+| Category | Overlay DTS | Description |
+|----------|-------------|-------------|
+| Storage | `mt7986-spim-nand` | SPI-NAND flash (FULL-UBI) |
+| Storage | `mt7986-spim-nand-nmbm` | SPI-NAND flash (NMBM) |
+| Storage | `mt7986-spim-nor` | SPI-NOR flash |
+| Network | `mt7986-sfp-eth1` | SFP transceiver on eth1 |
+| Debug | `mt7986-spidev` | SPI userspace access for development |
+
+
+---
+
+### MT7987A-RFB (Device/mediatek_mt7987a-rfb)
+**Base DTS:** `mt7987a-rfb`
+
+| Category | Overlay DTS | Description |
+|----------|-------------|-------------|
+| Storage | `mt7987-spim-nand` | SPI-NAND flash (FULL-UBI) |
+| Storage | `mt7987-spim-nand-nmbm` | SPI-NAND flash (NMBM) |
+| Storage | `mt7987-spim-nor` | SPI-NOR flash |
+| Storage | `mt7987-emmc` | eMMC storage |
+| Storage | `mt7987-sd` | SD card storage |
+| Network | `mt7987-netsys-eth0-an8801sb` | Airoha AN8801SB 1G PHY (SGMII) on eth0 as LAN |
+| Network | `mt7987-netsys-eth0-an8811hb` | Airoha AN8811HB 2.5G PHY on eth0 |
+| Network | `mt7987-netsys-eth0-an8855` | Airoha AN8855 5-port 2.5G switch on eth0 |
+| Network | `mt7987-netsys-eth0-an8855-gsw` | Airoha AN8855 5-port 2.5G switch (GSW mode) on eth0 |
+| Network | `mt7987-netsys-eth0-e2p5g` | External 2.5G PHY on eth0 |
+| Network | `mt7987-netsys-eth0-mt7531` | MediaTek MT7531 5-port GbE switch on eth0 |
+| Network | `mt7987-netsys-eth0-mt7531-gsw` | MediaTek MT7531 5-port GbE switch (GSW mode) on eth0 |
+| Network | `mt7987-netsys-eth1-i2p5g` | Internal (built-in) 2.5G PHY on eth1 |
+| Network | `mt7987-netsys-eth2-an8801sb` | Airoha AN8801SB 1G PHY (SGMII) on eth2 as LAN |
+| Network | `mt7987-netsys-eth2-e2p5g` | External 2.5G PHY on eth2 |
+| Network | `mt7987-netsys-eth2-sfp` | SFP transceiver on eth2 |
+| Network | `mt7987-netsys-eth2-usb` | USB 3.0 interface (replaces eth2) |
+| Debug | `mt7987-spidev` | SPI userspace access for development |
+
+---
+
+### MT7988A-RFB (Device/mediatek_mt7988a-rfb)
+**Base DTS:** `mt7988a-rfb`
+
+| Category | Overlay DTS | Description |
+|----------|-------------|-------------|
+| Storage | `mt7988a-rfb-emmc` | eMMC storage |
+| Storage | `mt7988a-rfb-sd` | SD card storage |
+| Storage | `mt7988a-rfb-spim-nand` | SPI-NAND flash (FULL-UBI) |
+| Storage | `mt7988a-rfb-spim-nand-factory` | SPI-NAND factory mode (FULL-UBI) |
+| Storage | `mt7988a-rfb-spim-nand-nmbm` | SPI-NAND flash (NMBM) |
+| Storage | `mt7988a-rfb-spim-nor` | SPI-NOR flash |
+| Network | `mt7988a-rfb-eth0-gsw` | Built-in MT7988 4-port GbE switch (GSW mode) on eth0 |
+| Network | `mt7988a-rfb-eth1-aqr` | Aquantia AQR113C multi-gig PHY (up to 10G) on eth1 |
+| Network | `mt7988a-rfb-eth1-an8831x` | Airoha AN8831x multi-gig PHY (2.5G/5G) on eth1 |
+| Network | `mt7988a-rfb-eth1-cux3410` | Cortina CUX3410 10G PHY on eth1 |
+| Network | `mt7988a-rfb-eth1-i2p5g-phy` | Internal (built-in) 2.5G PHY on eth1 |
+| Network | `mt7988a-rfb-eth1-mxl` | MaxLinear multi-gig PHY on eth1 |
+| Network | `mt7988a-rfb-eth1-sfp` | SFP+ transceiver on eth1 |
+| Network | `mt7988a-rfb-eth1-sfp-an8831x` | SFP+ / Aquantia AQR113C combo (auto-switch mux) on eth1 |
+| Network | `mt7988a-rfb-eth1-sfp-aqr` | SFP+ / Aquantia AQR113C combo (auto-switch mux) on eth1 |
+| Network | `mt7988a-rfb-eth2-aqr` | Aquantia AQR113C multi-gig PHY (up to 10G) on eth2 |
+| Network | `mt7988a-rfb-eth2-an8831x` | Airoha AN8831x multi-gig PHY (2.5G/5G) on eth2 |
+| Network | `mt7988a-rfb-eth2-cux3410` | Cortina CUX3410 10G PHY on eth2 |
+| Network | `mt7988a-rfb-eth2-mxl` | MaxLinear multi-gig PHY on eth2 |
+| Network | `mt7988a-rfb-eth2-mxl86252-an8831x` | MaxLinear 86252 5-port switch + Airoha AN8831x uplink on eth2 |
+| Network | `mt7988a-rfb-eth2-mxl86252-aqr` | MaxLinear 86252 5-port switch + Aquantia AQR113C uplink on eth2 |
+| Network | `mt7988a-rfb-eth2-sfp` | SFP+ transceiver on eth2 |
+| PCIe | `mt7988a-rfb-4pcie` | 4 PCIe lanes configuration |
+| PCIe | `mt7988a-rfb-2pcie` | 2 PCIe lanes configuration |
+| PCIe | `mt7988d-rfb-2pcie` | MT7988D 2 PCIe lanes (cross-compatible) |
+| Debug | `mt7988a-rfb-spidev` | SPI userspace access for development |
+
+---
+
+### MT7988D-RFB (Device/mediatek_mt7988d-rfb)
+**Base DTS:** `mt7988d-rfb`
+
+| Category | Overlay DTS | Description | Note |
+|----------|-------------|-------------|------|
+| Storage | `mt7988a-rfb-emmc` | eMMC storage | Shared |
+| Storage | `mt7988a-rfb-sd` | SD card storage | Shared |
+| Storage | `mt7988a-rfb-spim-nand` | SPI-NAND flash (FULL-UBI) | Shared |
+| Storage | `mt7988a-rfb-spim-nand-factory` | SPI-NAND factory mode (FULL-UBI) | Shared |
+| Storage | `mt7988a-rfb-spim-nand-nmbm` | SPI-NAND flash (NMBM) | Shared |
+| Storage | `mt7988a-rfb-spim-nor` | SPI-NOR flash | Shared |
+| Network | `mt7988a-rfb-eth1-i2p5g-phy` | Internal (built-in) 2.5G PHY on eth1 | Shared |
+| Network | `mt7988a-rfb-eth2-aqr` | Aquantia AQR113C multi-gig PHY (up to 10G) on eth2 | Shared |
+| Network | `mt7988a-rfb-eth2-mxl` | MaxLinear multi-gig PHY on eth2 | Shared |
+| Network | `mt7988d-rfb-eth2-an8831x` | Airoha AN8831x multi-gig PHY (2.5G/5G) on eth2 | D-specific |
+| Network | `mt7988d-rfb-eth2-sfp` | SFP+ transceiver on eth2 | D-specific |
+| Network | `mt7988d-rfb-eth0-gsw` | Built-in MT7988 4-port GbE switch (GSW mode) on eth0 | D-specific |
+| PCIe | `mt7988d-rfb-2pcie` | 2 PCIe lanes configuration | D-specific |
+| Debug | `mt7988a-rfb-spidev` | SPI userspace access for development | Shared |
+
+**Note:** MT7988D shares storage overlays with MT7988A but has distinct network/PCIe configs.
+
 ***
 | Revision | Date       | Author   | Description     |
 |:---      |:---        |:---      |:---             |
+| v2.3     | 2026/03/31 | Sam Shih | Add comprehensive DT overlay reference tables and usage guide |
 | v2.2     | 2026/03/31 | Sam Shih | Update OpenWrt/feeds commit IDs and feed_revision |
 | v2.1     | 2026/03/11 | Sam Shih | Update OpenWrt/feeds commit IDs and feed_revision |
 | v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |
