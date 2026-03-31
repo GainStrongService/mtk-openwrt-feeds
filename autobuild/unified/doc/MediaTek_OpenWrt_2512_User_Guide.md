@@ -40,14 +40,14 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 
 ### Clone the Repository
 
-Obtain the necessary OpenWrt source code and feeds. For MediaTek platforms, use the latest master/26.xx branch and corresponding feeds.
+Obtain the necessary OpenWrt source code and feeds. For MediaTek platforms, use openwrt-25.12 branch and corresponding feeds.
 
 #### OpenWrt Source
 
 ```bash
 git clone https://git.openwrt.org/openwrt/openwrt.git openwrt
 cd openwrt
-git checkout 568caba81fd53007606d58e834393012d80236ff
+git checkout 8a18e84a887379db8954449a9fabe6df54084dea
 cd -
 ```
 
@@ -57,7 +57,7 @@ cd -
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
 cd mtk-openwrt-feeds
 # If necessary, you can manually switch to the following verified commit ID, or just use default value
-git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
+git checkout 5ee86b89bc62dee10d8db1e0a48fdd140dd2ec3e
 cd -
 ```
 
@@ -83,10 +83,9 @@ vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
 Example:
 ```bash
 # If necessary, you can manually switch to the following verified commit ID, or just use default value
-luci 5b394904d05fcba8771014552ddeb16965657aed
-routing 662b57dff7d20634f2b8676400cf4299611cfe4b
-packages 6f585a2b7c20cac2f0b7003d14b6c0e61a00f487
-video 094bf58da6682f895255a35a84349a79dab4bf95
+luci 0b64c57010b394b18193ae179f12635bea43c076
+routing 5b23ea12d417e5dba99788c5b34abdae81cccf33
+packages a7b9be3efa00ca72a6a29392980fb4c7793c4496
 ```
 
 ### Build the Target
@@ -564,5 +563,6 @@ mt7988a-rfb-eth2-sfp.dtso
 ***
 | Revision | Date       | Author   | Description     |
 |:---      |:---        |:---      |:---             |
+| v2.2     | 2026/03/31 | Sam Shih | Update OpenWrt/feeds commit IDs and feed_revision |
 | v2.1     | 2026/03/11 | Sam Shih | Update OpenWrt/feeds commit IDs and feed_revision |
 | v2.0     | 2025/12/15 | Sam Shih | Migrate to OpenWrt 25.12 |
