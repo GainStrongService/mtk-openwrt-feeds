@@ -2203,7 +2203,6 @@ struct adma_monitor {
 
 struct qdma_monitor {
 	struct qdma_tx_monitor {
-		bool		pse_fc;
 		u8		hang_count;
 	} tx;
 	struct qdma_rx_monitor {
@@ -2248,6 +2247,7 @@ struct wdma_monitor {
 
 struct gdm_monitor {
 	struct gdm_tx_monitor {
+		bool		rxfc[MTK_MAX_DEVS];
 		u64		pre_tx_cnt[MTK_MAX_DEVS];
 		u32		pre_rxfc_cnt[MTK_MAX_DEVS];
 		u32		pre_fsm_gdm[MTK_MAX_DEVS];

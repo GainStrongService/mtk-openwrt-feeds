@@ -4261,16 +4261,19 @@ static void mtk_tx_timeout(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
-	bool pse_fc = false;
+	struct gdm_tx_monitor *gdm_tx;
+	bool gdm_rxfc = false;
+	int i;
 
 	eth->netdev[mac->id]->stats.tx_errors++;
 	netif_err(eth, tx_err, dev,
 		  "transmit timed out\n");
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
-		pse_fc = eth->reset.qdma_monitor.tx.pse_fc;
+	gdm_tx = &eth->reset.gdm_monitor.tx;
+	for (i = 0; i < MTK_MAX_DEVS; i++)
+		gdm_rxfc |= gdm_tx->rxfc[i];
 
-	if (atomic_read(&reset_lock) == 0 && pse_fc == false)
+	if (atomic_read(&reset_lock) == 0 && gdm_rxfc == false)
 		schedule_work(&eth->pending_work);
 }
 
