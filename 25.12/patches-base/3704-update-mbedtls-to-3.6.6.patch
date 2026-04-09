@@ -1,0 +1,67 @@
+From f48ef0040b7e4a80283d0775d397b8a3c66b7275 Mon Sep 17 00:00:00 2001
+From: Hauke Mehrtens <hauke@hauke-m.de>
+Date: Sun, 5 Apr 2026 01:32:36 +0200
+Subject: [PATCH] mbedtls: update to 3.6.6
+
+This version fixes some security problems:
+ * Client impersonation while resuming a TLS 1.3 session
+   (CVE-2026-34873)
+ * Entropy on Linux can fall back to /dev/urandom (CVE-2026-34871)
+ * PSA random generator cloning (CVE-2026-25835)
+ * Compiler-induced constant-time violations (CVE-2025-66442)
+ * Null pointer dereference when setting a distinguished name
+   (CVE-2026-34874)
+ * Buffer overflow in FFDH public key export (CVE-2026-34875)
+ * FFDH: lack of contributory behaviour due to improper input validation
+   (CVE-2026-34872)
+ * Signature Algorithm Injection (CVE-2026-25834)
+ * CCM multipart finish tag-length validation bypass (CVE-2026-34876)
+ * Risk of insufficient protection of serialized session or context data
+   leading to potential memory safety issues (CVE-2026-34877)
+ * Buffer underflow in x509_inet_pton_ipv6() (CVE-2026-25833)
+
+Changelog: https://github.com/Mbed-TLS/mbedtls/releases/tag/mbedtls-3.6.6
+
+Size increases by 470 bytes on aarch64:
+343995 bin/packages/aarch64_generic/base/libmbedtls21-3.6.5-r1.apk
+344465 bin/packages/aarch64_generic/base/libmbedtls21-3.6.6-r1.apk
+
+Link: https://github.com/openwrt/openwrt/pull/22787
+Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+---
+ package/libs/mbedtls/Makefile                          | 4 ++--
+ package/libs/mbedtls/patches/100-fix-gcc14-build.patch | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/package/libs/mbedtls/Makefile b/package/libs/mbedtls/Makefile
+index 15ef843d918d36..c4b13929f0d9c7 100644
+--- a/package/libs/mbedtls/Makefile
++++ b/package/libs/mbedtls/Makefile
+@@ -8,13 +8,13 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=mbedtls
+-PKG_VERSION:=3.6.5
++PKG_VERSION:=3.6.6
+ PKG_RELEASE:=1
+ PKG_BUILD_FLAGS:=no-mips16 gc-sections no-lto
+ 
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+ PKG_SOURCE_URL=https://github.com/Mbed-TLS/$(PKG_NAME)/releases/download/$(PKG_NAME)-$(PKG_VERSION)
+-PKG_HASH:=4a11f1777bb95bf4ad96721cac945a26e04bf19f57d905f241fe77ebeddf46d8
++PKG_HASH:=8fb65fae8dcae5840f793c0a334860a411f884cc537ea290ce1c52bb64ca007a
+ 
+ PKG_LICENSE:=GPL-2.0-or-later
+ PKG_LICENSE_FILES:=LICENSE
+diff --git a/package/libs/mbedtls/patches/100-fix-gcc14-build.patch b/package/libs/mbedtls/patches/100-fix-gcc14-build.patch
+index 656e6058142998..78240ee9decbb2 100644
+--- a/package/libs/mbedtls/patches/100-fix-gcc14-build.patch
++++ b/package/libs/mbedtls/patches/100-fix-gcc14-build.patch
+@@ -1,6 +1,6 @@
+ --- a/library/common.h
+ +++ b/library/common.h
+-@@ -199,7 +199,7 @@ static inline void mbedtls_xor(unsigned
++@@ -224,7 +224,7 @@ static inline void mbedtls_xor(unsigned
+          uint8x16_t x = veorq_u8(v1, v2);
+          vst1q_u8(r + i, x);
+      }
