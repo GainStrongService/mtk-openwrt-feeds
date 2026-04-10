@@ -5,6 +5,7 @@
 
 list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
 list_add_after $(hooks autobuild_prepare) filogic_change_kernel_config change_kernel_flowoffload_conf
+list_add_after $(hooks autobuild_prepare) filogic_change_kernel_config change_kernel_security_config
 list_append $(hooks autobuild_prepare) airoha_firmware_install
 list_add_after $(hooks autobuild_prepare) airoha_firmware_install copy_phy_firmware
 
@@ -93,6 +94,15 @@ change_kernel_flowoffload_conf () {
 	kernel_config_enable CONFIG_NETFILTER_INGRESS
 	kernel_config_enable CONFIG_NF_CONNTRACK
 	kernel_config_enable CONFIG_NF_FLOW_TABLE
+}
+
+change_kernel_security_config() {
+	kernel_config_enable CONFIG_SYSTEM_TRUSTED_KEYS "\"\""
+	kernel_config_disable CONFIG_SYSTEM_EXTRA_CERTIFICATE
+	kernel_config_disable CONFIG_SECONDARY_TRUSTED_KEYRING
+	kernel_config_disable CONFIG_PKCS8_PRIVATE_KEY_PARSER
+	kernel_config_disable CONFIG_PKCS7_TEST_KEY
+	kernel_config_disable CONFIG_FIPS_SIGNATURE_SELFTEST
 }
 
 platform_enable_optee_config() {

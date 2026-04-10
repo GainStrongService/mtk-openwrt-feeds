@@ -1,0 +1,74 @@
+--- a/config/Config-kernel.in
++++ b/config/Config-kernel.in
+@@ -1508,3 +1508,71 @@ config KERNEL_BLK_DEV_RAM_SIZE
+ 	int "Default RAM disk size (kbytes)"
+ 	default 30720
+ 	depends on KERNEL_BLK_DEV_RAM
++
++menuconfig KERNEL_MODULE_SIG
++	bool "Module signature verification"
++	default n
++
++if KERNEL_MODULE_SIG
++	config KERNEL_MODULE_SIG_FORCE
++		bool "Require modules to be validly signed"
++		default y
++
++	config KERNEL_MODULE_SIG_ALL
++		bool "Automatically sign all modules"
++		default y
++
++	choice
++		prompt "Hash algorithm to sign modules"
++		default KERNEL_MODULE_SIG_SHA512
++
++	config KERNEL_MODULE_SIG_SHA1
++		bool "SHA-1"
++
++	config KERNEL_MODULE_SIG_SHA256
++		bool "SHA-256"
++
++	config KERNEL_MODULE_SIG_SHA384
++		bool "SHA-384"
++
++	config KERNEL_MODULE_SIG_SHA512
++		bool "SHA-512"
++
++	config KERNEL_MODULE_SIG_SHA3_256
++		bool "SHA3-256"
++
++	config KERNEL_MODULE_SIG_SHA3_384
++		bool "SHA3-384"
++
++	config KERNEL_MODULE_SIG_SHA3_512
++		bool "SHA3-512"
++
++	endchoice
++
++	config KERNEL_MODULE_SIG_HASH
++		string
++		default "sha1" if KERNEL_MODULE_SIG_SHA1
++		default "sha256" if KERNEL_MODULE_SIG_SHA256
++		default "sha384" if KERNEL_MODULE_SIG_SHA384
++		default "sha512" if KERNEL_MODULE_SIG_SHA512
++		default "sha3-256" if KERNEL_MODULE_SIG_SHA3_256
++		default "sha3-384" if KERNEL_MODULE_SIG_SHA3_384
++		default "sha3-512" if KERNEL_MODULE_SIG_SHA3_512
++
++	config KERNEL_MODULE_SIG_KEY
++		string "File name or PKCS#11 URI of module signing key"
++		default "certs/signing_key.pem"
++
++	choice
++		prompt "Type of module signing key to be generated"
++
++	config KERNEL_MODULE_SIG_KEY_TYPE_RSA
++		bool "RSA"
++
++	config KERNEL_MODULE_SIG_KEY_TYPE_ECDSA
++		bool "ECDSA"
++		depends on !(KERNEL_MODULE_SIG_SHA256 || KERNEL_MODULE_SIG_SHA3_256)
++
++	endchoice
++
++endif

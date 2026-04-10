@@ -1,0 +1,45 @@
+--- a/include/kernel.mk
++++ b/include/kernel.mk
+@@ -160,6 +160,42 @@ define collect_module_symvers
+ 	mv $(PKG_BUILD_DIR)/Module.symvers $(PKG_SYMVERS_DIR)/$(PKG_NAME).symvers
+ endef
+ 
++ifneq ($(CONFIG_KERNEL_MODULE_SIG),)
++  ifeq ($(call qstrip,$(CONFIG_KERNEL_MODULE_SIG_KEY)),certs/signing_key.pem)
++    MODULE_SIG_KEY = $(call qstrip,$(LINUX_DIR)/$(CONFIG_KERNEL_MODULE_SIG_KEY))
++  else
++    MODULE_SIG_KEY = $(CONFIG_KERNEL_MODULE_SIG_KEY)
++  endif
++
++  ifeq ($(findstring .x509,$(MODULE_SIG_KEY)),)
++    MODULE_SIG_KEY_CERT = $(subst .pem,.x509,$(MODULE_SIG_KEY))
++  else
++    MODULE_SIG_KEY_CERT = $(basename $(call qstrip,$(MODULE_SIG_KEY)))
++  endif
++
++  define kmod_sign
++	for mod in $$$$(find $(1) -type f -name *.ko); do \
++		$(LINUX_DIR)/scripts/sign-file -d \
++			$(CONFIG_KERNEL_MODULE_SIG_HASH) \
++			$(MODULE_SIG_KEY) \
++			$(MODULE_SIG_KEY_CERT) \
++			$$$$mod; \
++		sig_file="$$$${mod}.p7s"; \
++		if [ -f "$$$$sig_file" ]; then \
++			$(LINUX_DIR)/scripts/sign-file \
++				-s $$$$sig_file \
++				$(CONFIG_KERNEL_MODULE_SIG_HASH) \
++				$(MODULE_SIG_KEY_CERT) \
++				$$$$mod; \
++		else \
++			echo "ERROR: '$$$$sig_file' is missing." >&2; \
++			exit 1; \
++		fi; \
++		rm -f $$$$sig_file; \
++	done;
++  endef
++endif
++
+ define KernelPackage/hooks
+   ifneq ($(PKG_NAME),kernel)
+     Hooks/Compile/Post += collect_module_symvers
