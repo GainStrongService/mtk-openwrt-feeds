@@ -1,6 +1,10 @@
 #!/bin/sh
-
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 # Configuration flags
+
 NFT_ENABLE=0  # 1: use nftables, 0: use iptables
 HW_OFFLOAD=1   # 1: hardware offload path, 0: software fast path
 FLOWTABLE_CONFIG="/etc/flowtable.conf"  # nft flowtable configuration file

@@ -1,4 +1,9 @@
 #!/usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2024 MediaTek Inc.
+#
+
 import os
 import sys
 from xml.dom import minidom

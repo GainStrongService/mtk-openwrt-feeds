@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 MediaTek Inc.
+#
+
 KERNEL_LOADADDR := 0x48080000
 
 define Device/mediatek_mt7988a-gsw-10g-spim-nand

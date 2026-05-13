@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2024 MediaTek Inc.
+#
+
 KERNEL_LOADADDR := 0x40080000
 DTS_VENDOR := mediatek
 

@@ -1,5 +1,9 @@
-
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
 # Keep these values be up-to-date with definition in libfstools/rootdisk.c of fstools package
+
 ROOTDEV_OVERLAY_ALIGN=$((64*1024))
 F2FS_MINSIZE=$((100*1024*1024))
 

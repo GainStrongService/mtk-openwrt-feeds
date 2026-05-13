@@ -1,8 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2022 MediaTek Inc. All rights reserved.
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
 #
 
 include libfdt/Makefile.libfdt

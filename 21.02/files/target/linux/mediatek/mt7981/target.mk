@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
+
 ARCH:=aarch64
 SUBTARGET:=mt7981
 BOARDNAME:=MT7981

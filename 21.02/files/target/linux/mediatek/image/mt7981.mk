@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
+
 KERNEL_LOADADDR := 0x48080000
 
 define Device/mt7981-spim-nor-rfb
