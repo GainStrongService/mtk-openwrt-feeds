@@ -1761,6 +1761,7 @@ static int hnat_probe(struct platform_device *pdev)
 	hnat_flow_entry_teardown_enable();
 
 	INIT_LIST_HEAD(&hnat_priv->xlat.map_list);
+	INIT_LIST_HEAD(&hnat_priv->mcast_blist_list);
 
 	return 0;
 
@@ -1846,7 +1847,7 @@ static const struct mtk_hnat_data hnat_data_v5 = {
 	.num_of_sch = 4,
 	.whnat = true,
 	.per_flow_accounting = true,
-	.mcast = false,
+	.mcast = true,
 	.version = MTK_HNAT_V3,
 };
 

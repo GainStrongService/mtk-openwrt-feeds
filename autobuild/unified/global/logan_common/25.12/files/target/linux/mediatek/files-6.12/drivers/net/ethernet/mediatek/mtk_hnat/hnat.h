@@ -1030,6 +1030,14 @@ struct hnat_prot_3t_cfg {
 	bool blist;
 };
 
+struct mcast_blist_data {
+	struct list_head list;
+	struct in6_addr ipv6;
+	bool is_ipv4;
+	u32 ipv4;
+	u32 mask;
+};
+
 struct mtk_hnat {
 	struct device *dev;
 	struct mtk_eth *eth;
@@ -1073,6 +1081,7 @@ struct mtk_hnat {
 	struct timer_list hnat_mcast_check_timer;
 	bool nf_stat_en;
 	struct xlat_conf xlat;
+	struct list_head	mcast_blist_list;
 	spinlock_t		cah_lock;
 	spinlock_t		entry_lock;
 	spinlock_t		flow_entry_lock;
@@ -1490,6 +1499,7 @@ extern struct hnat_desc headroom[DEF_ETRY_NUM];
 extern int qos_dl_toggle;
 extern int qos_ul_toggle;
 extern int hook_toggle;
+extern int mcast_hook_toggle;
 extern int mape_toggle;
 extern int qos_toggle;
 extern int l2br_toggle;
@@ -1552,6 +1562,11 @@ struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff);
 
 int mtk_hnat_skb_headroom_copy(struct sk_buff *new, struct sk_buff *old);
+int hnat_mcast_foe_bind_handle(const u8 *dmac,
+			       u32 ppe_id, u32 foe_idx, struct foe_entry *entry, int ifindex);
+bool hnat_mcast_chk_blist(struct foe_entry *entry);
+uint8_t get_wifi_hook_if_index_from_dev(const struct net_device *dev);
+
 static inline u16 foe_timestamp(struct mtk_hnat *h, bool mcast)
 {
 	u16 time_stamp;
