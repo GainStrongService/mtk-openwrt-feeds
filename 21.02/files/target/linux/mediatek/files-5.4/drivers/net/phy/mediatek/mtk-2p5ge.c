@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2022 MediaTek Inc.
+ */
+
 #include <linux/bitfield.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>

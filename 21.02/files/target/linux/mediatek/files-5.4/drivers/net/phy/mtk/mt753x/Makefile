@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
 #
 # Makefile for MediaTek MT753x gigabit switch
 #
