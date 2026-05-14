@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Copyright (C) 2025 MediaTek Inc.
+ */
 
 #ifndef _DT_BINDINGS_RESET_CONTROLLER_MT7987
 #define _DT_BINDINGS_RESET_CONTROLLER_MT7987
