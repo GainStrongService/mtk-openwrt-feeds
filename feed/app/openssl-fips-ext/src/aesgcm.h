@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2023 MediaTek Inc.
+ */
+
 #ifndef AESGCM_H
 #define AESGCM_H
 #include "common.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (C) 2021-2022 Mediatek Inc. */
 #ifndef __ATENL_DEBUG_H
 #define __ATENL_DEBUG_H

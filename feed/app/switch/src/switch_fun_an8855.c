@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (C) 2021 MediaTek Inc.
+ *
  * switch_fun.c: switch function sets
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

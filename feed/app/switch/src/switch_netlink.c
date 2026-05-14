@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (C) 2021 MediaTek Inc.
+ *
  * switch_netlink.c: switch(netlink) set API
  *
  * Author: Sirui Zhao <Sirui.Zhao@mediatek.com>
  */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

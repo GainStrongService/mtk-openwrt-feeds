@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2021-2022 Mediatek Inc. */
 #include "atenl.h"
 

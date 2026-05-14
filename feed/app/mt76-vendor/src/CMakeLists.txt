@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
+
 cmake_minimum_required(VERSION 2.8)
 
 PROJECT(mt76-vendor C)

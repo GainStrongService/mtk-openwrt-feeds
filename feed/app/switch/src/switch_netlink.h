@@ -1,8 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * Copyright (C) 2021 MediaTek Inc.
+ *
  * switch_netlink.h: switch(netlink) set API
  *
  * Author: Sirui Zhao <Sirui.Zhao@mediatek.com>
  */
+
 #ifndef MT753X_NETLINK_H
 #define MT753X_NETLINK_H
 

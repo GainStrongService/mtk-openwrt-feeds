@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
+
 EXEC = switch
 
 SRC=switch_fun.c switch_753x.c switch_ioctl.c switch_netlink.c

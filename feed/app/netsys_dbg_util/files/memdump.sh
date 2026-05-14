@@ -1,5 +1,10 @@
-# ./memdump.sh 0x15110000 0x200
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
+# ./memdump.sh 0x15110000 0x200
+
 if [ $# -lt 2 ]; then
         echo "usage: $0 [base_hex] [range_hex]"
         exit

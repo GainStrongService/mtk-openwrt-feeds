@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mt76-vendor

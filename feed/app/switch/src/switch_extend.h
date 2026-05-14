@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2021 MediaTek Inc.
+ */
+
 #define atoi(x)         strtoul(x, NULL,10)
 
 #define EXTEND_SETVID_PARAM	1

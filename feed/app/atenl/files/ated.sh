@@ -1,4 +1,8 @@
 #!/bin/ash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 MediaTek Inc.
+#
 # This script is used for wrapping atenl daemon to ated
 # 0 is normal mode, 1 is used for doing specific commands such as "sync eeprom all"
 

@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2023 MediaTek Inc.
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 #include <stddef.h>

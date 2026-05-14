@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 # Normal: ./ephy_test.sh -p=0 --dst_ip=10.77.1.254(Cheetah)
 # ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --delay=25 --packet=10
 # ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --delay=10 --packet=2 --an_type=phy_power_downup

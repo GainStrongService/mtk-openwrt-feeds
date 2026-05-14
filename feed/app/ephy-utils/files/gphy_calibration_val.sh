@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 # ./gphy_calibration_val.sh -s -p=0 --r50_all=-2
 # ./gphy_calibration_val.sh -s -p=0 --r50_all=2
 source lib.sh

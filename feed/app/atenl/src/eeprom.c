@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2022 MediaTek Inc.
+ */
+
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <sys/mman.h>

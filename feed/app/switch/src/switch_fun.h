@@ -1,6 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
-* switch_fun.h: switch function sets
-*/
+ * Copyright (C) 2021 MediaTek Inc.
+ *
+ * switch_fun.h: switch function sets
+ */
+
 #ifndef SWITCH_FUN_H
 #define SWITCH_FUN_H
 

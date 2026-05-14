@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
+
 source lib.sh
 
 switch phy cl45 w ${port} 0x1e 0x120 0x8014

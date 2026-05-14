@@ -1,4 +1,9 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
+
 SOC=`cat /proc/device-tree/ethernet*/compatible | cut -c 10-15`
 if [ -z "$SOC" ]; then
 	SOC=`cat /proc/device-tree/soc/ethernet*/compatible | cut -c 10-15`

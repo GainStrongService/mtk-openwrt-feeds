@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2023 MediaTek Inc.
+ */
+
 #include "aesgcm.h"
 #include "openssl/crypto.h"
 

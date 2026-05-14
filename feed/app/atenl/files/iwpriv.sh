@@ -1,4 +1,8 @@
 #!/bin/ash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 MediaTek Inc.
+#
 
 interface=$1    # phy0/phy1/ra0
 cmd_type=$2     # set/show/e2p/mac/dump
