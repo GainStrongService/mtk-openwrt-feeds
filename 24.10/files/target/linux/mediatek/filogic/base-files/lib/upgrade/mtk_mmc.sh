@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
 # Script for dual image A/B system boots
 # Copyright (C) 2024 MediaTek Inc.
 # Author: Weijie Gao <weijie.gao@mediatek.com>

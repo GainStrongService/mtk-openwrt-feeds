@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 
 usage() {
 	printf "Usage: %s -i input key file -o hkdf key -t its " "$(basename "$0")"

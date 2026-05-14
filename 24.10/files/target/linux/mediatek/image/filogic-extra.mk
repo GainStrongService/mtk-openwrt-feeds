@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2024 MediaTek Inc.
+#
+
 define Device/mediatek_mt7988d-rfb
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := MT7988D rfb

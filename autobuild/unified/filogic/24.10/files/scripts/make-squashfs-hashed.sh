@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
 #
 # 1. Using veritysetup to append hash image into squashfs
 # 2. Parsing output of veritysetup

@@ -1,8 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2023 Mediatek Ltd.
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# Copyright (C) 2023 MediaTek Inc.
 #
 
 OPTEE_CLIENT_MAKE_FLAGS := CFG_TEE_FS_PARENT_PATH=$(CONFIG_OPTEE_FS_PARENT_PATH) \

@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 # Function to compute the WPS checksum for a 7-digit PIN
 wps_pin_checksum() {
 	local pin=$1
