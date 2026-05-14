@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
 # Script for secure image check
 # Copyright (C) 2025 MediaTek Inc.
 

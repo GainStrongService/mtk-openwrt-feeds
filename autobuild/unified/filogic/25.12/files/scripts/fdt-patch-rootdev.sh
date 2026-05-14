@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2026 MediaTek Inc.
+#
 
 staging_dir="$1"
 dtb="$2"
