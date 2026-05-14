@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 MediaTek Inc.
 #
 # There are 2 env-variables set for you, you can use it in your script.
 # ${BUILD_DIR} , working dir of this script, eg: openwrt/lede/

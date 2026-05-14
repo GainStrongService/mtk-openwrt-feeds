@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021 MediaTek Inc.
+#
 
 MTK_FEEDS_DIR=${1}
 

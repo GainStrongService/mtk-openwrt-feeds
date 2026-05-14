@@ -1,5 +1,8 @@
 #!/bin/sh
-
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2022 MediaTek Inc.
+#
 # This script is used to remove all changes made by autobuild scripts which
 # allows autobuild scripts to be called again
 

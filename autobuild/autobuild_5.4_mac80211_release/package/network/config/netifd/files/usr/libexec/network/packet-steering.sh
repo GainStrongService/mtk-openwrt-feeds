@@ -1,4 +1,9 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2023 MediaTek Inc.
+#
+
 NPROCS="$(grep -c "^processor.*:" /proc/cpuinfo)"
 [ "$NPROCS" -gt 1 ] || exit
 
