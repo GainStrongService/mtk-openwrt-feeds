@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# SPDX-License-Identifier: GPL-2.0-only
+#
 # Copyright (C) 2024 MediaTek Inc. All rights reserved.
 # Author: Weijie Gao <weijie.gao@mediatek.com>
 # Autobuild framework for OpenWrt

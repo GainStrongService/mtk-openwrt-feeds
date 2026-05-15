@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# SPDX-License-Identifier: GPL-2.0-only
+#
 # Copyright (C) 2026 MediaTek Inc. All rights reserved.
 # Author: Weijie Gao <weijie.gao@mediatek.com>
 # LFS Download helper script for shared dl directory

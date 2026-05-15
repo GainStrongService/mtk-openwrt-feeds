@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
+
 __CURR_MK := $(abspath $(lastword $(MAKEFILE_LIST)))
 __CURR_DIR := $(dir $(__CURR_MK))
 __WRAPPER := $(__CURR_DIR)/get_openwrt_package_defs_wrapper.mk

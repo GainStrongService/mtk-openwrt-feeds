@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2026 MediaTek Inc.
+#
 
 PKG_SOURCE_VERSION=$(shell git -C "$(PKG_SRC_DIR)" rev-parse HEAD 2>/dev/null)
 PKG_SOURCE_DATE=$(shell git -C "$(PKG_SRC_DIR)" show -s --format=%ad --date="format:%Y-%m-%d")

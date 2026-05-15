@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2024 MediaTek Inc.
+#
+
 OPENWRT_BUILD = 1
 
 include Makefile
