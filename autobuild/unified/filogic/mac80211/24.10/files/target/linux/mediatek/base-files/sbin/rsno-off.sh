@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
 # phy0 interface
 uci delete wireless.default_radio0_mld.encryption
 uci delete wireless.default_radio0_mld.encryption_rsno
