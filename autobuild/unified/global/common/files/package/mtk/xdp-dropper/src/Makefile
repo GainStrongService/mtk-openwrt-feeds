@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2025 MediaTek Inc.
+#
+
 XDP_PROG = xdp_drop
 
 $(XDP_PROG).o: $(XDP_PROG).c

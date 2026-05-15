@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# SPDX-License-Identifier: GPL-2.0-only
+#
 # Copyright (C) 2025 MediaTek Inc. All rights reserved.
 # Author: Sam Shih <sam.shih@mediatek.com>
 # Rules for platform-related patches and files for Logan-based WiFi builds
