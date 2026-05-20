@@ -96,14 +96,6 @@ for (let phy_name, phy in board.wlan) {
 		if (!phy.path)
 			continue;
 
-		if (length(info.radios) == 0) {
-			/* FIXME: hardcode */
-			if (band_name == "5G")
-				phy.path = board.wlan["phy1"]["path"];
-			else if (band_name == "6G")
-				phy.path = board.wlan["phy2"]["path"];
-		}
-
 		let macaddr = trim(readfile(`/sys/class/ieee80211/${phy_name}/macaddress`));
 		if (radio_exists(phy.path, macaddr, phy_name, radio.index))
 			continue;
