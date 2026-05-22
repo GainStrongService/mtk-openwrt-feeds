@@ -1,0 +1,52 @@
+From 46738ad764470233b59825a7689ba2acfcad65c7 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 20 May 2026 10:51:33 +0800
+Subject: [PATCH] mtk: hostapd: always carry MBSSID IE to fix CSA issue of
+ non-TX BSS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Problem: 
+Channel switch failed on non-TX BSS.
+
+Root Cause: 
+MBSSID IE doesn't exist in the CSA of non-TX BSS, causing channel switch
+failed.
+
+Solution:
+always carry MBSSID IE in CSA beacon.
+
+Feature:
+MBSSID
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ src/drivers/driver_nl80211.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 804285678..d6d8758cf 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -12528,7 +12528,7 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+ 	if (!beacon_csa)
+ 		goto fail;
+ 
+-	ret = set_beacon_data(msg, &settings->beacon_csa, true);
++	ret = set_beacon_data(msg, &settings->beacon_csa, false);
+ 	if (ret)
+ 		goto error;
+ 
+@@ -12621,7 +12621,7 @@ static int nl80211_switch_color(void *priv, struct cca_settings *settings)
+ 		goto error;
+ 	}
+ 
+-	ret = set_beacon_data(msg, &settings->beacon_cca, true);
++	ret = set_beacon_data(msg, &settings->beacon_cca, false);
+ 	if (ret)
+ 		goto error;
+ 
+-- 
+2.45.2
+
