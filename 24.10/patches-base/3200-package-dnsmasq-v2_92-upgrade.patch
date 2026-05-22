@@ -1,7 +1,8 @@
-From 13c8b4de6b0e0a5dbc574e33719d1a0698315308 Mon Sep 17 00:00:00 2001
+From 4e066544a127c6aaa0902e8890423582e71096d9 Mon Sep 17 00:00:00 2001
 From: Frank-zj Lin <frank-zj.lin@mediatek.com>
-Date: Tue, 19 May 2026 16:03:01 +0800
-Subject: [PATCH] Upgrade package dnsmasq from 2.90.5 to 2.92.2
+Date: Fri, 22 May 2026 11:09:29 +0800
+Subject: [PATCH] backport dnsmasq openwrt-main branch dnsmasq 2.92.2 to
+ openwrt-24.10
 
 Signed-off-by: Frank-zj Lin <frank-zj.lin@mediatek.com>
 ---
@@ -16,10 +17,10 @@ Signed-off-by: Frank-zj Lin <frank-zj.lin@mediatek.com>
  .../002-CVE-2026-4890.dnsmasq-2.92.patch      | 42 ++++++++
  .../dnsmasq/patches/004-CVE-2026-4892.patch   |  2 +-
  .../dnsmasq/patches/005-CVE-2026-4893.patch   |  4 +-
- .../dnsmasq/patches/006-CVE-2026-5172.patch   |  2 +-
+ .../dnsmasq/patches/006-CVE-2026-5172.patch   |  6 +-
  ...00-remove-old-runtime-kernel-support.patch |  8 +-
  .../dnsmasq/patches/200-ubus_dns.patch        | 32 +++---
- 14 files changed, 102 insertions(+), 270 deletions(-)
+ 14 files changed, 104 insertions(+), 272 deletions(-)
  delete mode 100644 package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch
  delete mode 100644 package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch
  delete mode 100644 package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch
@@ -477,14 +478,14 @@ index d51ce95..0867522 100644
   
  -      /* CLID into packet */
 diff --git a/package/network/services/dnsmasq/patches/005-CVE-2026-4893.patch b/package/network/services/dnsmasq/patches/005-CVE-2026-4893.patch
-index 66fedcd..664f00f 100644
+index 83b1e5c..664f00f 100644
 --- a/package/network/services/dnsmasq/patches/005-CVE-2026-4893.patch
 +++ b/package/network/services/dnsmasq/patches/005-CVE-2026-4893.patch
 @@ -15,10 +15,10 @@ Date:   Wed Mar 25 23:22:37 2026 +0000
  
  --- a/src/forward.c
  +++ b/src/forward.c
--@@ -722,7 +722,7 @@ static size_t process_reply(struct dns_h
+-@@ -710,7 +710,7 @@ static size_t process_reply(struct dns_h
 +@@ -724,7 +724,7 @@ static size_t process_reply(struct dns_h
         /* Get extended RCODE. */
         rcode |= sizep[2] << 4;
@@ -494,18 +495,26 @@ index 66fedcd..664f00f 100644
  +      if (option_bool(OPT_CLIENT_SUBNET) && !check_source(header, n, pheader, query_source))
   	{
 diff --git a/package/network/services/dnsmasq/patches/006-CVE-2026-5172.patch b/package/network/services/dnsmasq/patches/006-CVE-2026-5172.patch
-index 848e7fe..f44234b 100644
+index 4859f60..f44234b 100644
 --- a/package/network/services/dnsmasq/patches/006-CVE-2026-5172.patch
 +++ b/package/network/services/dnsmasq/patches/006-CVE-2026-5172.patch
-@@ -14,7 +14,7 @@ Date:   Mon Mar 30 16:24:33 2026 +0100
+@@ -14,13 +14,13 @@ Date:   Mon Mar 30 16:24:33 2026 +0100
  
  --- a/src/rfc1035.c
  +++ b/src/rfc1035.c
--@@ -985,7 +985,8 @@ int extract_addresses(struct dns_header
+-@@ -932,7 +932,8 @@ int extract_addresses(struct dns_header
 +@@ -943,7 +943,8 @@ int extract_addresses(struct dns_header
   			      /* Name, extract it then re-encode. */
   			      int len;
   			      
+--			      if (!extract_name(header, qlen, &p1, name, 1, 0))
++-			      if (!extract_name(header, qlen, &p1, name, EXTR_NAME_EXTRACT, 0))
+ +			      /* rdlen may lie, and extract_name() advances p1 past where it says the record ends. */
+-+			      if (!extract_name(header, qlen, &p1, name, 1, 0) || (p1 > endrr))
+++			      if (!extract_name(header, qlen, &p1, name, EXTR_NAME_EXTRACT, 0) || (p1 > endrr))
+  				{
+  				  blockdata_free(addr.rrblock.rrdata);
+  				  return 2;
 diff --git a/package/network/services/dnsmasq/patches/100-remove-old-runtime-kernel-support.patch b/package/network/services/dnsmasq/patches/100-remove-old-runtime-kernel-support.patch
 index 26c1b46..1c1150a 100644
 --- a/package/network/services/dnsmasq/patches/100-remove-old-runtime-kernel-support.patch
