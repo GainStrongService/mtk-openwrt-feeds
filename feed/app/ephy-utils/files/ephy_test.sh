@@ -3,10 +3,10 @@
 #
 # Copyright (C) 2025 MediaTek Inc.
 #
-# Normal: ./ephy_test.sh -p=0 --dst_ip=10.77.1.254(Cheetah)
-# ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --delay=25 --packet=10
-# ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --delay=10 --packet=2 --an_type=phy_power_downup
-# ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --delay=25 --packet=10 --an_type=phy_reset
+# Normal: ./ephy_test.sh -p=0 --dst_ip=192.168.1.3(Cheetah)
+# ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --delay=25 --packet=10
+# ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --delay=10 --packet=2 --an_type=phy_power_downup
+# ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --delay=25 --packet=10 --an_type=phy_reset
 #
 # Cheetah:
 # [Basic test]
@@ -24,8 +24,8 @@
 # $ ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --an_type=ifconfig --mode=force-slave --packet=0 --delay=3 --flow=pause_after_linkup
 #
 # [For MSZ]
-# $ ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --an_type=phy_power_downup --mode=force-master
-# $ ./ephy_test.sh -p=0 --dst_ip=10.77.1.254 --an_type=phy_power_downup --mode=prefer-master
+# $ ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --an_type=phy_power_downup --mode=force-master
+# $ ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --an_type=phy_power_downup --mode=prefer-master
 # $ ./ephy_test.sh -p=0 --dst_ip=192.168.1.3 --an_type=ifconfig --mode=force-slave
 
 
