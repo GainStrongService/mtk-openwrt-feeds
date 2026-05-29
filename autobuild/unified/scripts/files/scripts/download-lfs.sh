@@ -50,15 +50,16 @@ fi
 if test ! -f "${REPO_DIR}/${FILE}"; then
 	# Update repo if file not exist
 	git -C "${REPO_DIR}" checkout .
-	git -C "${REPO_DIR}" clean -f -d
 
 	git -C "${REPO_DIR}" ls-files --others --exclude-standard | while read file; do
-		mv "${file}" ${TMP_DIR}/
+		mv "${REPO_DIR}/${file}" "${TMP_DIR}/"
 	done
+
+	git -C "${REPO_DIR}" clean -f -d
 
 	git -C "${REPO_DIR}" -c "lfs.fetchexclude=*" pull --rebase
 
-	mv ${TMP_DIR}/* ${REPO_DIR}/
+	find "${TMP_DIR}" -mindepth 1 -maxdepth 1 -exec mv {} "${REPO_DIR}/" \;
 
 	if test ! -f "${REPO_DIR}/${FILE}"; then
 		# Need to replace the parameter for download.pl
