@@ -357,19 +357,15 @@ echo "a9748bd" > mtk-openwrt-feeds/autobuild/unified/feed_revision
 
 #Fix the OpenWrt feed not being correctly replaced with the public one
 #vim mtk-openwrt-feeds/autobuild/unified/rules
-@@ -103,8 +103,11 @@
+@@ -103,8 +103,3 @@
  update_ab_info() {
- 	if test -z "${internal_build}"; then
- 		if test -d "${openwrt_root}/../mtk-openwrt-feeds"; then
+-	if test -z "${internal_build}"; then
+-		if test -d "${openwrt_root}/../mtk-openwrt-feeds"; then
 -			log_dbg "Internal repo build mode"
 -			internal_build=1
-+			local remote=$(git -C "${openwrt_root}/../mtk-openwrt-feeds" remote -v 2>/dev/null | grep 'gerrit.mediatek.inc' 2>/dev/null)
-+			if test -n "${remote}"; then
-+				log_dbg "Internal repo build mode"
-+				internal_build=1
-+			fi
- 		fi
- 	fi
+-		fi
+-	fi
++	internal_build=
  }
 @@ -163,7 +163,7 @@
  	if test -n "${internal_build}" -a -z "${feed_rev}"; then
