@@ -1,0 +1,38 @@
+menu "NPU Support Network Feature Configuration"
+
+config MTK_NPU_ADPT_FWD
+	bool "MediaTek NPU Adapter Forward Support"
+	default n
+	help
+	  Select y to support adapter forward network feature with MediaTek
+	  NPU hardware.
+	  This feature is a special request to bridge WAN with another network
+	  port when NPU receives specific type of packet.
+	  This feature is not expected to be enabled in normal scenario.
+
+config MTK_NPU_L4S
+	bool "MediaTek NPU L4S Support"
+	default n
+	help
+	  Select y to support L4S network feature with MediaTek NPU hardware.
+	  This feature is a special request to implement L4S functionalities
+	  with NPU hardware to support network congestion control, however,
+	  NPU can only approximately predict network status. Thus, the feature
+	  may not be able to provide percise network congestion status and it
+	  should be used with caution and tune it finely.
+	  In addition, other features is not compatible with this feature. In
+	  other words, if L4S is enabled, other NPU features cannot be
+	  supported.
+	  This feature is not expected to be enabled in normal scenario.
+
+config MTK_NPU_RATE_LIMIT
+	bool "MediaTek NPU Rate Limit Support"
+	default n
+	help
+	  Select y to support MediaTek NPU forward certain type of packets to
+	  with QoS control.
+	  This feature is a special request and it supports 4 type of QoS queue
+	  to forward those pre-defined packet types.
+	  This feature is not expected to be enabled in normal scenario.
+
+endmenu

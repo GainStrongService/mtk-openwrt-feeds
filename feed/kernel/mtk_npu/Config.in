@@ -1,0 +1,126 @@
+menu "NPU Configurations"
+	depends on PACKAGE_kmod-npu
+
+choice
+	prompt "NPU Offload Target"
+	default MTK_NPU_REBB_SUPPORT
+	help
+	  Determine NPU offload support target
+
+config MTK_NPU_REBB_SUPPORT
+	bool "MTK NPU support ReBB"
+	select PACKAGE_npu-rebb-fw
+
+endchoice
+
+source "$(SOURCE)/Config-protocols.in"
+source "$(SOURCE)/Config-features.in"
+
+config MTK_NPU_SECURE_FW
+	bool "NPU Secure Firmware Load"
+	default n
+	help
+	  Enable NPU secure firmware load
+
+config MTK_NPU_MEM_TEST
+	bool "NPU Memory Test"
+	depends on !MTK_NPU_SECURE_FW
+	default y
+	help
+	  Set y to execute the memory test during the NPU bring-up process.
+	  The memory test will write some of specific patterns to NPU memory,
+	  then read it back and compare it to ensure data correctness.
+	  This is primarily used to verify the integrity of the memory and its
+	  accessibility by the APMCU.
+
+config MTK_NPU_THERMAL
+	bool "NPU Thermal"
+	default y
+	help
+	  Set y to enable thermal feature which will automatically throttle
+	  NPU usage when the system detects that the board's temperature is
+	  too high. The mechanism for throttling NPU usage rate is MCU's
+	  dynamic frequency scaling.
+
+config MTK_NPU_LOGGER
+	bool "NPU Logger"
+	default n
+	help
+	  Set y to enable logger feature which logs the firmware log to relayfs.
+	  Logger feature is runtime turned off by default. To save firmware log
+	  for easier debug, logger feature should be further runtime turned on by a
+	  user tool (npu-tool's logger) which is responsible to save the firmware log
+	  from relayfs to flash.
+
+config MTK_NPU_LOGGER_FW_DEFAULT_RUNNING
+	bool "NPU Logger Firmware Default Running"
+	depends on MTK_NPU_LOGGER
+	default n
+	help
+	  Set y to turn on firmware logger feature by default. It's mainly used to
+	  capture the firmware's cold boot log. If there's no need to capture it,
+	  please set n.
+
+config MTK_NPU
+	bool
+	depends on PACKAGE_kmod-npu
+
+config MTK_NPU_HNAT
+	bool
+	depends on PACKAGE_kmod-npu-nf_hnat
+	help
+	  Set y to enable NPU tunnel offload feature with HNAT support. These
+	  two hardware features cooperatively offload tunnel packets from Host
+	  CPU and accelerate tunnel packets Tx/Rx throughput dramatically.
+
+config MTK_NPU_FLOW
+	bool
+	depends on PACKAGE_kmod-npu-flow
+	help
+	  Set y to enable NPU tunnel offload feature with flowblock support. These
+	  two hardware features cooperatively offload tunnel packets from Host
+	  CPU and accelerate tunnel packets Tx/Rx throughput dramatically.
+
+config MTK_NPU_MCAST
+	bool
+	depends on PACKAGE_kmod-npu-mcast
+	help
+	  set y to enable NPU network offload feature with IPv4/IPv6 multicast
+	  support.
+
+config MTK_NPU_DPDK
+	bool
+	depends on PACKAGE_kmod-npu-dpdk
+	help
+	  set y to enable NPU network offload feature with DPDK customized
+	  function. Note that, this feature does not compatible with other NPU
+	  features.
+
+choice
+	prompt "MTK NPU DPDK MAC Filter entry num"
+	depends on MTK_NPU_DPDK
+	default MTK_NPU_DPDK_MAC_FILTER_NUM_1024
+	help
+	  set number of entries that NPU is able to support DPDK MAC filter
+	  feature.
+
+config MTK_NPU_DPDK_MAC_FILTER_NUM_1024
+	bool "Reserve 1024 entries for mac filter table"
+
+config MTK_NPU_DPDK_MAC_FILTER_NUM_128
+	bool "Reserve 128 entries for mac filter table"
+
+endchoice
+
+config MTK_NPU_DPDK_MAC_FILTER_NUM
+	int
+	depends on MTK_NPU_DPDK
+	default 1024 if MTK_NPU_DPDK_MAC_FILTER_NUM_1024
+	default 128  if MTK_NPU_DPDK_MAC_FILTER_NUM_128
+
+config MTK_NPU_STATISTIC
+	bool "MTK NPU support statistic for various subsystems"
+	default y
+	help
+	  set y to enable NPU to collect its subsystem's status.
+endmenu

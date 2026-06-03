@@ -1,0 +1,77 @@
+menu "NPU Offload Tunnel Protocols Configuration"
+
+choice
+	prompt "NPU Tunnel Count"
+	default NPU_TNL_32
+	help
+	  Determine number of NPU tunnel
+
+config NPU_TNL_32
+	bool "32 NPU Tunnel"
+
+endchoice
+
+config NPU_TNL_NUM
+	int
+	default 32 if NPU_TNL_32
+	help
+	  Configuration for NPU tunnel count. This value should be
+	  2 ^ NPU_TNL_MAP_BIT.
+
+config NPU_TNL_MAP_BIT
+	int
+	default 5 if NPU_TNL_32
+	help
+	  Configuration for NPU tunnel map bit. This value should be the log
+	  of NPU_TNL_NUM.
+
+config NPU_TNL_TYPE_NUM
+	int
+	default 32
+
+config MTK_NPU_GRE
+	bool
+	default n
+
+config MTK_NPU_GRETAP
+	bool "Mediatek NPU L2oGRE HW Offload"
+	default y
+	select MTK_NPU_GRE
+	select PACKAGE_kmod-gre
+	help
+	  select y for L2oGRE HW offload by tunnel offload processing system
+
+config MTK_NPU_PPP
+	bool
+
+config MTK_NPU_PPTP
+	bool "Mediatek NPU PPTP HW Offload"
+	default y
+	select MTK_NPU_PPP
+	select PACKAGE_ppp-mod-pptp
+	select PACKAGE_pptpd
+	help
+	  select y for PPTP HW offload by tunnel offload processing system
+
+config MTK_NPU_L2TP
+	bool
+	default n
+
+config MTK_NPU_L2TP_V2
+	bool "Mediatek NPU L2TPv2 HW Offload"
+	default y
+	select MTK_NPU_L2TP
+	select MTK_NPU_PPP
+	select PACKAGE_kmod-l2tp
+	select PACKAGE_xl2tpd
+	help
+	  select y for L2TPv2 offload by tunnel offload processing system
+
+config MTK_NPU_VXLAN
+	bool "Mediatek NPU VXLAN HW Offload"
+	default y
+	select PACKAGE_kmod-vxlan
+	help
+	  select y for VXLAN offload by tunnel offload processing system
+
+endmenu
