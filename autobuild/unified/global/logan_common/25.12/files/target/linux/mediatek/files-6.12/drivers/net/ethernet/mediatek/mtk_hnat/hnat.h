@@ -1032,6 +1032,7 @@ struct hnat_prot_3t_cfg {
 
 struct mtk_hnat {
 	struct device *dev;
+	struct mtk_eth *eth;
 	void __iomem *fe_base;
 	void __iomem *ppe_base[MAX_PPE_NUM];
 	struct foe_entry *foe_table_cpu[MAX_PPE_NUM];
@@ -1442,6 +1443,31 @@ static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
 #endif
 }
 
+static inline u32 skb_hnat_ppe(const struct sk_buff *skb)
+{
+	struct mtk_eth *eth = hnat_priv->eth;
+	int gmac_id;
+
+	switch (skb_hnat_sport(skb)) {
+	case NR_GMAC1_PORT:
+		gmac_id = MTK_GMAC1_ID;
+		break;
+	case NR_GMAC2_PORT:
+		gmac_id = MTK_GMAC2_ID;
+		break;
+	case NR_GMAC3_PORT:
+		gmac_id = MTK_GMAC3_ID;
+		break;
+	default:
+		return 0;
+	}
+
+	if (!eth || !eth->mac[gmac_id])
+		return 0;
+
+	return eth->mac[gmac_id]->ppe_idx;
+}
+
 struct foe_entry *hnat_get_foe_entry(u32 ppe_id, u32 index);
 
 void hnat_deinit_debugfs(struct mtk_hnat *h);
@@ -1504,7 +1530,7 @@ void hnat_neigh_update_init(void);
 void hnat_neigh_update_cleanup(void);
 void hnat_neigh_update_work_handler(struct work_struct *work);
 void exclude_boundary_entry(struct foe_entry *foe_table_cpu);
-void set_gmac_ppe_fwd(int gmac_no, int enable);
+void set_gmac_ppe_fwd(int port, int enable);
 int get_ppe_mib(u32 ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt);
 int is_entry_binding(u32 ppe_id, int index);
 int entry_detail(u32 ppe_id, int index);
