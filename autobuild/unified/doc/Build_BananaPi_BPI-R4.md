@@ -41,7 +41,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds:
 
 2.  **Clone the MTK OpenWrt Feeds**:
     ```bash
-    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
     git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
     cd -
@@ -95,7 +95,7 @@ make V=s -j$(nproc)
 
 ### Flashing the Firmware and Bootloader
 
-For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4, please refer to [Flash_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
+For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4, please refer to [Flash_BananaPi_BPI-R4.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
 
 
 ---
@@ -169,10 +169,10 @@ Start by obtaining the necessary OpenWrt 24.10 source code and feeds:
         3. Wait for the log: `Press ENTER to return to menu`.
       - Power off the board, then power on again and verify that OpenWrt boots correctly.
 
-   > **Note: MediaTek and OpenWrt Official Bootloaders**  
+   > **Note: MediaTek and OpenWrt Official Bootloaders**
     There are many differences between the MediaTek and OpenWrt official U-Boot bootloaders.
     Please refer to the following document for a summary of these differences, as well as a guide for converting between the MediaTek bootloader and the OpenWrt official bootloader:
-    [Flash_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)      
+    [Flash_BananaPi_BPI-R4.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
 
 
 ---
@@ -193,7 +193,7 @@ Start by obtaining the OpenWrt 24.10 MediaTek SDK source code and feeds:
 
 2. **Clone the MTK OpenWrt Feeds:**
     ```bash
-    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
     git checkout d700864a98353c5e344277177f574c30a6d7159d
     cd -
@@ -256,7 +256,7 @@ If needed, clean the OpenWrt source directory using:
 
 ### Flashing the Firmware and Bootloader
 
-For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4, please refer to [Flash_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
+For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4, please refer to [Flash_BananaPi_BPI-R4.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md)
 
 
 ***

@@ -56,7 +56,7 @@ cd -
 #### MediaTek OpenWrt Feeds
 
 ```bash
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
 cd mtk-openwrt-feeds
 # If necessary, you can manually switch to the following verified commit ID, or just use default value
 git checkout 5ee86b89bc62dee10d8db1e0a48fdd140dd2ec3e
@@ -144,9 +144,9 @@ You can also build the SDK manually, step by step, for more flexibility and debu
 
   for more details, check the scripts in mtk-openwrt-feeds:
 
-  https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/autobuild.sh
-  https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/rules
-  https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/scripts/
+  https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/autobuild.sh
+  https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/rules
+  https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/scripts/
 
 - **Prepare the SDK for Platform-Only Build:**
 

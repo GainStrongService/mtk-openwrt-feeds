@@ -47,7 +47,7 @@ cd -
 
 2. Clone the MTK OpenWrt Feeds:
 ```bash
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
 cd mtk-openwrt-feeds
 git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
 cd -

@@ -26,7 +26,7 @@ Currently two release branches are supported:
 
 ```bash
 cd openwrt
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 ```
@@ -78,7 +78,7 @@ make V=s -j$(nproc)
 ```
 
 # Mediatek Official Release with autobuild framework
-1. OpenWrt21.02 branch: [Kernel5.4 Release](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/autobuild_5.4_mac80211_release/Readme.md)
+1. OpenWrt21.02 branch: [Kernel5.4 Release](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/autobuild_5.4_mac80211_release/Readme.md)
 
-2. OpenWrt24.10 branch: [Kernel6.6 Release](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/Readme.md)
+2. OpenWrt24.10 branch: [Kernel6.6 Release](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/Readme.md)
 

@@ -51,7 +51,7 @@ Start by obtaining the OpenWrt 25.12 source code and feeds for BPI-R4-Lite:
 
 2. **Clone the MTK OpenWrt Feeds**:
     ```bash
-    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
     git checkout 8068d5484d132b2f0183d2520a6b280ff09cc058
     cd -
@@ -116,7 +116,7 @@ make V=s -j$(nproc)
 
 ### Flashing the Firmware and Bootloader
 
-For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4 Lite, please refer to [Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
+For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4 Lite, please refer to [Flash_BananaPi_BPI-R4_Lite.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
 
 ---
 
@@ -192,7 +192,7 @@ You should prepare the SD card first, and refer to the following guide according
 > **Note: MediaTek and OpenWrt Official Bootloaders**
 There are many differences between the MediaTek and OpenWrt official U-Boot bootloaders.
 Please refer to the following document for a summary of these differences, as well as a guide for converting between the MediaTek bootloader and the OpenWrt official bootloader:
-[Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
+[Flash_BananaPi_BPI-R4_Lite.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
 
 ---
 ## [C] OpenWrt 24.10 (Stable) -- MediaTek SDK
@@ -211,7 +211,7 @@ Start by obtaining the OpenWrt 24.10 MediaTek SDK source code and feeds:
 
 2. **Clone the MTK OpenWrt Feeds:**
     ```bash
-    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
     cd mtk-openwrt-feeds
     git checkout d700864a98353c5e344277177f574c30a6d7159d
     cd -
@@ -244,7 +244,7 @@ For BPIR4-lite, we have tested it can build pass in following commits:
 
 OpenWrt:
 
-https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/e5b75e44781cd0e64491afcdfa9646be03c8e8ea
+https://github.com/mediatek/mtk-openwrt-feeds/+/e5b75e44781cd0e64491afcdfa9646be03c8e8ea
 
 
 1.  **Clone the OpenWrt Source Code**:
@@ -257,7 +257,7 @@ https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/e5b
 2.  **Clone the MTK OpenWrt Feeds**:
 
     ```bash
-    git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+    git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds
     cd mtk-openwrt-feeds && git checkout e5b75e44781cd0e64491afcdfa9646be03c8e8ea && cd -
     ```
 
@@ -314,13 +314,13 @@ If needed, clean the OpenWrt source directory using:
 
 ### Flashing the Firmware and Bootloader
 
-For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4 Lite, please refer to [Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
+For instructions on flashing the firmware and the autobuild-generated bootloader onto the BananaPi BPI-R4 Lite, please refer to [Flash_BananaPi_BPI-R4_Lite.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
 
 
 Flashing the Firmware
 ---------------------
 For instructions on flashing the firmware onto the BananaPi BPI-R4 Lite, please refer to the separate document named
-[Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
+[Flash_BananaPi_BPI-R4_Lite.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
 
 ***
 | Revision | Date       | Author    | Description                                                   |

@@ -38,7 +38,7 @@ saveenv
 ```
 
 - Filogic850 (MT7987) - GMAC1 is AN8855 switch and GMAC2 is Mediatek Internal 2.5G PHY and GMAC3 is Mediatek External 2.5G PHY case
-    - If your ITB image includes the [MT7987_DTSO_RENMAE](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/469d57073d96d5743f2f92d0a84c553f31b1ff1f) OpenWrt MTK feed change, the MT7987's NAND DTSO has been renamed to `mt7987-spim-nand-nmbm`
+    - If your ITB image includes the [MT7987_DTSO_RENMAE](https://github.com/mediatek/mtk-openwrt-feeds/commit/469d57073d96d5743f2f92d0a84c553f31b1ff1f) OpenWrt MTK feed change, the MT7987's NAND DTSO has been renamed to `mt7987-spim-nand-nmbm`
 To avoid kernel boot failure, please use the following command to update your U-Boot configuration settings:
 
     ### mtk_openwrt_feeds codebase after 2025-09-18
@@ -179,7 +179,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout bc9f1cab83d09f91e28c7ca830de778b08bd2842; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 2784de8784ef91fa4ffa21336b6c50eb6aaa70e8; cd -;
 
 #Choose one SKU to build (1st Build)
@@ -219,7 +219,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| **Platform**             | **OpenWrt-24.10**             | **git01.mediatek.com**         |
+| **Platform**             | **OpenWrt-24.10**             | **github.com/mediatek/mtk-openwrt-feeds**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.104                       | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds              |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
@@ -242,7 +242,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 0a21ab73121c7db7c9c92c7cbf2a7b8b586007a6; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 94ded988427c60e667ec370213e7ad02065c21f6; cd -;
 
 #Choose one SKU to build (1st Build)
@@ -274,7 +274,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| **Platform**             | **OpenWrt-24.10**            | **git01.mediatek.com**         |
+| **Platform**             | **OpenWrt-24.10**            | **github.com/mediatek/mtk-openwrt-feeds**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.92                        | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds                 |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
@@ -297,7 +297,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 3a481ae21bdc504f7f0325151ee0cb4f25dfd2cd; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout c8e3540e54b5b07b7afb4a5bd09d6f8db8c8a496; cd -;
 
 #Choose one SKU to build (1st Build)
@@ -328,7 +328,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| **Platform**             | **OpenWrt-24.10**            | **git01.mediatek.com**         |
+| **Platform**             | **OpenWrt-24.10**            | **github.com/mediatek/mtk-openwrt-feeds**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.68                        | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds                 |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
@@ -351,7 +351,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 56559278b78900f6cae5fda6b8d1bb9cda41e8bf; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout a9748bd2c6ee1cee973f8fd7149c9389944ae147; cd -;
 echo "a9748bd" > mtk-openwrt-feeds/autobuild/unified/feed_revision
 
@@ -406,7 +406,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| Platform                 | OpenWrt/main                  | git01.mediatek.com                                                                |
+| Platform                 | OpenWrt/main                  | github.com/mediatek/mtk-openwrt-feeds                                             |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.79                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
@@ -431,7 +431,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 5601274444df871dbf8ee3a7eb5d30da7a39c77b; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout cdc5905a308564a78535270dd6296fb1991fecc0; cd -;
 
 #Choose one SKU to build (1st Build)
@@ -462,7 +462,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| Platform                 | OpenWrt/main                  | git01.mediatek.com                                                                |
+| Platform                 | OpenWrt/main                  | github.com/mediatek/mtk-openwrt-feeds                                             |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.63                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |

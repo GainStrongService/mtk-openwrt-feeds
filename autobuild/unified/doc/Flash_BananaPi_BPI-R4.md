@@ -299,7 +299,7 @@ If your BPIR4 device is running a non-MediaTek official U-Boot (e.g., stock U-Bo
 #### Chainload Example: Using OpenWrt official BPI-R4 EMMC to Upgrade to MediaTek Official EMMC U-Boot
 
 > **Note: EMMC & SD**
-The MT7988 SoC on the BPI-R4 has only one MMC controller. SD and EMMC have separate pins, but since they share the same controller, they cannot operate simultaneously. Therefore, you cannot use the SD image to directly upgrade the EMMC image. You must first switch to the OpenWrt official BPI-R4 EMMC bootloader, please refer to the `OpenWrt 24.10 (Stable) -- OpenWrt Official` section of  [Build_BananaPi_BPI-R4.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md) to upgrade to the EMMC bootloader. Then, use this bootloader to apply chainload and upgrade to the MediaTek Official EMMC U-Boot.
+The MT7988 SoC on the BPI-R4 has only one MMC controller. SD and EMMC have separate pins, but since they share the same controller, they cannot operate simultaneously. Therefore, you cannot use the SD image to directly upgrade the EMMC image. You must first switch to the OpenWrt official BPI-R4 EMMC bootloader, please refer to the `OpenWrt 24.10 (Stable) -- OpenWrt Official` section of  [Build_BananaPi_BPI-R4.md](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/Flash_BananaPi_BPI-R4.md) to upgrade to the EMMC bootloader. Then, use this bootloader to apply chainload and upgrade to the MediaTek Official EMMC U-Boot.
 
 1. **Prepare the MediaTek Official U-Boot binary (not FIP image) for chainloading**
    - Build the MediaTek Official U-Boot image using the autobuild script as described in the build SOP.

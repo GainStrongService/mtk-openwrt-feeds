@@ -100,7 +100,7 @@ git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git mac
 cd mac80211_package; git checkout 28bde50c1d5236ad890ef2fe3a0e89f731ee4421; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout be639389a047a00cca671bf1a06b5848d054adbd; cd -;
 
 #Change to openwrt folder
@@ -108,7 +108,7 @@ cp -rf mtk-openwrt-feeds/autobuild/autobuild_5.4_mac80211_release openwrt
 cd openwrt; mv autobuild_5.4_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -132,12 +132,12 @@ make V=s PKG_HASH=skip PKG_MIRROR_HASH=skip
 src-git packages https://git.openwrt.org/feed/packages.git^1be343f
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^be63938
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^be63938
 ```
 
 ##### WiFi Package Version
 
-| Platform                 | OpenWrt-21.02                 | git01.mediatek.com                                                                |
+| Platform                 | OpenWrt-21.02                 | github.com/mediatek/mtk-openwrt-feeds                                             |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | linux-5.4.281                 | ./feeds/mtk_openwrt_feed/21.02/files/target/linux/mediatek <br /> ./feeds/mtk_openwrt_feed/autobuild/autobuild_mac80211_release/target/linux/mediatek/patches-5.4 |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
@@ -186,7 +186,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout 21ddd1164dc53b098ed36f8330c397e7de8076e6; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout b62586b3cc50a02ed6572c8667c5be6effedcaaf; cd -;
 
 #Change to openwrt folder
@@ -194,7 +194,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -219,7 +219,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^1be343f
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^b62586b
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^b62586b
 ```
 
 ##### WiFi Package Version
@@ -262,7 +262,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout b51abacb5fd465e5ce4329ec27ac516b5a2b83b9; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout effe5b41b0fff8336ee6a0b10abdc1194e48b41a; cd -;
 
 #Change to openwrt folder
@@ -270,7 +270,7 @@ cp -rf mtk-openwrt-feeds/autobuild/autobuild_5.4_mac80211_release openwrt
 cd openwrt; mv autobuild_5.4_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -294,7 +294,7 @@ make V=s PKG_HASH=skip PKG_MIRROR_HASH=skip
 src-git packages https://git.openwrt.org/feed/packages.git^1be343f
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^effe5b4
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^effe5b4
 ```
 
 ##### WiFi Package Version
@@ -333,7 +333,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout 84a48ce400b2c7b0779f51e83c68de5f8ec58ffd; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 76907874285a4246a5564c0302f94bc9ebd6be3d; cd -;
 
 #Change to openwrt folder
@@ -341,7 +341,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -361,7 +361,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^1be343f
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^7690787
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^7690787
 ```
 
 ##### WiFi Package Version
@@ -401,7 +401,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout 6b0db8592a3e4342c32111491948f32d5bc0087f; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout f7aca5a0ac99439f3a2f771b348626a4f5947f0e; cd -;
 
 #Change to openwrt folder
@@ -409,7 +409,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -429,7 +429,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^2219ac4
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^f7aca5a
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^f7aca5a
 ```
 
 ##### WiFi Package Version
@@ -462,7 +462,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout e4ebc7b5662d6436fcc84b8e1583204b96fb0503; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 54666b27016ebaf08de55b41aa6e2bab90148482; cd -;
 
 #Change to openwrt folder
@@ -470,7 +470,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 
@@ -489,7 +489,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^8df2214
 src-git luci https://git.openwrt.org/project/luci.git^e98243e
 src-git routing https://git.openwrt.org/feed/routing.git^d79f2b5
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^54666b2
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^54666b2
 ```
 
 ##### WiFi Package Version
@@ -525,7 +525,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout cf8d861978dbfdb572a25db460db464b50d9e809; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 22df8430587f6491e8e57f9dd73bda4348e2ba6b; cd -;
 
 #Change to openwrt folder
@@ -533,7 +533,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 
@@ -552,7 +552,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^c6fc6dd
 src-git luci https://git.openwrt.org/project/luci.git^e98243e
 src-git routing https://git.openwrt.org/feed/routing.git^8071852
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^22df843
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^22df843
 ```
 
 ##### WiFi Package Version
@@ -587,7 +587,7 @@ git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_p
 cd mac80211_package; git checkout 01885bc6a33dbfa6f3c9e97778fd8f4f60e2514f; cd -;
 
 #Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 1070711049192d2d5c6534fcb39a47051326f503; cd -;
 
 #Change to openwrt folder
@@ -595,7 +595,7 @@ cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
 cd openwrt; mv autobuild_mac80211_release autobuild
 
 #Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" >> feeds.conf.default
 
 #!!! CAUTION!!! Modify feed's revision
 vim autobuild/feeds.conf.default-21.02
@@ -615,7 +615,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^8df2214
 src-git luci https://git.openwrt.org/project/luci.giti^e98243e
 src-git routing https://git.openwrt.org/feed/routing.git^d79f2b5
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^1070711
+src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^1070711
 ```
 
 ##### WiFi Package Version

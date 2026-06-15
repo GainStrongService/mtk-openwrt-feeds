@@ -19,7 +19,7 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 The OpenWrt/25.12 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports OpenWrt 21.0x, OpenWrt 24.xx, and OpenWrt 25.12 image types.
 
 There are two ways to update Uboot and ATF:
-- Git01: please refer to [Bootloader-Preparation-and-flashing](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/MediaTek_OpenWrt_2512_User_Guide.md#bootloader-preparation-and-flashing)
+- GitHub: please refer to [Bootloader-Preparation-and-flashing](https://github.com/mediatek/mtk-openwrt-feeds/blob/main/autobuild/unified/doc/MediaTek_OpenWrt_2512_User_Guide.md#bootloader-preparation-and-flashing)
 - Tarball: please log in to the DCC or contact the corresponding window to obtain the latest U-Boot and ATF source code.
 
 Also need DTS overlay to enable 10G ethernet for one-time uboot console setting. "0. U-Boot console"
@@ -167,7 +167,7 @@ git clone --branch openwrt-25.12 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 34ae6ba2d861e710e3c130c95cdb7eb4a1286121; cd -;
 
 # Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout 9b5754e3a361635595ea31a14176b14169e69d18; cd -;
 
 # Choose one SKU to build (1st Build)
@@ -193,7 +193,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 ```
 ##### WiFi Package Version
 
-| **Platform**             | **OpenWrt-25.12**             | **git01.mediatek.com**         |
+| **Platform**             | **OpenWrt-25.12**             | **github.com/mediatek/mtk-openwrt-feeds**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.12.74                       | ./feeds/mtk_openwrt_feed/25.12/patches-base <br />  ./feeds/mtk_openwrt_feed/25.12/files  <br /> ./feeds/mtk_openwrt_feed/25.12/patches-feeds              |
 | **WiFi Package**         | **OpenWrt-25.12**             | **MTK Internal Patches**                                                          |
@@ -216,7 +216,7 @@ git clone --branch openwrt-25.12 https://git.openwrt.org/openwrt/openwrt.git ope
 cd openwrt; git checkout 2acfd9f8ab12e4f353a0aa644d9adf89588b1f0f; cd -;
 
 # Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+git clone --branch main https://github.com/mediatek/mtk-openwrt-feeds.git
 cd mtk-openwrt-feeds; git checkout ed73621011e496593b388b267e4da36f059d5f38; cd -;
 
 # Choose one SKU to build (1st Build)
@@ -244,7 +244,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 ##### WiFi Package Version
 
-| **Platform**             | **OpenWrt-25.12**             | **git01.mediatek.com**         |
+| **Platform**             | **OpenWrt-25.12**             | **github.com/mediatek/mtk-openwrt-feeds**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.12.62                       | ./feeds/mtk_openwrt_feed/25.12/patches-base <br />  ./feeds/mtk_openwrt_feed/25.12/files  <br /> ./feeds/mtk_openwrt_feed/25.12/patches-feeds              |
 | **WiFi Package**         | **OpenWrt-25.12**             | **MTK Internal Patches**                                                          |
