@@ -1,10 +1,12 @@
 ---
-[v14] net: ethernet: mtk_eth_soc: support proprietary debugfs
+[v15] net: ethernet: mtk_eth_soc: support proprietary debugfs
 
 Add comprehensive proprietary debugfs support for MTK Ethernet driver. This
 provides extensive debugging interfaces for register access, statistics,
 configuration inspection, and hardware state monitoring.
 ---
+v15: Add QDMA queue bytes count statistics by reading QTX_HEAD and QTX_TAIL
+     registers.
 v14: Add gdm_ppe_cfg debugfs to override GMAC->PPE mapping.
 v13: Refactor esw_cnt command to ensure that they can read the GDM and
      MT753x MIB counters.
@@ -53,7 +55,7 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-@@ -0,0 +1,2925 @@
+@@ -0,0 +1,2933 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + *   Copyright (C) 2025 MediaTek Inc.
@@ -270,11 +272,12 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
 +	long id = qdma_ctx->id;
 +	char *buf;
 +	unsigned int len = 0, buf_len = 1500;
-+	u32 qtx_sch, qtx_cfg;
++	u32 qtx_sch, qtx_cfg, qtx_head, qtx_tail;
 +	int scheduler;
 +	int min_rate_en, min_rate, min_rate_exp;
 +	int max_rate_en, max_weight, max_rate, max_rate_exp;
 +	ssize_t ret_cnt;
++	u64 bytes;
 +
 +	buf = kzalloc(buf_len, GFP_KERNEL);
 +	if (!buf)
@@ -325,8 +328,15 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
 +				       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
 +		qtx_sch = mtk_r32(eth, soc->reg_map->qdma.qtx_sch +
 +				       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
++		qtx_head = mtk_r32(eth, soc->reg_map->qdma.qtx_cfg + 0x8 +
++				       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
++		qtx_tail = mtk_r32(eth, soc->reg_map->qdma.qtx_cfg + 0xc +
++				       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
++		bytes = qtx_head + ((u64)qtx_tail << 32);
 +		len += scnprintf(buf + len, buf_len - len,
 +				 "packet count: %u\n", qtx_cfg);
++		len += scnprintf(buf + len, buf_len - len,
++				 "bytes count: %llu\n", bytes);
 +		len += scnprintf(buf + len, buf_len - len,
 +				 "packet drop: %u\n\n", qtx_sch);
 +
