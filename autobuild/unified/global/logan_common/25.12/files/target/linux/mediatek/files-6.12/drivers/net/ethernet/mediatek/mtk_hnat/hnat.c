@@ -970,8 +970,9 @@ static irqreturn_t hnat_handle_fe_irq2(int irq, void *priv)
 		pr_warn("Failed to dump ppe entry %d_%d!\n", ppe_id, fcs->entry);
 
 	return IRQ_HANDLED;
-#endif
+#else
 	return IRQ_NONE;
+#endif
 }
 
 void __hnat_cache_clr(u32 ppe_id)
