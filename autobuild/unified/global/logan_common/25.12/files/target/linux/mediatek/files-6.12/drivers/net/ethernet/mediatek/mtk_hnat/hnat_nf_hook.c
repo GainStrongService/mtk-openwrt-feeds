@@ -340,11 +340,21 @@ void foe_clear_all_bind_entries(void)
 
 static void gmac_ppe_fwd_enable(struct net_device *dev)
 {
+	struct mtk_eth *eth = hnat_priv->eth;
 	struct net_device *master_dev = dev;
 	struct mtk_mac *mac;
+	int i;
 
-	if (netdev_uses_dsa(master_dev))
+	if (dsa_user_dev_check(master_dev))
 		hnat_dsa_get_port(&master_dev);
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (eth->netdev[i] == master_dev)
+			break;
+	}
+
+	if (i >= MTK_MAX_DEVS)
+		return;
 
 	mac = netdev_priv(master_dev);
 
