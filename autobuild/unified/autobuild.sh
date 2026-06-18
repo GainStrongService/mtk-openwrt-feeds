@@ -33,6 +33,7 @@ ab_stages="prepare build release"
 do_menuconfig=
 do_help=
 do_list=
+do_tag=
 do_clean=
 do_fullclean=
 do_sdk_release=
@@ -60,6 +61,9 @@ elif test x"${1}" = x"help"; then
 	shift
 elif test x"${1}" = x"list"; then
 	do_list=1
+	shift
+elif test x"${1}" = x"tag"; then
+	do_tag=1
 	shift
 elif test x"${1}" = x"clean"; then
 	do_clean=1
@@ -131,6 +135,17 @@ if test -z "${openwrt_branch}"; then
 	exit 1
 else
 	log_info "OpenWrt's branch is ${openwrt_branch}"
+fi
+
+# Handle manifest tag command (MediaTek internal use only)
+if test x"${do_tag}" = x"1"; then
+	if test -f "${ab_root}/global-dev/manifest-tag.sh"; then
+		. "${ab_root}/global-dev/manifest-tag.sh" "$@"
+		exit $?
+	else
+		log_err "Manifest tag management is not supported"
+		exit 1
+	fi
 fi
 
 # Temporary directory for storing configs and intermediate files
