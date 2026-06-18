@@ -1,0 +1,79 @@
+From f8ce1ea3ee95c3923270796bd605028ff1e200c9 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Tue, 16 Jun 2026 16:33:41 +0800
+Subject: [PATCH] mtk: mt76: mt7996: Add checks for iTWT setup in non-AP MLD
+
+Problem:
+iTWT setup attempts for non-AP MLDs can lead to unexpected behavior
+due to unsupported configurations, potentially causing system
+instability.
+
+Root Cause:
+The code did not check for MLD status before proceeding with iTWT
+setup, leading to attempts to configure iTWT for non-AP MLDs.
+
+Solution:
+Introduce a check for MLD status before iTWT setup. If the station is
+a non-AP MLD, log a debug message and exit the setup process to
+prevent unsupported configurations.
+
+Feature:
+TWT
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mac.c  | 10 +++++++++-
+ mt7996/main.c | 11 +++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index bdf1eaa74..51b7240da 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3592,11 +3592,19 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	struct mt7996_twt_flow *flow;
+ 	u8 flowid, table_id, exp;
+ 
++	if (sta->mlo) {
++		mt76_dbg(&dev->mt76, MT76_DBG_STA,
++			 "iTWT setup is not supported for a non-AP MLD");
++		goto out;
++	}
++
+ 	if (mt7996_mac_check_twt_req(twt))
+ 		goto out;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
++	msta_link = mt76_dereference(msta->link[msta->deflink_id], &dev->mt76);
++	if (!msta_link)
++		goto unlock;
+ 
+ 	if (dev->twt.n_agrt == MT7996_MAX_TWT_AGRT)
+ 		goto unlock;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 297f7fca5..050dc8a95 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2622,9 +2622,16 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	msta_link = mt76_dereference(msta->link[0], &dev->mt76);
+-	link = mt7996_vif_link(dev, vif, 0);
++	msta_link = mt76_dereference(msta->link[msta->deflink_id], &dev->mt76);
++	if (!msta_link)
++		goto unlock;
++
++	link = mt7996_vif_link(dev, vif, msta->deflink_id);
++	if (!link)
++		goto unlock;
++
+ 	mt7996_mac_twt_teardown_flow(dev, link, msta_link, flowid);
++unlock:
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
+-- 
+2.45.2
+
