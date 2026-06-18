@@ -3894,7 +3894,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 			entry->ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv, true);
 
 		if (entry_hnat_is_bound(entry)) {
-			memset(skb_hnat_info(skb), 0, sizeof(struct hnat_desc));
+			/* unshare if head cloned so sibling clones keep their hnat info */
+			if (!skb_shared(skb) && !skb_cow_head(skb, 0))
+				memset(skb_hnat_info(skb), 0, sizeof(struct hnat_desc));
 
 			return -1;
 		}
