@@ -291,34 +291,64 @@ function simple_convert() {
 }
 
 function convert_tx_mode() {
-    # Remove leading zeros
-    local tx_mode=$(echo $1 | sed -r 's/0+([0-9]+)/\1/g')
+    local tx_mode=$(remove_leading_zeros "$1")
+    local ebf=$2
 
-    if [ "$tx_mode" = "0" ]; then
-        echo "cck"
-    elif [ "$tx_mode" = "1" ]; then
-        echo "ofdm"
-    elif [ "$tx_mode" = "2" ]; then
-        echo "ht"
-    elif [ "$tx_mode" = "4" ]; then
-        echo "vht"
-    elif [ "$tx_mode" = "8" ]; then
-        echo "he_su"
-    elif [ "$tx_mode" = "9" ]; then
-        echo "he_er"
-    elif [ "$tx_mode" = "10" ]; then
-        echo "he_tb"
-    elif [ "$tx_mode" = "11" ]; then
-        echo "he_mu"
-    elif [ "$tx_mode" = "13" ]; then
-        echo "eht_su"
-    elif [ "$tx_mode" = "14" ]; then
-        echo "eht_tb"
-    elif [ "$tx_mode" = "15" ]; then
-        echo "eht_mu"
-    else
-        echo "undefined"
-    fi
+    case "$tx_mode" in
+        0)
+            echo "cck"
+            ;;
+        1)
+            echo "ofdm"
+            ;;
+        2)
+            echo "ht"
+            ;;
+        4)
+            echo "vht"
+            ;;
+        8)
+            echo "he_su"
+            ;;
+        9)
+            echo "he_er"
+            ;;
+        10)
+            echo "he_tb"
+            ;;
+        11)
+            echo "he_mu"
+            ;;
+        13)
+            echo "eht_su"
+            ;;
+        15)
+            if [ -z "$ebf" ]; then
+                echo "eht_mu"
+            else
+                echo "eht_su"
+            fi
+            ;;
+        16)
+            if [ -z "$ebf" ]; then
+                echo "eht_tb"
+            else
+                echo "uhr_su"
+            fi
+            ;;
+        17)
+            echo "uhr_su"
+            ;;
+        18)
+            echo "uhr_mu"
+            ;;
+        19)
+            echo "uhr_tb"
+            ;;
+        *)
+            echo "undefined"
+            ;;
+    esac
 }
 
 function convert_gi {
@@ -705,7 +735,7 @@ function convert_ibf {
             new_cmd="txcmd"
             ;;
         "ATEConTxETxBfGdProc")
-            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2})
+            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2} "1")
             local tx_rate_idx=${new_param:3:2}
             local bw=$(remove_leading_zeros ${new_param:6:2})
             local channel=$(remove_leading_zeros ${new_param:9:3})
@@ -725,7 +755,7 @@ function convert_ibf {
             do_cmd "mt76-test phy${phy_idx} set tx_rate_mode=${tx_rate_mode} tx_rate_idx=${tx_rate_idx} tx_rate_sgi=0"
             ;;
         "ATEConTxETxBfInitProc")
-            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2})
+            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2} "1")
             local tx_rate_idx=${new_param:3:2}
             local bw=$(remove_leading_zeros ${new_param:6:2})
             local tx_rate_nss=${new_param:9:2}
@@ -1265,7 +1295,6 @@ if [ "${cmd_type}" = "set" ]; then
             param_new=$(convert_tx_mode ${param})
             if [ "${param_new}" = "undefined" ]; then
                 print_err "unknown tx mode"
-                print_debug "0:cck, 1:ofdm, 2:ht, 4:vht, 8:he_su, 9:he_er, 10:he_tb, 11:he_mu"
                 exit
             else
                 record_config ${cmd} ${param} ${iwpriv_file}
