@@ -1,0 +1,268 @@
+From a82b8de5d286fa96c55176ff52591b7a804a6091 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 16 Apr 2026 12:18:20 +0800
+Subject: [PATCH] mtk: mt76: fix testmode issues
+
+Fix testmode issues
+1. test script should delay 500ms to wait for TX
+2. ebf cert fail
+
+The core concept is that when the TX antenna, TX NSS, or TX SPE IDX changes,
+the channel must be updated.
+Additionally, restoring the TX waiting mechanism. Otherwise, triggering a channel
+update before transmission without waiting will cause abnormal TX behavior.
+Finally, add some ebf fixes, such as allowing tx_ipg to be set to 4.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt76.h            |  1 +
+ mt7996/testmode.c | 60 ++++++++++++++++++++++++++++-------------------
+ testmode.c        | 14 +++++------
+ testmode.h        |  1 -
+ 4 files changed, 43 insertions(+), 33 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index d2e31c822..7af33cc04 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -930,6 +930,7 @@ struct mt76_testmode_data {
+ 	enum mt76_testmode_state state;
+ 
+ 	u32 param_set[DIV_ROUND_UP(NUM_MT76_TM_ATTRS, 32)];
++	bool ch_update_required;
+ 	struct sk_buff *tx_skb;
+ 
+ 	u8 sku_en;
+diff --git a/mt7996/testmode.c b/mt7996/testmode.c
+index 73b65bea9..152a011b2 100644
+--- a/mt7996/testmode.c
++++ b/mt7996/testmode.c
+@@ -28,6 +28,7 @@ enum tm_changed {
+ 	TM_CHANGED_TX_RATE_NSS,
+ 	TM_CHANGED_TX_RATE_IDX,
+ 	TM_CHANGED_RX_FILTER,
++	TM_CHANGED_TX_SPE_IDX,
+ 
+ 	/* must be last */
+ 	NUM_TM_CHANGED
+@@ -51,6 +52,7 @@ static const u8 tm_change_map[] = {
+ 	[TM_CHANGED_TX_RATE_NSS] = MT76_TM_ATTR_TX_RATE_NSS,
+ 	[TM_CHANGED_TX_RATE_IDX] = MT76_TM_ATTR_TX_RATE_IDX,
+ 	[TM_CHANGED_RX_FILTER] = MT76_TM_ATTR_RX_FILTER,
++	[TM_CHANGED_TX_SPE_IDX] = MT76_TM_ATTR_TX_SPE_IDX,
+ };
+ 
+ static void mt7996_tm_ipi_work(struct work_struct *work);
+@@ -173,9 +175,10 @@ mt7996_tm_set(struct mt7996_dev *dev, u32 func_idx, u32 data)
+ 			.op.rf.param.func_data = cpu_to_le32(data),
+ 		},
+ 	};
++	bool wait = (func_idx == SET_ID(COMMAND)) && (data == RF_CMD(START_TX));
+ 
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TESTMODE_CTRL), &req,
+-				 sizeof(req), false);
++				 sizeof(req), wait);
+ }
+ 
+ static int
+@@ -221,9 +224,11 @@ mt7996_tm_set_antenna(struct mt7996_phy *phy, u32 func_idx)
+ 	    !mt76_testmode_param_present(td, MT76_TM_ATTR_TX_SPE_IDX))
+ 		return;
+ 
+-	if (func_idx == SET_ID(TX_PATH))
+-		antenna_mask = td->tx_spe_idx ? (SPE_INDEX_MASK | td->tx_spe_idx) :
+-						td->tx_antenna_mask & TX_ANTENNA_MASK;
++	if (func_idx == SET_ID(TX_PATH) && td->tx_spe_idx &&
++	    mt76_testmode_param_present(td, MT76_TM_ATTR_TX_SPE_IDX))
++		antenna_mask = SPE_INDEX_MASK | td->tx_spe_idx;
++	else if (func_idx == SET_ID(TX_PATH))
++		antenna_mask = td->tx_antenna_mask & TX_ANTENNA_MASK;
+ 	else if (func_idx == SET_ID(RX_PATH))
+ 		antenna_mask = u32_encode_bits(td->tx_antenna_mask, RX_ANTENNA_MASK);
+ 	else
+@@ -396,6 +401,8 @@ mt7996_tm_update_channel(struct mt7996_phy *phy)
+ 
+ 	/* trigger switch channel calibration */
+ 	mt7996_tm_set(dev, SET_ID(CHAN_FREQ), chandef->center_freq1 * 1000);
++
++	td->ch_update_required = false;
+ }
+ 
+ static void
+@@ -450,7 +457,7 @@ mt7996_tm_set_tx_frames(struct mt7996_phy *phy, bool en)
+ 	mt7996_tm_set(dev, SET_ID(MAX_PKT_EXT), td->max_pkt_ext);
+ 	mt7996_tm_set(dev, SET_ID(HW_TX_MODE), 0);
+ 
+-	if (!td->bf_en && mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA))
++	if (!td->bf_en && td->ch_update_required)
+ 		mt7996_tm_update_channel(phy);
+ 
+ 	/* trigger firmware to start TX */
+@@ -1354,8 +1361,6 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 	struct mt7996_dev *dev = phy->dev;
+ 	struct mt76_testmode_data *td = &phy->mt76->test;
+ 	struct ieee80211_vif *vif = phy->mt76->monitor_vif;
+-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+-	struct mt7996_vif_link *deflink = &mvif->deflink;
+ 	enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20;
+ 	void *phase_cal, *pfmu_data, *pfmu_tag;
+ 	u8 nss, band_idx = phy->mt76->band_idx;
+@@ -1422,10 +1427,6 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 	mt7996_tm_set_mac_addr(dev, td->addr[1], SET_ID(SA));
+ 	mt7996_tm_set_mac_addr(dev, td->addr[2], SET_ID(BSSID));
+ 
+-	mt7996_mcu_add_dev_info(phy, phy->mt76->monitor_vif, &phy->mt76->monitor_vif->bss_conf, &mvif->deflink.mt76, true);
+-	mt7996_mcu_add_bss_info(phy, vif, &vif->bss_conf, &deflink->mt76,
+-				&deflink->msta_link, true);
+-
+ 	if (td->ibf) {
+ 		if (td->is_txbf_dut) {
+ 			/* Enable ITxBF Capability */
+@@ -1458,11 +1459,12 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 			td->tx_rate_nss = 4;
+ 		}
+ 	} else {
++		width = phy->mt76->chandef.width;
+ 		if (td->is_txbf_dut) {
+ 			/* Enable ETxBF Capability */
+ 			mt7996_mcu_set_txbf(dev, BF_HW_EN_UPDATE);
+-			td->tx_antenna_mask = phy->mt76->chainmask;
+-			td->tx_spe_idx = 24 + band_idx;
++			if (!mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA))
++				td->tx_antenna_mask = phy->mt76->chainmask;
+ 			if (td->tx_rate_mode == MT76_TM_TX_MODE_VHT ||
+ 			    td->tx_rate_mode == MT76_TM_TX_MODE_HE_SU)
+ 				mt7996_tm_set(dev, SET_ID(NSS), td->tx_rate_nss);
+@@ -1475,9 +1477,8 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 			mt76_tm_dbg(&dev->mt76, "set BBP RX CR = %x",
+ 				    mt76_rr(dev, EBF_BBP_RX_OFFSET));
+ 
+-			td->tx_antenna_mask = 1;
++			td->tx_antenna_mask = width == NL80211_CHAN_WIDTH_160 ? 5 : 1;
+ 		}
+-		width = phy->mt76->chandef.width;
+ 
+ 		if (td->tx_rate_mode == MT76_TM_TX_MODE_EHT_MU)
+ 			td->tx_rate_mode = MT76_TM_TX_MODE_EHT_SU;
+@@ -1494,6 +1495,13 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 		      mt7996_tm_bw_mapping(width, BW_MAP_NL_TO_FW));
+ 	mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
+ 	mt7996_tm_set_antenna(phy, SET_ID(RX_PATH));
++
++	if (!td->ibf && td->is_txbf_dut) {
++		td->tx_spe_idx = 24 + band_idx;
++		mt76_testmode_param_set(td, MT76_TM_ATTR_TX_SPE_IDX);
++		mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
++	}
++
+ 	mt7996_tm_set(dev, SET_ID(IPG), td->tx_ipg);
+ 	mt7996_tm_set(dev, SET_ID(TX_LEN), td->tx_mpdu_len);
+ 	mt7996_tm_set(dev, SET_ID(TX_TIME), 0);
+@@ -1676,7 +1684,8 @@ mt7996_tm_txbf_profile_update(struct mt7996_phy *phy, u16 *val, bool ebf)
+ 		nr = 1;
+ 	else if (td->tx_antenna_mask == 7)
+ 		nr = 2;
+-	else if (td->tx_antenna_mask == 31)
++	else if (td->tx_antenna_mask == 31 &&
++		 td->tx_rate_mode != MT76_TM_TX_MODE_HT)
+ 		nr = 4;
+ 	else
+ 		nr = 3;
+@@ -2210,13 +2219,10 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
+ 	}
+ 	if (changed & BIT(TM_CHANGED_CFG))
+ 		mt7996_tm_set_cfg(phy);
+-	if (changed & BIT(TM_CHANGED_OFF_CHAN_CH)) {
+-		if (changed & BIT(TM_CHANGED_OFF_CHAN_CENTER_CH))
+-			mt76_testmode_param_set(td, MT76_TM_ATTR_OFF_CH_SCAN_CENTER_CH);
+-		if (changed & BIT(TM_CHANGED_OFF_CHAN_BW))
+-			mt76_testmode_param_set(td, MT76_TM_ATTR_OFF_CH_SCAN_BW);
++	if ((changed & BIT(TM_CHANGED_OFF_CHAN_CH)) ||
++	    (changed & BIT(TM_CHANGED_OFF_CHAN_CENTER_CH)) ||
++	    (changed & BIT(TM_CHANGED_OFF_CHAN_BW)))
+ 		mt7996_tm_set_offchan(phy);
+-	}
+ 	if ((changed & BIT(TM_CHANGED_IPI_THRESHOLD)) &&
+ 	    (changed & BIT(TM_CHANGED_IPI_PERIOD)))
+ 		mt7996_tm_set_ipi(phy);
+@@ -2225,12 +2231,18 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
+ 	if (changed & BIT(TM_CHANGED_TXBF_ACT))
+ 		mt7996_tm_set_txbf(phy);
+ 	if (changed & BIT(TM_CHANGED_TX_ANTENNA)) {
+-		mt76_testmode_param_set(td, MT76_TM_ATTR_TX_ANTENNA);
+ 		mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
+ 		mt7996_tm_set_antenna(phy, SET_ID(RX_PATH));
++		td->ch_update_required = true;
+ 	}
+-	if (changed & BIT(TM_CHANGED_TX_RATE_NSS))
++	if (changed & BIT(TM_CHANGED_TX_SPE_IDX)) {
++		mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
++		td->ch_update_required = true;
++	}
++	if (changed & BIT(TM_CHANGED_TX_RATE_NSS)) {
+ 		mt7996_tm_set(dev, SET_ID(NSS), td->tx_rate_nss);
++		td->ch_update_required = true;
++	}
+ 	if (changed & BIT(TM_CHANGED_TX_RATE_IDX))
+ 		mt7996_tm_set(dev, SET_ID(TX_RATE), td->tx_rate_idx);
+ 	if (changed & BIT(TM_CHANGED_RX_FILTER)) {
+diff --git a/testmode.c b/testmode.c
+index 728b5466d..f06db765c 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -829,8 +829,7 @@ mt76_testmode_set_list_mode(struct mt76_phy *phy, struct nlattr **tb)
+ 		return -EINVAL;
+ 
+ 	if (mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_COUNT], &list->tx_count, 1, UINT_MAX) ||
+-	    mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_IPG], &list->tx_ipg,
+-			    MT76_TM_MIN_IPG, MT76_TM_MAX_IPG) ||
++	    mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_IPG], &list->tx_ipg, 0, MT76_TM_MAX_IPG) ||
+ 	    mt76_tm_get_u32(tb[MT76_TM_ATTR_LM_SEG_TIMEOUT], &list->seg_timeout, 0, UINT_MAX) ||
+ 	    mt76_tm_get_u32(tb[MT76_TM_ATTR_LM_STA_IDX], &list->sta_idx, 0, 16))
+ 		return -EINVAL;
+@@ -1133,8 +1132,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		goto out;
+ 
+ 	if (mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_COUNT], &td->tx_count, 1, UINT_MAX) ||
+-	    mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_IPG], &td->tx_ipg,
+-			    MT76_TM_MIN_IPG, MT76_TM_MAX_IPG) ||
++	    mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_IPG], &td->tx_ipg, 0, MT76_TM_MAX_IPG) ||
+ 	    mt76_tm_get_u32(tb[MT76_TM_ATTR_FREQ_OFFSET], &td->freq_offset, 0, 127) ||
+ 	    mt76_tm_get_u32(tb[MT76_TM_ATTR_IPI_PERIOD], &td->ipi_period, 0, 10000) ||
+ 	    mt76_tm_get_u32(tb[MT76_TM_ATTR_TX_TIME], &td->tx_time,
+@@ -1262,16 +1260,16 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		}
+ 	}
+ 
++	for (i = MT76_TM_ATTR_STATE; i < ARRAY_SIZE(tb); i++)
++		if (tb[i])
++			mt76_testmode_param_set(td, i);
++
+ 	if (dev->test_ops->set_params) {
+ 		err = dev->test_ops->set_params(phy, tb, state);
+ 		if (err)
+ 			goto out;
+ 	}
+ 
+-	for (i = MT76_TM_ATTR_STATE; i < ARRAY_SIZE(tb); i++)
+-		if (tb[i])
+-			mt76_testmode_param_set(td, i);
+-
+ 	err = 0;
+ 	if (tb[MT76_TM_ATTR_STATE])
+ 		err = mt76_testmode_set_state(phy, state);
+diff --git a/testmode.h b/testmode.h
+index 994e4e89f..939c15693 100644
+--- a/testmode.h
++++ b/testmode.h
+@@ -8,7 +8,6 @@
+ #define MT76_TM_TIMEOUT			10
+ #define MT76_TM_EEPROM_BLOCK_SIZE	16
+ 
+-#define MT76_TM_MIN_IPG			34
+ #define MT76_TM_MAX_IPG			591981
+ #define MT76_TM_MAX_MU_AID		0xf100
+ 
+-- 
+2.45.2
+
