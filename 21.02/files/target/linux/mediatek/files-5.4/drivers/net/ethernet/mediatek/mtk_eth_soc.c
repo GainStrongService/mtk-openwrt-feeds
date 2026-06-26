@@ -63,6 +63,7 @@ static const struct mtk_reg_map mtk_reg_map = {
 		.irq_mask	= 0x0a28,
 		.int_grp	= 0x0a50,
 		.int_grp2	= 0x0a54,
+		.lro_alt_timer	= 0x001c,
 		.lro_ctrl_dw0	= 0x0980,
 		.lro_alt_score_delta	= 0x0a4c,
 		.lro_rx_dly_int	= 0x0a70,
@@ -121,6 +122,7 @@ static const struct mtk_reg_map mt7628_reg_map = {
 		.irq_mask	= 0x0a28,
 		.int_grp	= 0x0a50,
 		.int_grp2	= 0x0a54,
+		.lro_alt_timer	= 0x001c,
 		.lro_ctrl_dw0	= 0x0980,
 		.lro_alt_score_delta	= 0x0a4c,
 		.lro_rx_dly_int	= 0x0a70,
@@ -147,6 +149,7 @@ static const struct mtk_reg_map mt7986_reg_map = {
 		.irq_mask	= 0x4228,
 		.int_grp	= 0x4250,
 		.int_grp2	= 0x4254,
+		.lro_alt_timer	= 0x001c,
 		.lro_ctrl_dw0	= 0x4180,
 		.lro_alt_score_delta	= 0x424c,
 		.lro_rx_dly_int	= 0x4270,
@@ -210,6 +213,7 @@ static const struct mtk_reg_map mt7988_reg_map = {
 		.irq_mask	= 0x6a28,
 		.int_grp	= 0x6a50,
 		.int_grp2	= 0x6a54,
+		.lro_alt_timer	= 0x6c00,
 		.lro_ctrl_dw0	= 0x6c08,
 		.lro_alt_score_delta	= 0x6c1c,
 		.lro_alt_dbg	= 0x6c40,
@@ -3573,7 +3577,7 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 
 	/* set refresh timer for altering flows to 1 sec. (unit: 20us) */
 	mtk_w32(eth, (MTK_HW_LRO_TIMER_UNIT << 16) | MTK_HW_LRO_REFRESH_TIME,
-		MTK_PDMA_LRO_ALT_REFRESH_TIMER);
+		reg_map->pdma.lro_alt_timer);
 
 	/* enable max 4-depth VLAN support including switch special tag */
 	lro_ctrl_dw3 |= MTK_LRO_VLAN_VID_CMP_DEPTH | MTK_LRO_VLAN_EN;

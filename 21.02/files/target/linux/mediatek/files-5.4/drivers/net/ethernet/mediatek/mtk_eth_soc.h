@@ -148,9 +148,6 @@
 #define MTK_PDMA_IRQ_NUM	(4)
 #define MTK_MAX_IRQ_NUM		(MTK_FE_IRQ_NUM + MTK_PDMA_IRQ_NUM)
 
-/* PDMA HW LRO Alter Flow Timer Register */
-#define MTK_PDMA_LRO_ALT_REFRESH_TIMER	0x1c
-
 /* Frame Engine Interrupt Grouping Register */
 #define MTK_FE_INT_GRP		0x20
 
@@ -1995,6 +1992,7 @@ struct mtk_reg_map {
 		u32	irq_mask;	/* interrupt mask */
 		u32	int_grp;	/* interrupt group1 */
 		u32	int_grp2;	/* interrupt group2 */
+		u32	lro_alt_timer;	/* lro auto-learn refresh timer */
 		u32	lro_ctrl_dw0;	/* lro control dword0 */
 		u32	lro_alt_score_delta;	/* lro auto-learn score delta */
 		u32	lro_rx_dly_int;	/* lro rx ring delay interrupt */
