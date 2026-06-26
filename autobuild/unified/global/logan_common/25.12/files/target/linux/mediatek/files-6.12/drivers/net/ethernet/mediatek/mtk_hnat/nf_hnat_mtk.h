@@ -121,6 +121,9 @@ struct hnat_desc {
 #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 #define skb_hnat_magic(skb) (((struct hnat_desc *)(skb->head))->magic)
 #define skb_hnat_reason(skb) (((struct hnat_desc *)(skb->head))->crsn)
+#define skb_hnat_reason_ready_bind(skb)						\
+	(skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH ||			\
+	 (CFG_PPE_BIND_THRESHOLD <= 1 && skb_hnat_reason(skb) == HIT_UNBIND))
 #define skb_hnat_entry(skb) (((struct hnat_desc *)(skb->head))->entry)
 #define skb_hnat_sport(skb) (((struct hnat_desc *)(skb->head))->sport)
 #define skb_hnat_alg(skb) (((struct hnat_desc *)(skb->head))->alg)

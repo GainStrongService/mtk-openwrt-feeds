@@ -893,7 +893,8 @@ static int binding_threshold(int threshold)
 {
 	int i;
 
-	pr_info("Binding Threshold =%d\n", threshold);
+	pr_info("Binding Threshold = %d\n", threshold);
+	hnat_priv->bind_threshold = threshold;
 
 	for (i = 0; i < CFG_PPE_NUM; i++)
 		writel(threshold, hnat_priv->ppe_base[i] + PPE_BNDR);

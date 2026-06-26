@@ -1063,8 +1063,7 @@ static void mtk_464xlat_pre_process(struct sk_buff *skb)
 		return;
 
 	foe = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-	if (foe->bfib1.state != BIND &&
-	    skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH)
+	if (foe->bfib1.state != BIND && skb_hnat_reason_ready_bind(skb))
 		memcpy(&headroom[skb_hnat_entry(skb)], skb->head,
 		       sizeof(struct hnat_desc));
 
@@ -1424,7 +1423,7 @@ static int hnat_bridge_flood_check(struct sk_buff *skb,
 	if (!netif_is_bridge_port(in))
 		return 0;
 
-	if (skb_hnat_alg(skb) || skb_hnat_reason(skb) != HIT_UNBIND_RATE_REACH)
+	if (skb_hnat_alg(skb) || !skb_hnat_reason_ready_bind(skb))
 		return 0;
 
 	if (!is_unicast_ether_addr(eth_hdr(skb)->h_dest))
@@ -3122,7 +3121,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (unlikely(!skb_mac_header_was_set(skb)))
 		return NF_ACCEPT;
 
-	if (skb_hnat_reason(skb) != HIT_UNBIND_RATE_REACH)
+	if (!skb_hnat_reason_ready_bind(skb))
 		return NF_ACCEPT;
 
 	spin_lock_bh(&hnat_priv->flow_entry_lock);
@@ -3907,7 +3906,9 @@ static int mtk_464xlat_post_process(struct sk_buff *skb, const struct net_device
 	if (hash >= hnat_priv->foe_etry_num)
 		return -1;
 
-	if (headroom[hash].crsn != HIT_UNBIND_RATE_REACH)
+	if (headroom[hash].crsn != HIT_UNBIND_RATE_REACH &&
+	    !(hnat_priv->bind_threshold <= 1 &&
+	      headroom[hash].crsn == HIT_UNBIND))
 		return -1;
 
 	foe = &hnat_priv->foe_table_cpu[headroom_ppe(headroom[hash])][hash];
@@ -4006,6 +4007,10 @@ static unsigned int mtk_hnat_nf_post_routing(
 		    IS_HNAT_API_SUPPORTED(entry))
 			hnat_trigger_callback(hnat_fin_callback, skb);
 		break;
+	case HIT_UNBIND:
+		if (!skb_hnat_reason_ready_bind(skb))
+			break;
+		fallthrough;
 	case HIT_UNBIND_RATE_REACH:
 		if (entry_hnat_is_bound(entry))
 			break;
@@ -4103,7 +4108,7 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-	if (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH) {
+	if (skb_hnat_reason_ready_bind(skb)) {
 		ip6h = ipv6_hdr(skb);
 		if (ip6h->nexthdr == NEXTHDR_IPIP) {
 			/* Map-E LAN->WAN: need to record orig info before fn. */
