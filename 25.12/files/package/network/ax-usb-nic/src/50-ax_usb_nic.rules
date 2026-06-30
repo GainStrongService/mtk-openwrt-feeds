@@ -1,0 +1,9 @@
+ACTION!="add", GOTO="ax_usb_nic_end"
+SUBSYSTEM!="usb", GOTO="ax_usb_nic_end"
+ENV{DEVTYPE}!="usb_device", GOTO="ax_usb_nic_end"
+
+ENV{PROPRIETARY_MODE}="1"
+
+ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{bConfigurationValue}!="$env{PROPRIETARY_MODE}", ATTR{bConfigurationValue}="$env{PROPRIETARY_MODE}"
+
+LABEL="ax_usb_nic_end"
