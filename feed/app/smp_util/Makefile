@@ -24,7 +24,7 @@ define Package/smp_util
 endef
 
 define Package/smp_util/description
-  mtk smp util to init iptables rule for flowblock
+  mtk smp util to tune SMP/RPS affinity and init flowblock rules
 endef
 
 define Build/Prepare
@@ -43,7 +43,9 @@ define Package/smp_util/install
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
 
 	$(INSTALL_BIN) ./files/flowtable.sh $(1)/sbin/
+	$(INSTALL_BIN) ./files/smp-dispatch.sh $(1)/sbin/
 	$(INSTALL_BIN) ./files/smp-mt76.sh $(1)/sbin/
+	$(INSTALL_BIN) ./files/smp.sh $(1)/sbin/
 	$(INSTALL_BIN) ./files/smp.init $(1)/etc/init.d/smp
 	$(INSTALL_BIN) ./files/99-smp $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/99-flowtable_update $(1)/etc/hotplug.d/net
