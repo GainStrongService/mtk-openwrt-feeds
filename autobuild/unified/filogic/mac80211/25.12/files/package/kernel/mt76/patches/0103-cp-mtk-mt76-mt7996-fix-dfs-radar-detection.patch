@@ -1,0 +1,110 @@
+From 7ee107945e8be9287c0cece2a321869c2946e85d Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 22 Jun 2026 13:23:20 +0800
+Subject: [PATCH] mtk: mt76: mt7996: fix dfs radar detection
+
+1.
+Fix dfs radar detection command set fail issue
+
+2.
+Fix radar detection mode for background radar
+Without this patch, the background radar will be disabled (RDD stop)
+even in cert mode when the radar is detected.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/main.c   |  6 ++++++
+ mt7996/mt7996.h |  2 ++
+ mt7996/vendor.c | 35 +++++++++++++++++++++++++----------
+ 3 files changed, 33 insertions(+), 10 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 7167081b6..752e30662 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2944,6 +2944,12 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
++	if (phy->dfs_tx_mode && !chandef) {
++		dev_warn(dev->mt76.dev, "Ignore bkg RDD disable when cert mode is on\n");
++		ret = 0;
++		goto out;
++	}
++
+ 	if (dev->mt76.region == NL80211_DFS_UNSET)
+ 		goto out;
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 5c80c1b02..214edace8 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -806,6 +806,8 @@ struct mt7996_phy {
+ 		u32 interval;
+ 		u32 last_record;
+ 	} csi;
++
++	u8 dfs_tx_mode;
+ #endif
+ 
+ 	bool sr_enable:1;
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index fb7d47fb2..75b848c10 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -1743,27 +1743,42 @@ static int mt7996_vendor_dfs_tx_mode_ctrl(struct wiphy *wiphy,
+ 	u8 radio_idx, dfs_tx_mode;
+ 	int err, rdd_idx;
+ 
+-	if (!tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_MODE] ||
+-	    !tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_RADIO_IDX])
+-		return -EINVAL;
+-
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_DFS_TX_CTRL_MAX, data, data_len,
+ 			dfs_tx_ctrl_policy, NULL);
+ 	if (err)
+-		return err;
++		goto out;
++
++	if (!tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_MODE] ||
++	    !tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_RADIO_IDX]) {
++		err = -EINVAL;
++		goto out;
++	}
+ 
+ 	radio_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_RADIO_IDX]);
+-	if (!mt7996_radio_valid(dev, radio_idx))
+-		return -EINVAL;
++	if (!mt7996_radio_valid(dev, radio_idx)) {
++		dev_err(dev->mt76.dev, "Invalid radio idx %d\n", radio_idx);
++		err = -EINVAL;
++		goto out;
++	}
+ 
+ 	phy = dev->radio_phy[radio_idx];
+ 	rdd_idx = mt7996_get_rdd_idx(phy, false);
+-	if (rdd_idx < 0)
+-		return -EINVAL;
++	if (rdd_idx < 0) {
++		dev_err(dev->mt76.dev, "Invalid rdd idx %d\n", rdd_idx);
++		err = -EINVAL;
++		goto out;
++	}
+ 
+ 	dfs_tx_mode = nla_get_u8(tb[MTK_VENDOR_ATTR_DFS_TX_CTRL_MODE]);
+ 
+-	return mt7996_mcu_rdd_cmd(dev, RDD_DET_MODE, rdd_idx, dfs_tx_mode);
++	err = mt7996_mcu_rdd_cmd(dev, RDD_DET_MODE, rdd_idx, dfs_tx_mode);
++	if (err)
++		goto out;
++
++	phy->dfs_tx_mode = dfs_tx_mode;
++
++out:
++	return err;
+ }
+ 
+ static const struct wiphy_vendor_command mt7996_vendor_commands[] = {
+-- 
+2.45.2
+
