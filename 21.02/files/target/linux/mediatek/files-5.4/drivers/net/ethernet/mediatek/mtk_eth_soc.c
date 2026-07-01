@@ -710,6 +710,25 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
 	return 0;
 }
 
+static u32 mtk_syscfg0_sgmii_mask(struct mtk_mac *mac)
+{
+	struct mtk_eth *eth = mac->hw;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1))
+		return SYSCFG0_SGMII_MASK;
+
+	switch (mac->id) {
+	case MTK_GMAC1_ID:
+		return SYSCFG0_SGMII_GMAC1_V2;
+	case MTK_GMAC2_ID:
+		return SYSCFG0_SGMII_GMAC2_V2;
+	case MTK_GMAC3_ID:
+		return SYSCFG0_SGMII_GMAC3_V2;
+	default:
+		return 0;
+	}
+}
+
 static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state)
 {
@@ -717,7 +736,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
 	struct net_device *dev = eth->netdev[mac->id];
-	u32 i;
+	u32 i, sgmii_mask;
 	int val = 0, ge_mode, err = 0;
 	unsigned int mac_type = mac->type;
 
@@ -850,12 +869,13 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		/* The path GMAC to SGMII will be enabled once the SGMIISYS is
 		 * being setup done.
 		 */
+		sgmii_mask = mtk_syscfg0_sgmii_mask(mac);
+
 		spin_lock(&eth->syscfg0_lock);
 		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
-				   SYSCFG0_SGMII_MASK,
-				   ~(u32)SYSCFG0_SGMII_MASK);
+				   sgmii_mask, 0);
 
 		/* Save the syscfg0 value for mac_finish */
 		mac->syscfg0 = val;
@@ -921,9 +941,11 @@ static int mtk_mac_finish(struct phylink_config *config, unsigned int mode,
 	/* Enable SGMII */
 	if (interface == PHY_INTERFACE_MODE_SGMII ||
 	    phy_interface_mode_is_8023z(interface)) {
+		u32 sgmii_mask = mtk_syscfg0_sgmii_mask(mac);
+
 		spin_lock(&eth->syscfg0_lock);
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
-				   SYSCFG0_SGMII_MASK, mac->syscfg0);
+				   sgmii_mask, mac->syscfg0);
 		spin_unlock(&eth->syscfg0_lock);
 	}
 
