@@ -178,6 +178,14 @@ menu "OP-TEE OS Configuration"
 				  Allow to reset whole REE FS storage, should use
 				  in testing purpose
 
+			config OPTEE_RPMB_RESET_FAT
+				bool "Clear RPMB content at cold boot"
+				default n
+				depends on OPTEE_RPMB_FS
+				help
+				  Erase RPMB filesystem and re-initialize an empty FAT on each cold boot.
+				  Intended for testing only.
+
 			config OPTEE_RPMB_TESTKEY
 				bool "Use RPMB Test Key instead of HUK Derived Key"
 				default n
