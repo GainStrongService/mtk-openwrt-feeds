@@ -194,6 +194,7 @@ int mtk_npu_mcast_mac_saddr_get(u8 *mac);
 void mtk_npu_mcast_mac_saddr_set(u8 *mac);
 
 int mtk_npu_mcast_init(void);
+void mtk_npu_mcast_deinit(void);
 #else /* !defined(CONFIG_MTK_NPU_MCAST) */
 static inline void mtk_npu_mcast_grp_show(struct seq_file *s, u8 idx)
 {
@@ -342,6 +343,10 @@ static inline int mtk_npu_wifi_mcast_ops_unregister(struct npu_wifi_mcast_ops *o
 static inline int mtk_npu_mcast_init(void)
 {
 	return 0;
+}
+
+static inline void mtk_npu_mcast_deinit(void)
+{
 }
 
 static inline int mtk_npu_mcast_mac_saddr_get(u8 *mac)

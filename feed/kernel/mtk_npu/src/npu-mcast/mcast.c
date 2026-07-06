@@ -13,6 +13,8 @@
 #include <linux/spinlock.h>
 #include <net/ipv6.h>
 
+#include <mtk_hnat/hnat_mcast.h>
+
 #include "npu/netsys.h"
 #include "npu/mbox.h"
 #include "npu/net-core.h"
@@ -98,12 +100,16 @@ static void mtk_npu_mcast_notify_sw_path(int group_idx)
 {
 	if (wifi_mcast_ops && wifi_mcast_ops->notify_mcast_sw_path)
 		wifi_mcast_ops->notify_mcast_sw_path(group_idx);
+
+	hnat_notify_mcast_sw_path(group_idx);
 }
 
 static void mtk_npu_mcast_notify_hw_path(int group_idx)
 {
 	if (wifi_mcast_ops && wifi_mcast_ops->notify_mcast_hw_path)
 		wifi_mcast_ops->notify_mcast_hw_path(group_idx);
+
+	hnat_notify_mcast_hw_path(group_idx);
 }
 
 static inline bool mtk_npu_mcast_ip_cmp(struct npu_mcast_addr *in1, struct npu_mcast_addr *in2)
@@ -1054,6 +1060,132 @@ u32 mtk_npu_mcast_client_get_id_by_mac(u8 gidx, u8 *addr)
 }
 EXPORT_SYMBOL(mtk_npu_mcast_client_get_id_by_mac);
 
+static int mtk_npu_mcast_hnat_params_validate(struct mcast_offload_info *minfo)
+{
+	if (minfo->is_ipv6) {
+		if (ipv6_addr_any(&minfo->dst.ipv6))
+			return -EINVAL;
+
+		if (!ipv6_addr_is_multicast(&minfo->dst.ipv6))
+			return -EINVAL;
+
+		if (!ipv6_addr_any(&minfo->src.ipv6)) {
+			if (ipv6_addr_is_multicast(&minfo->src.ipv6))
+				return -EINVAL;
+		}
+	} else {
+		if (minfo->dst.ip == 0)
+			return -EINVAL;
+
+		if (!ipv4_is_multicast(minfo->dst.ip))
+			return -EINVAL;
+
+		if (minfo->src.ip != 0) {
+			if (ipv4_is_multicast(minfo->src.ip))
+				return -EINVAL;
+		}
+	}
+
+	if (minfo->m2u_en) {
+		if (is_zero_ether_addr(minfo->daddr) ||
+		    is_multicast_ether_addr(minfo->daddr))
+			return -EINVAL;
+	}
+
+	return (minfo->dest <= NPU_MCAST_DEST_LAN &&
+		minfo->pqid < MTK_NPU_QDMA_QUEUE_MAX &&
+		minfo->dsa_port < NPU_MCAST_DSA_LAN_PORT_MAX) ? 0 : -EINVAL;
+}
+
+static void mtk_npu_mcast_hnat_params_convert(struct npu_mcast_client_params *c,
+					      struct npu_mcast_addr *src,
+					      struct npu_mcast_addr *dst,
+					      enum npu_mcast_addr_type *type,
+					      struct mcast_offload_info *minfo)
+{
+	memcpy(c->daddr, minfo->daddr, ETH_ALEN);
+	c->dest = minfo->dest;
+	if (minfo->dest == NPU_MCAST_DEST_SWITCH)
+		c->dsa_port = minfo->dsa_port;
+
+	c->pqid = minfo->pqid;
+	c->m2u_en = minfo->m2u_en;
+
+	if (minfo->is_ipv6) {
+		*type = NPU_MCAST_ADDR_TYPE_IPV6;
+		memcpy(&src->ipv6_addr, &minfo->src.ipv6, sizeof(struct in6_addr));
+		memcpy(&dst->ipv6_addr, &minfo->dst.ipv6, sizeof(struct in6_addr));
+	} else {
+		*type = NPU_MCAST_ADDR_TYPE_IP;
+		src->ip_addr = minfo->src.ip;
+		dst->ip_addr = minfo->dst.ip;
+	}
+}
+
+static int mtk_npu_mcast_client_insert_hnat(struct mcast_offload_info *hnat_mcast_params)
+{
+	struct npu_mcast_client_params c;
+	enum npu_mcast_addr_type type;
+	struct npu_mcast_addr src;
+	struct npu_mcast_addr dst;
+	int ret;
+
+	if (!hnat_mcast_params)
+		return -EINVAL;
+
+	ret = mtk_npu_mcast_hnat_params_validate(hnat_mcast_params);
+	if (ret)
+		return ret;
+
+	mtk_npu_mcast_hnat_params_convert(&c, &src, &dst, &type, hnat_mcast_params);
+
+	ret = mtk_npu_mcast_client_insert(&src, &dst, type, &c);
+	if (!ret)
+		hnat_mcast_params->npu_grp_idx = c.grp_idx;
+
+	return ret;
+}
+
+static int mtk_npu_mcast_client_delete_hnat(struct mcast_offload_info *hnat_mcast_params)
+{
+	struct npu_mcast_client_params c;
+	enum npu_mcast_addr_type type;
+	struct npu_mcast_addr src;
+	struct npu_mcast_addr dst;
+	int ret;
+
+	if (!hnat_mcast_params)
+		return -EINVAL;
+
+	ret = mtk_npu_mcast_hnat_params_validate(hnat_mcast_params);
+	if (ret)
+		return ret;
+
+	mtk_npu_mcast_hnat_params_convert(&c, &src, &dst, &type, hnat_mcast_params);
+
+	return mtk_npu_mcast_client_delete(&src, &dst, type, &c);
+}
+
+static int mtk_npu_mcast_client_update_hnat(struct mcast_offload_info *hnat_mcast_params)
+{
+	struct npu_mcast_client_params c;
+	enum npu_mcast_addr_type type;
+	struct npu_mcast_addr src;
+	struct npu_mcast_addr dst;
+	int ret;
+
+	if (!hnat_mcast_params)
+		return -EINVAL;
+
+	ret = mtk_npu_mcast_hnat_params_validate(hnat_mcast_params);
+	if (ret)
+		return ret;
+
+	mtk_npu_mcast_hnat_params_convert(&c, &src, &dst, &type, hnat_mcast_params);
+
+	return mtk_npu_mcast_client_update(&src, &dst, type, &c);
+}
+
 static struct npu_mcast_bss_params *mtk_npu_mcast_bss_params_find_by_bssid(u16 bssid)
 {
 	struct npu_mcast_bss_params *bss;
@@ -1659,6 +1791,12 @@ static int mtk_npu_mcast_statistic_init(void)
 	return 0;
 }
 
+static struct npu_hnat_mcast_ops hnat_mcast_ops = {
+	.npu_mcast_client_insert = mtk_npu_mcast_client_insert_hnat,
+	.npu_mcast_client_delete = mtk_npu_mcast_client_delete_hnat,
+	.npu_mcast_client_update = mtk_npu_mcast_client_update_hnat,
+};
+
 int mtk_npu_mcast_init(void)
 {
 	int ret;
@@ -1681,6 +1819,12 @@ int mtk_npu_mcast_init(void)
 		return ret;
 	}
 
+	ret = mtk_npu_hnat_mcast_ops_register(&hnat_mcast_ops);
+	if (ret) {
+		NPU_NOTICE("failed to register hnat callback: %d\n", ret);
+		return ret;
+	}
+
 	ret = mtk_npu_mcast_statistic_init();
 	if (ret) {
 		NPU_NOTICE("multicast statistic init failed: %d\n", ret);
@@ -1690,4 +1834,13 @@ int mtk_npu_mcast_init(void)
 	mtk_npu_mcast_enable(true);
 
 	return ret;
+}
+
+void mtk_npu_mcast_deinit(void)
+{
+	mtk_npu_mcast_enable(false);
+
+	mtk_npu_hnat_mcast_ops_unregister();
+
+	mtk_npu_mcast_grp_delete_all();
 }

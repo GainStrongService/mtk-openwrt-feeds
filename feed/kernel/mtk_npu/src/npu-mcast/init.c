@@ -73,10 +73,6 @@ static int __init mtk_npu_multicast_init(void)
 		return ret;
 	}
 
-	/*
-	 * TODO: should implement a multicast deinitialization function
-	 * to undone everything that is submitted to the MCU.
-	 */
 	ret = mtk_npu_mcast_init();
 	if (ret) {
 		NPU_NOTICE("multicast init failed: %d\n", ret);
@@ -107,6 +103,7 @@ static void __exit mtk_npu_multicast_exit(void)
 {
 	mtk_npu_mcast_procfs_deinit();
 	mtk_npu_mcast_sysfs_deinit();
+	mtk_npu_mcast_deinit();
 }
 
 module_init(mtk_npu_multicast_init);
