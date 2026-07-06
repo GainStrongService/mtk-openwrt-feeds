@@ -2323,7 +2323,11 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	entry.bfib1.sp = foe->udib1.sp;
 #endif
 
-	if (ntohs(eth_hdr(skb)->h_proto) == ETH_P_PPP_SES) {
+	if (IS_L2_BRIDGE(&entry)) {
+		if (!l2br_toggle)
+			return -1;
+		h_proto = ntohs(eth_hdr(skb)->h_proto);
+	} else if (ntohs(eth_hdr(skb)->h_proto) == ETH_P_PPP_SES) {
 		/* Apply PPPoE Bridge packet info to hw_path for further PPE entry preparing */
 		hw_path->flags |= BIT(DEV_PATH_PPPOE);
 		hw_path->pppoe_sid = ntohs(pppoe_hdr(skb)->sid);
