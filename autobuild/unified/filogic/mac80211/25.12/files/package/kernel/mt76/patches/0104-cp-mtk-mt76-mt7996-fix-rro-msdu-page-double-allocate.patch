@@ -1,0 +1,38 @@
+From a7e6ba1abc258bef9af71274a8f665dc3090ae62 Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Fri, 3 Jul 2026 10:37:38 +0800
+Subject: [PATCH] mtk: mt76: mt7996: fix rro msdu page double allocate
+
+1. remove redunant allocate for rro msdu page to avoid memory leak
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7996/init.c | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 19efee327..3e21b5b02 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -1305,17 +1305,6 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+ 		dev->wed_rro.emi_rings_dma.ptr = ptr;
+ 	}
+ 
+-	for (i = 0; i < MT7996_RRO_MSDU_PG_CR_CNT; i++) {
+-		ptr = dmam_alloc_coherent(dev->mt76.dma_dev, MT7996_RRO_MSDU_PG_SIZE_PER_CR,
+-					  &dev->wed_rro.msdu_pg[i].phy_addr,
+-					  GFP_KERNEL);
+-		if (!ptr)
+-			return -ENOMEM;
+-		dev->wed_rro.msdu_pg[i].ptr = ptr;
+-
+-		memset(dev->wed_rro.msdu_pg[i].ptr, 0, MT7996_RRO_MSDU_PG_SIZE_PER_CR);
+-	}
+-
+ 	ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
+ 				  MT7996_RRO_WINDOW_MAX_LEN * sizeof(*addr),
+ 				  &dev->wed_rro.session.phy_addr,
+-- 
+2.45.2
+
