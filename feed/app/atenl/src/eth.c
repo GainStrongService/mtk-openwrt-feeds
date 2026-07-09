@@ -20,7 +20,7 @@ int atenl_eth_init(struct atenl *an)
 		goto out;
 	}
 
-	memcpy(ifr.ifr_name, an->bridge_name, strlen(an->bridge_name));
+	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", an->bridge_name);
 	ret = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RACFG));
 	if (ret < 0) {
 		perror("socket");
