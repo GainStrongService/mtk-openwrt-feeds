@@ -109,12 +109,42 @@ struct mcast_offload_info {
 	u32 npu_grp_idx;
 };
 
+enum hnat_mcast_info_id {
+	HNAT_MCAST_INFO_IP = 0,
+	HNAT_MCAST_INFO_MAC = 1,
+};
+
+struct hnat_mcast_group_ip {
+	bool is_ipv4;
+	union {
+		__be32 ip;
+		struct in6_addr ipv6;
+	} addr;
+};
+
+struct hnat_mcast_group_info {
+	int grp_id;
+	struct hnat_mcast_group_ip gip;
+	u8 grp_mac[ETH_ALEN];
+	u8 *extr_info;
+};
+
 enum hnat_npu_mcast_dest {
 	HNAT_NPU_MCAST_DEST_SWITCH = 0,
 	HNAT_NPU_MCAST_DEST_LAN,
 	HNAT_NPU_MCAST_DEST_MAX,
 };
 
+/* int (*npu_mcast_client_insert)
+ * -EINVAL:mac address is zero or not multicst address
+ * -EPERM :dip is zero or dip is not multicast ip or dip == sip
+ * -ENOMEM: No available multicast group or alloc source fail
+ * -EEXIST: client has been added before
+ * int (*npu_mcast_client_delete)
+ * -EINVAL: parameter is null or ip is zero, or ip is not mc ip or dsa-port > 3
+ * -EPERM :dip is zero or dip is not mc ip or dip == sip or npu fw write fail
+ * -ENOENT:mc group not found or client not found
+ */
 struct npu_hnat_mcast_ops {
 	int (*npu_mcast_client_insert)(struct mcast_offload_info *hnat_mcast_params);
 	int (*npu_mcast_client_delete)(struct mcast_offload_info *hnat_mcast_params);
@@ -141,5 +171,7 @@ int hnat_mcast_offload_handle(bool enable);
 int hnat_register_pcie_link_hook(bool (*hook_func)(bool up));
 void hnat_unregister_pcie_link_hook(void);
 extern bool (*hnat_mcast_eth_ext_link_handle)(bool up);
+int hnat_register_wifi_info_hook(int (*hook_func)(u32 id, void *data));
+void hnat_unregister_wifi_info_hook(void);
 
 #endif

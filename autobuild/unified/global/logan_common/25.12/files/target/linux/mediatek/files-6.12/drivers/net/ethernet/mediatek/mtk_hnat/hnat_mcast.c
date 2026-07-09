@@ -22,6 +22,8 @@ EXPORT_SYMBOL(mtk_hnat_mcast_blist);
 int (*mtk_hnat_mcast_offload)(bool enable) = NULL;
 EXPORT_SYMBOL(mtk_hnat_mcast_offload);
 
+static int (*mtk_wifi_mcast_get_group_info)(u32 id, void *data);
+
 #define BMP_IS_SINGLE_PORT(pse_bmp)  (hweight32(pse_bmp) == 1)
 
 static int set_hnat_mtbl(u8 *mac, int index, int ppe_id, u32 pse_bmp)
@@ -108,14 +110,25 @@ static int hnat_mcast_get_mac_from_mdb(struct br_mdb_entry *entry, u8 *mac)
 	return 0;
 }
 
-static struct ppe_mcast_group *hnat_mcast_find_group_by_mac(const u8 *mac)
+static struct ppe_mcast_group *hnat_mcast_find_group_by_ip(const struct hnat_mcast_group_ip *key)
 {
 	struct ppe_mcast_group *group, *result = NULL;
 
+	if (!key || !hnat_priv || !hnat_priv->pmcast)
+		return NULL;
+
 	list_for_each_entry(group, &hnat_priv->pmcast->groups, list) {
-		if (memcmp(group->mac, mac, 6) == 0) {
-			result = group;
-			break;
+		if (key->is_ipv4) {
+			if (group->is_ipv4 && group->dip == key->addr.ip) {
+				result = group;
+				break;
+			}
+		} else {
+			if (!group->is_ipv4 &&
+			    !memcmp(&group->dip6, &key->addr.ipv6, sizeof(struct in6_addr))) {
+				result = group;
+				break;
+			}
 		}
 	}
 
@@ -489,7 +502,7 @@ static int hnat_mcast_npu_add_multi(struct ppe_mcast_group *group,
 
 static int hnat_mcast_npu_add_stations(struct ppe_mcast_group *group,
 				       struct mcast_offload_info *mc_info,
-				       u32 stag, bool is_dsa)
+				       u32 stag, bool is_dsa, u32 pse_bmp)
 {
 	int ret = 0;
 
@@ -498,6 +511,14 @@ static int hnat_mcast_npu_add_stations(struct ppe_mcast_group *group,
 
 	if (is_dsa) {
 		ret = hnat_mc_ops->npu_mcast_client_insert(mc_info);
+		/* When the IGMP-controlled Join remains active,if multicast
+		 * data transmission stops and then resumes, HNAT will notify
+		 * NPU to add the same client again. In this case, the NPU
+		 * returns -EEXIST, which is expected behavior.
+		 */
+		if (ret == -EEXIST)
+			ret = 0;
+
 		if (!ret)
 			group->npu_grp_idx = mc_info->npu_grp_idx;
 		else
@@ -509,7 +530,7 @@ static int hnat_mcast_npu_add_stations(struct ppe_mcast_group *group,
 				mc_info->dsa_port, group->npu_grp_idx,
 				group->offload, mc_info->is_ipv6);
 	} else {
-		if (!BMP_IS_SINGLE_PORT(group->psebmp))
+		if (!BMP_IS_SINGLE_PORT(pse_bmp))
 			ret = hnat_mcast_npu_add_multi(group, mc_info, stag);
 	}
 
@@ -568,7 +589,7 @@ static int hnat_mcast_npu_update(struct ppe_mcast_group *group,
 			 * e.g.(gdm1 gdm3) -> lanx join    add lanx
 			 * e.g.(tdma gdm3) -> lanx join    add lanx
 			 */
-			ret = hnat_mcast_npu_add_stations(group, mc_info, stag, is_dsa);
+			ret = hnat_mcast_npu_add_stations(group, mc_info, stag, is_dsa, pse_bmp);
 		}
 	} else if (type == RTM_DELMDB) {
 		if (BMP_IS_SINGLE_PORT(pse_bmp)) {
@@ -836,15 +857,28 @@ int hnat_mcast_foe_bind_handle(const u8 *dmac,
 	u32 stag = 0;
 	int ret = 0;
 	struct ppe_mcast_group *group = NULL;
+	struct hnat_mcast_group_ip key;
 
+	memset(&key, 0, sizeof(key));
 	if ((!IS_IPV4_GRP(entry)) && (!IS_IPV6_GRP(entry)))
 		return -1;
 
 	if (!hnat_priv->pmcast)
 		return -1;
 
+	if (IS_IPV4_GRP(entry)) {
+		key.is_ipv4 = true;
+		key.addr.ip = htonl(entry->ipv4_hnapt.dip);
+	} else {
+		key.is_ipv4 = false;
+		key.addr.ipv6.s6_addr32[0] = htonl(entry->ipv6_5t_route.ipv6_dip0);
+		key.addr.ipv6.s6_addr32[1] = htonl(entry->ipv6_5t_route.ipv6_dip1);
+		key.addr.ipv6.s6_addr32[2] = htonl(entry->ipv6_5t_route.ipv6_dip2);
+		key.addr.ipv6.s6_addr32[3] = htonl(entry->ipv6_5t_route.ipv6_dip3);
+	}
+
 	write_lock_bh(&hnat_priv->pmcast->mcast_lock);
-	group = hnat_mcast_find_group_by_mac(dmac);
+	group = hnat_mcast_find_group_by_ip(&key);
 	if (!group) {
 		write_unlock_bh(&hnat_priv->pmcast->mcast_lock);
 		return -1;
@@ -1019,9 +1053,11 @@ static int hnat_mcast_group_del(struct ppe_mcast_group *group)
 static int hnat_mcast_group_update(const u8 *dmac, int type, struct br_mdb_entry *entry)
 {
 	struct ppe_mcast_group *group = NULL;
+	struct hnat_mcast_group_ip key;
 	int ret = 0;
 	bool is_new_group = false;
 
+	memset(&key, 0, sizeof(key));
 	if ((ntohs(entry->addr.proto) != ETH_P_IP) &&
 		(ntohs(entry->addr.proto) != ETH_P_IPV6))
 		return -EPROTO;
@@ -1032,8 +1068,16 @@ static int hnat_mcast_group_update(const u8 *dmac, int type, struct br_mdb_entry
 	if (!hnat_priv->pmcast)
 		return -1;
 
+	if (ntohs(entry->addr.proto) == ETH_P_IP) {
+		key.is_ipv4 = true;
+		key.addr.ip = entry->addr.u.ip4;
+	} else {
+		key.is_ipv4 = false;
+		key.addr.ipv6 = entry->addr.u.ip6;
+	}
+
 	write_lock_bh(&hnat_priv->pmcast->mcast_lock);
-	group = hnat_mcast_find_group_by_mac(dmac);
+	group = hnat_mcast_find_group_by_ip(&key);
 	if (!group) {
 		group = hnat_mcast_create_group(dmac, entry);
 		is_new_group = true;
@@ -1468,16 +1512,53 @@ int mtk_npu_hnat_mcast_ops_unregister(void)
 }
 EXPORT_SYMBOL(mtk_npu_hnat_mcast_ops_unregister);
 
+static void hnat_mcast_update_path_from_wifi(int grp_id, bool hw_path)
+{
+	struct hnat_mcast_group_info grp_info;
+	struct hnat_mcast_group_ip key;
+	struct ppe_mcast_group *group;
+	int ret;
+
+	memset(&key, 0, sizeof(key));
+	memset(&grp_info, 0x0, sizeof(grp_info));
+	grp_info.grp_id = grp_id;
+	if (mtk_wifi_mcast_get_group_info) {
+		ret = mtk_wifi_mcast_get_group_info(HNAT_MCAST_INFO_IP, (void *)(&grp_info));
+		if (!ret) {
+			if (grp_info.gip.is_ipv4) {
+				key.is_ipv4 = true;
+				key.addr.ip = grp_info.gip.addr.ip;
+			} else {
+				key.is_ipv4 = false;
+				memcpy(&key.addr.ipv6, &grp_info.gip.addr.ipv6,
+					sizeof(struct in6_addr));
+			}
+
+			group = hnat_mcast_find_group_by_ip(&key);
+			if (group) {
+				group->offload = hw_path;
+				if (!hw_path) {
+					entry_delete(group->ppe_id, group->foe_idx);
+					group->psebmp = 0;
+					group->ppe_id = INVLD_IDX;
+					group->foe_idx = INVLD_IDX;
+				}
+			} else
+				pr_info(" Get group:%d from local fail\n", grp_id);
+		} else
+			pr_info(" Get group:%d from wifi fail\n", grp_id);
+	}
+}
+
 static void hnat_mcast_group_path_switch(int group_idx, bool hw_path)
 {
-	struct ppe_mcast_table *pmcast = hnat_priv->pmcast;
+	struct ppe_mcast_table *pmcast;
 	struct ppe_mcast_group *group, *tmp;
 
-	if (!pmcast) {
-		pr_info("pmcast is NULL\n");
+	if (!hnat_priv || !hnat_priv->pmcast)
 		return;
-	}
 
+	pmcast = hnat_priv->pmcast;
 	list_for_each_entry_safe(group, tmp, &pmcast->groups, list) {
 		if (group->npu_grp_idx == group_idx) {
 			group->offload = hw_path;
@@ -1490,7 +1571,11 @@ static void hnat_mcast_group_path_switch(int group_idx, bool hw_path)
 			return;
 		}
 	}
+
 	pr_info("path switch group_idx %d not found\n", group_idx);
+	hnat_mcast_update_path_from_wifi(group_idx, hw_path);
+
+	return;
 }
 
 void hnat_notify_mcast_sw_path(int group_idx)
@@ -1520,4 +1605,20 @@ void hnat_unregister_pcie_link_hook(void)
 }
 EXPORT_SYMBOL(hnat_unregister_pcie_link_hook);
 
+
+int hnat_register_wifi_info_hook(int (*hook_func)(u32 id, void *data))
+{
+	if (mtk_wifi_mcast_get_group_info)
+		return -EEXIST;
+
+	mtk_wifi_mcast_get_group_info = hook_func;
+	return 0;
+}
+EXPORT_SYMBOL(hnat_register_wifi_info_hook);
+
+void hnat_unregister_wifi_info_hook(void)
+{
+	mtk_wifi_mcast_get_group_info = NULL;
+}
+EXPORT_SYMBOL(hnat_unregister_wifi_info_hook);
 
