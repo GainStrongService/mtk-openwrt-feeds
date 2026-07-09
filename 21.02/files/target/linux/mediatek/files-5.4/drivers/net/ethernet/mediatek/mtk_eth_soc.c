@@ -4490,7 +4490,8 @@ static int mtk_start_dma(struct mtk_eth *eth)
 				MTK_PDMA_SIZE_8DWORDS | MTK_TX_WB_DDONE |
 				MTK_CHK_DDONE | MTK_MULTI_EN_V2 |
 				MTK_PDMA_MUTLI_CNT | MTK_PDMA_RESV_BUF |
-				MTK_CSR_CLKGATE_BYP, reg_map->pdma.glo_cfg);
+				MTK_DEC_WCOMP | MTK_CSR_CLKGATE_BYP,
+				reg_map->pdma.glo_cfg);
 		} else {
 			mtk_w32(eth, MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
 				MTK_RX_DMA_EN | MTK_MULTI_EN |
