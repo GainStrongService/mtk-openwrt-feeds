@@ -1,0 +1,120 @@
+From 1ba20fe7cfe9fc05cb8006f0b060f248afa2fccd Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Wed, 1 Jul 2026 11:13:45 +0800
+Subject: [PATCH] mtk: mt76: mt7996: Refactor WMM PBC for unified FW command
+
+Refactor WMM PBC for unified FW command.
+Specifically, change multi-AC detection from per-DEV to per-PHY.
+
+Feature:
+WMM
+PBC (Packet Budget Control)
+AC Tail Drop
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt7996/mcu.c | 80 ++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 68 insertions(+), 12 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 7dc172b82..49ea3e31d 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1657,26 +1657,82 @@ mt7996_mcu_mld_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 	}
+ }
+ 
++static void
++mt7996_mcu_uni_update_pbc_pkt_cnt(void *priv, u8 *mac, struct ieee80211_vif *vif)
++{
++	unsigned long link_id, valid_links = vif->valid_links ?: BIT(0);
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct mt7996_mld_sdo_bss_acq_pkt_cnt *event = priv;
++
++	rcu_read_lock();
++	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
++		struct mt7996_vif_link *link;
++		struct mt7996_phy *phy;
++		u8 bss_idx, ac;
++		u32 bitmap;
++
++		link = (struct mt7996_vif_link *)rcu_dereference(mvif->mt76.link[link_id]);
++		if (!link)
++			continue;
++
++		bss_idx = link->mt76.idx;
++		if (bss_idx >= UNI_CMD_SDO_CFG_BSS_NUM)
++			continue;
++
++		bitmap = le32_to_cpu(event->bitmap[bss_idx / 32]);
++		if (!(bitmap & (1 << (bss_idx % 32))))
++			continue;
++
++		phy = link->phy;
++		if (!phy)
++			continue;
++
++		for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ++ac) {
++			u8 lmac_ac = mt76_connac_lmac_mapping(ac);
++			phy->pbc_pkt_cnt[ac] += le32_to_cpu(event->pkt_cnt[bss_idx][lmac_ac]);
++		}
++	}
++	rcu_read_unlock();
++}
++
+ static void
+ mt7996_mcu_uni_bss_acq_pkt_cnt(struct mt7996_dev *dev, struct tlv *tlv)
+ {
+-	struct mt7996_mld_sdo_bss_acq_pkt_cnt *data =
+-		(struct mt7996_mld_sdo_bss_acq_pkt_cnt *)tlv->data;
+-	u64 sum[IEEE80211_NUM_ACS] = {0};
+-	u8 ac_cnt = 0;
+-	int i, j;
++	struct mt7996_phy *phy;
++	bool multi_ac = false;
+ 
+-	for (i = 0; i < UNI_CMD_SDO_CFG_BSS_NUM; i++) {
+-		for (j = IEEE80211_AC_VO; j < IEEE80211_NUM_ACS; j++)
+-			sum[j] += le32_to_cpu(data->pkt_cnt[i][mt76_connac_lmac_mapping(j)]);
++	if (le16_to_cpu(tlv->len) - 4 != sizeof(struct mt7996_mld_sdo_bss_acq_pkt_cnt)) {
++		dev_err(dev->mt76.dev, "%s: invalid TLV length: %u\n",
++			__func__, le16_to_cpu(tlv->len));
++		return;
+ 	}
+ 
+-	for (i = IEEE80211_AC_VO; i < IEEE80211_NUM_ACS; i++) {
+-		if (sum[i] > WMM_PBC_PKT_THRESHOLD)
+-			ac_cnt++;
++	/* Update TX packet counters */
++	mt7996_for_each_phy(dev, phy)
++		memset(phy->pbc_pkt_cnt, 0, sizeof(phy->pbc_pkt_cnt));
++
++	ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
++			IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER,
++			mt7996_mcu_uni_update_pbc_pkt_cnt, tlv->data);
++
++	/* Check TX packet counters to detect multi-AC traffic */
++	mt7996_for_each_phy(dev, phy) {
++		u8 ac, ac_cnt = 0;
++
++		for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ++ac)
++			if (phy->pbc_pkt_cnt[ac] > WMM_PBC_PKT_THRESHOLD)
++				++ac_cnt;
++
++		if (ac_cnt > 1) {
++			multi_ac = true;
++			break;
++		}
+ 	}
+ 
+-	mt7996_queue_phy_pbc_work(&dev->phy, ac_cnt > 1);
++	/* Via unified FW command, PBC is per-DEV configured,
++	 * and its state is maintained in first PHY.
++	 */
++	mt7996_queue_phy_pbc_work(&dev->phy, multi_ac);
+ }
+ 
+ static void
+-- 
+2.45.2
+
