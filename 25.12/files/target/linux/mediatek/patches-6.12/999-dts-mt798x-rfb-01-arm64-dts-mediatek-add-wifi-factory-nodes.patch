@@ -1,5 +1,5 @@
 ---
-[v1] arm64: dts: mediatek: add Wi-Fi factory nodes for each generation
+[v2] arm64: dts: mediatek: add Wi-Fi factory nodes for each generation
 
 Consolidate Wi-Fi DTS nodes from various platform DTSOs into unified ones
 to improve cross-platform compatibility. Additionally, configure distinct
@@ -7,6 +7,7 @@ EEPROM factory offsets and sizes according to different Wi-Fi generations,
 and introduce a unified binfile mode DTS node for all Wi-Fi generations.
 
 ---
+v2: Add factory nvmem device
 v1: Add Wi-Fi factory nodes for each generation.
 ---
 
@@ -47,7 +48,7 @@ v1: Add Wi-Fi factory nodes for each generation.
 +
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/filogic-wifi7.dtso
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,47 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2026 MediaTek Inc.
@@ -87,6 +88,8 @@ v1: Add Wi-Fi factory nodes for each generation.
 +					nvmem-cell-names = "eeprom";
 +					nvmem-cells = <&eeprom_wmac>;
 +					mediatek,mtd-eeprom = <&factory 0x0>;
++					nvmem-names = "factory";
++					nvmem = <&factory>;
 +				};
 +			};
 +		};
@@ -95,7 +98,7 @@ v1: Add Wi-Fi factory nodes for each generation.
 +
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/filogic-wifi8.dtso
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,47 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2026 MediaTek Inc.
@@ -135,6 +138,8 @@ v1: Add Wi-Fi factory nodes for each generation.
 +					nvmem-cell-names = "eeprom";
 +					nvmem-cells = <&eeprom_wmac>;
 +					mediatek,mtd-eeprom = <&factory 0x0>;
++					nvmem-names = "factory";
++					nvmem = <&factory>;
 +				};
 +			};
 +		};
