@@ -49,10 +49,6 @@
  *
  * @MT76_TM_ATTR_STATS: statistics (nested, see &enum mt76_testmode_stats_attr)
  *
- * @MT76_TM_ATTR_PRECAL: pre-cal data (u8)
- * @MT76_TM_ATTR_PRECAL_INFO: group size, dpd size, dpd_info, transmit size,
- *	eeprom cal indicator (u32), dpd_info = [dpd_per_chan_size, chan_num_2g,
- *	chan_num_5g, chan_num_6g]
  * @MT76_TM_ATTR_TX_SPE_IDX: tx spatial extension index (u8)
  *
  * @MT76_TM_ATTR_TX_DUTY_CYCLE: packet tx duty cycle (u8)
@@ -177,9 +173,6 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_FREQ_OFFSET,
 
 	MT76_TM_ATTR_STATS,
-
-	MT76_TM_ATTR_PRECAL,
-	MT76_TM_ATTR_PRECAL_INFO,
 
 	MT76_TM_ATTR_TX_SPE_IDX,
 

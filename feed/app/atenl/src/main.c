@@ -223,6 +223,8 @@ out:
 		close(an->sock_eth);
 	if (an->eeprom_fd || an->eeprom_data)
 		atenl_eeprom_close(an);
+
+	free(an->cal);
 	free(an);
 
 	return ret;

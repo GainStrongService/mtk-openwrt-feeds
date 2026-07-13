@@ -111,7 +111,9 @@ struct atenl {
 	u32 eeprom_prek_offs;
 
 	u8 *cal;
-	u32 cal_info[5];
+	u32 cal_size;
+	u32 cal_data_offs;
+	bool clear_cal;
 
 	bool cmd_mode;
 
@@ -412,16 +414,6 @@ enum atenl_ibf_action {
 	TXBF_ACT_IBF_PHASE_E2P_UPDATE = 16,
 };
 
-enum prek_ops {
-	PREK_SYNC_ALL = 1,
-	PREK_SYNC_GROUP,
-	PREK_SYNC_DPD_2G,
-	PREK_SYNC_DPD_5G,
-	PREK_SYNC_DPD_6G,
-	PREK_CLEAN_GROUP,
-	PREK_CLEAN_DPD,
-};
-
 #define MT7916_EEPROM_CHIP_ID		0x7916
 
 /* Wi-Fi6 device id */
@@ -515,13 +507,11 @@ int atenl_nl_update_buffer_mode(struct atenl *an);
 int atenl_nl_set_state(struct atenl *an, u8 band,
 		       enum mt76_testmode_state state);
 int atenl_nl_set_aid(struct atenl *an, u8 band, u8 aid);
-int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops);
 int atenl_nl_get_wiphy(struct atenl *an);
 void atenl_get_ibf_cal_result(struct atenl *an);
 void atenl_get_rx_gain_cal_result(struct atenl *an);
 int atenl_eeprom_init(struct atenl *an, u8 phy_idx);
 void atenl_eeprom_close(struct atenl *an);
-int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size);
 int atenl_eeprom_read_from_driver(struct atenl *an, u32 offset, int len);
 void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd);
 u16 atenl_get_center_channel(u8 bw, u8 ch_band, u16 ctrl_ch);
