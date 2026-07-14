@@ -1565,7 +1565,6 @@ void hnat_flow_entry_delete(struct hnat_flow_entry *flow_entry);
 struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff);
 
-int mtk_hnat_skb_headroom_copy(struct sk_buff *new, struct sk_buff *old);
 int hnat_mcast_foe_bind_handle(const u8 *dmac,
 			       u32 ppe_id, u32 foe_idx, struct foe_entry *entry, int ifindex);
 bool hnat_mcast_chk_blist(struct foe_entry *entry);
