@@ -6,8 +6,8 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add mtkhnat driver support
 ---
  drivers/net/ethernet/mediatek/Kconfig       | 24 +++++++++++++
  drivers/net/ethernet/mediatek/Makefile      |  1 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 39 +++++++++++++++++++++
- 3 files changed, 64 insertions(+)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 46 +++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/Kconfig b/drivers/net/ethernet/mediatek/Kconfig
 index d974316..1589b36 100644
@@ -56,18 +56,24 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index a03baee..6784cc2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -40,6 +40,10 @@
+@@ -40,6 +40,16 @@
  #include "mtk_eth_reset.h"
  #include "mtk_wed.h"
  
 +#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
 +#include "mtk_hnat/nf_hnat_mtk.h"
++
++static void mtk_hnat_skb_destructor(struct sk_buff *skb)
++{
++	if (skb_headroom(skb) >= FOE_INFO_LEN)
++		memset(skb_hnat_info(skb), 0, FOE_INFO_LEN);
++}
 +#endif
 +
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2819,6 +2823,31 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2819,6 +2823,32 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  
  			skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
  			skb_put(skb, pktlen);
@@ -85,6 +91,7 @@ index a03baee..6784cc2 100644
 +			skb_hnat_set_tops(skb, 0);
 +			skb_hnat_set_is_decap(skb, 0);
 +			skb_hnat_set_is_decrypt(skb, (skb_hnat_cdrt(skb) ? 1 : 0));
++			skb->destructor = mtk_hnat_skb_destructor;
 +
 +			if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
 +				trace_printk("[%s] reason=0x%x(force to CPU) from WAN to Ext\n",
