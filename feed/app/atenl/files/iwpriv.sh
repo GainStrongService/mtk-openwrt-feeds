@@ -489,7 +489,7 @@ function convert_channel {
     local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
     local pri_sel=$(echo $1 | sed s/:/' '/g | cut -d " " -f 3)
     local center_ch2=$(echo $1 | sed s/:/' '/g | cut -d " " -f 4)
-    local fast_cal=$(echo $1 | sed s/:/' '/g | cut -d " " -f 5)
+    local fast_cal=$(remove_leading_zeros $(echo $1 | sed s/:/' '/g | cut -d " " -f 5))
     local fast_cal_type="none"
     local ctrl_band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
     local bw=$(get_config "ATETXBW" ${iwpriv_file} | cut -d ":" -f 1)
@@ -1277,8 +1277,14 @@ if [ "${cmd_type}" = "set" ]; then
             fi
             ;;
         "ATETXANT"|"ATERXANT")
-            cmd_new="tx_antenna"
-            param_new=${param}
+            if [[ ${param} == *:* ]]; then
+                cmd_new="tx_spe_idx"
+                param_new=$(echo ${param} | sed s/:/' '/g | cut -d " " -f 2)
+            else
+                do_cmd "mt76-test ${interface} set tx_spe_idx=0"
+                cmd_new="tx_antenna"
+                param_new=${param}
+            fi
             ;;
         "ATETXGI")
             if [ ${connac_ver} == "2" ]; then
