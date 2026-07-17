@@ -327,18 +327,19 @@ u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg)
 
 static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 {
-	unsigned long t_start = jiffies;
+	u32 val;
+	int ret;
 
-	while (1) {
-		if (!(mtk_r32(eth, MTK_PHY_IAC) & PHY_IAC_ACCESS))
-			return 0;
-		if (time_after(jiffies, t_start + PHY_IAC_TIMEOUT))
-			break;
-		cond_resched();
-	}
+	ret = read_poll_timeout(mtk_r32, val,
+				!(val & PHY_IAC_ACCESS),
+				10,
+				jiffies_to_usecs(PHY_IAC_TIMEOUT),
+				false,
+				eth, MTK_PHY_IAC);
+	if (ret)
+		dev_err(eth->dev, "mdio: MDIO timeout\n");
 
-	dev_err(eth->dev, "mdio: MDIO timeout\n");
-	return -1;
+	return ret;
 }
 
 u32 _mtk_mdio_write(struct mtk_eth *eth, int phy_addr,
