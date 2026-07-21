@@ -1,5 +1,5 @@
 ---
-[v4] arm64: dts: mediatek: mt7987a: add Banana Pi BPI-R4-Lite support
+[v5] arm64: dts: mediatek: mt7987a: add Banana Pi BPI-R4-Lite support
 
 Add device-tree support for the Banana Pi BPI-R4-Lite (MT7987A).
 Introduce the base board DTS and mikroBUS dtsi, plus DT overlays
@@ -10,6 +10,7 @@ bootloader register setup is changed. Flash-related overlays are
 split out from mt7987a-rfb to match the DTSO layout used upstream
 in OpenWrt.
 ---
+v5: Remove loglevel from bootargs and use the kernel config default
 v4: Seperate BPI-R4-Lite mtkhnat related overlays to independent patch.
 v3: Separate BPI-R4-Lite flash-related DTSO from mt7987a-rfb to align with
     upstream OpenWrt DTSO format.
@@ -271,7 +272,7 @@ v1: Move openwrt-master files to openwrt-25.12 branch after OpenWrt official
 +	};
 +
 +	chosen {
-+		bootargs = "console=ttyS0,115200n1 loglevel=6  \
++		bootargs = "console=ttyS0,115200n1 \
 +			    earlycon=uart8250,mmio32,0x11000000 \
 +			    pci=pcie_bus_perf ubi.block=0,firmware \
 +			    root=/dev/fit0 rootwait";

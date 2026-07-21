@@ -1,5 +1,5 @@
 ---
-[v5] arm64: dts: mediatek: convert mt7987 to dts-overlay architecture
+[v6] arm64: dts: mediatek: convert mt7987 to dts-overlay architecture
 
 Convert MT7987 device tree to overlay based architecture. This comprehensive
 implementation demonstrates the full power of DTS overlay architecture for
@@ -11,6 +11,7 @@ refer to mt7987-netsys-*.dtso for different networking options. Peripheral
 overlays include SPIDEV for development.
 
 ---
+v6: Remove loglevel from bootargs and use the kernel config default
 v5: Seperate mtkhnat related overlays to independent patch.
 v4: Move Wi-Fi nodes to separate DTSOs
 v3: Update AN8855 SWCONFIG (GSW) driver to v1.0.11 for improved switch support.
@@ -478,7 +479,7 @@ v1: Move openwrt-master files to openwrt-25.12 branch after OpenWrt official
 +	compatible = "mediatek,mt7987a", "mediatek,mt7987";
 +
 +	chosen {
-+		bootargs = "console=ttyS0,115200n1 loglevel=6  \
++		bootargs = "console=ttyS0,115200n1 \
 +			    earlycon=uart8250,mmio32,0x11000000 \
 +			    pci=pcie_bus_perf ubi.block=0,firmware \
 +			    root=/dev/fit0 rootwait";

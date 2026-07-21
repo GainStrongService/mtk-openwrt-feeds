@@ -1,10 +1,11 @@
 ---
-[v3] arm64: dts: mediatek: add BananaPi BPI-R4 Pro support
+[v4] arm64: dts: mediatek: add BananaPi BPI-R4 Pro support
 
 Add device tree support for BananaPi BPI-R4 Pro board based on MediaTek MT7988A
 SoC.
 
 ---
+v4: Remove loglevel from bootargs and use the kernel config default
 v3: Add all pin nodes scattered across different dts into unified pinctrl dtsi.
 v2: Add mt798x flash DTS clock/driving settings (spi0/spi2 pin driving, clock
     parent config, mmc0 pin driving).
@@ -70,7 +71,7 @@ v1: Move openwrt-master files to openwrt-25.12 branch after OpenWrt official
 +
 +	chosen {
 +		stdout-path = &serial0;
-+		bootargs = "console=ttyS0,115200n1 loglevel=6  \
++		bootargs = "console=ttyS0,115200n1 \
 +			    earlycon=uart8250,mmio32,0x11000000 \
 +			    pci=pcie_bus_perf ubi.block=0,firmware root=/dev/fit0 \
 +			    rootwait";
