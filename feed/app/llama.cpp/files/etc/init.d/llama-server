@@ -1,0 +1,61 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: MIT
+#
+# Copyright (C) 2026 MediaTek Inc.
+#
+# Author: Sky.Huang <SkyLake.Huang@mediatek.com>
+#
+# Local OpenAI-compatible LLM inference server (llama.cpp).
+# Reads the 'main' section of /etc/config/llama-server.
+
+START=95
+STOP=10
+
+USE_PROCD=1
+NAME=llama-server
+PROG=/usr/bin/llama-server
+
+start_service() {
+	config_load llama-server
+
+	local enabled model host port threads ctx_size ngl extra_args
+	config_get_bool enabled main enabled 0
+	if [ "$enabled" != "1" ]; then
+		logger -t "$NAME" "disabled in /etc/config/llama-server (main.enabled=0)"
+		return 1
+	fi
+
+	config_get model      main model      /mnt/models/model.gguf
+	config_get host       main host       127.0.0.1
+	config_get port       main port       8080
+	config_get threads    main threads    4
+	config_get ctx_size   main ctx_size   4096
+	config_get ngl        main ngl        0
+	config_get extra_args main extra_args ""
+
+	if [ ! -f "$model" ]; then
+		logger -t "$NAME" "model not found: $model (mount external storage / push a GGUF via TFTP first) - not starting"
+		return 1
+	fi
+
+	procd_open_instance
+	procd_set_param command "$PROG" \
+		--model "$model" \
+		--host "$host" \
+		--port "$port" \
+		--threads "$threads" \
+		--ctx-size "$ctx_size" \
+		--n-gpu-layers "$ngl"
+	# extra_args is intentionally word-split
+	[ -n "$extra_args" ] && procd_append_param command $extra_args
+	# restart on crash, but back off so an OOM loop does not hammer the box
+	procd_set_param respawn 3600 5 5
+	procd_set_param stderr 1
+	procd_set_param stdout 1
+	procd_set_param limits nofile="8192 8192"
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "llama-server"
+}
