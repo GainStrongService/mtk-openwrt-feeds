@@ -1,10 +1,11 @@
 ---
-[v1] net: ethernet: mtk_eth_soc: record PPPQ status in mtk_qdma_shaper structure
+[v2] net: ethernet: mtk_eth_soc: record PPPQ status in mtk_qdma_shaper structure
 
 Add PPPQ (Per-Port-Per-Queue) status tracking in mtk_qdma_shaper structure for
 NETSYSv3. This tracks queue reference counts and speed limits, enabling dynamic
 shaper availability checks and improved QoS resource management.
 ---
+v2: Fix MTK_QDMA_QUEUE_MASK to be a queue-index mask.
 v1: Record PPPQ status in mtk_qdma_shaper structure.
 ----
 
@@ -88,7 +89,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  #define MTK_DSA_PORT_MASK	GENMASK(2, 0)
  
  #define MTK_QDMA_NUM_QUEUES	16
-+#define MTK_QDMA_QUEUE_MASK	((1ULL << MTK_QDMA_NUM_QUEUES) - 1)
++#define MTK_QDMA_QUEUE_MASK	(MTK_QDMA_NUM_QUEUES - 1)
  #define MTK_QDMA_PAGE_SIZE	2048
  #define MTK_MAX_RX_LENGTH	1536
  #define MTK_MAX_RX_LENGTH_2K	2048
