@@ -22,7 +22,7 @@
 #define AN8811HB_MD32_DM		"airoha/an8811hb/EthMD32_CRC.DM.bin"
 #define AN8811HB_MD32_DSP		"airoha/an8811hb/EthMD32_CRC.DSP.bin"
 
-#define AN8811HB_DRIVER_VERSION		"v1.0.0"
+#define AN8811HB_DRIVER_VERSION		"v1.0.3"
 
 #define AIR_FW_ADDR_DM	0x00000000
 #define AIR_FW_ADDR_DSP	0x00100000
@@ -461,12 +461,15 @@ enum {
 #define DEBUGFS_LED_MODE	"led_mode"
 #define DEBUGFS_CABLE_DIAG	"cable_diag"
 #define DEBUGFS_TEMPERATURE	"temp"
+#define DEBUGFS_READ_SNR	"read_snr"
+#define DEBUGFS_READ_MSE	"read_mse"
 
 #define GET_BIT(val, bit) ((val & BIT(bit)) >> bit)
 
 #define AIR_CABLE_LENGTH_ZERO_THRESHOLD		0x0
 #define AIR_CABLE_LENGTH_THRESHOLD		0x4
 #define AIR_CABLE_LENGTH_SHIFT_BITS		4
+#define AIR_SNR_MSE_LOOP_COUNT	20
 
 static const char * const tx_rx_string[32] = {
 	"Tx Reverse, Rx Normal",
@@ -1812,7 +1815,7 @@ static int an8811hb_read_status(struct phy_device *phydev)
 
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
 		/* Get link partner 2.5GBASE-T ability */
-		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_PMA_NG_EXTABLE);
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 				phydev->lp_advertising,
 				val & BIT(5));
@@ -2957,6 +2960,12 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		if (sscanf(buf, "w %15x %15x", &reg, &val) != 2)
 			return -EFAULT;
 
+		if (reg > 0xFFFFFFFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of valid range\n",
+				phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
+
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 			phydev_addr(phydev), reg, val);
 		ret = air_buckpbus_reg_write(phydev, reg, val);
@@ -2971,6 +2980,12 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		if (sscanf(buf, "r %15x", &reg) != 1)
 			return -EFAULT;
 
+		if (reg > 0xFFFFFFFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of valid range\n",
+				phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
+
 		air_buckpbus_reg_read(phydev, reg, &val);
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 		phydev_addr(phydev), reg, val);
@@ -2982,6 +2997,13 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 				phydev_addr(phydev), num);
 			return -EFAULT;
 		}
+
+		if (reg > 0xFFFFFFFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of valid range\n",
+				phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
+
 		for (i = 0; i < num; i++) {
 			air_buckpbus_reg_read(phydev, (reg + (i * 4)), &val);
 			pr_notice("phy=%d, reg=0x%x, val=0x%x",
@@ -3258,6 +3280,17 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 		if (sscanf(buf, "w %15x %15x", &reg, &val) != 2)
 			return -EFAULT;
 
+		if (reg > 0xFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of CL22 range (0x00~0x1F)\n",
+				  phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
+		if (val > 0xFFFF) {
+			pr_notice("\nphy%d: val(0x%x) out of 16-bit range\n",
+				  phydev->mdio.addr, val);
+			return -EINVAL;
+		}
+
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 			  phydev_addr(phydev), reg, val);
 		ret = phy_write(phydev, reg, val);
@@ -3271,6 +3304,12 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 	} else if (buf[0] == 'r') {
 		if (sscanf(buf, "r %15x", &reg) != 1)
 			return -EFAULT;
+
+		if (reg > 0xFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of CL22 range (0x00~0x1F)\n",
+				  phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
 
 		val = phy_read(phydev, reg);
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -3310,6 +3349,22 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		if (sscanf(buf, "w %15x %15x %15x", &devnum, &reg, &val) != 3)
 			return -EFAULT;
 
+		if (devnum > 0xFF) {
+			pr_notice("\nphy%d: devnum(0x%x) out of CL45 range (0x00~0x1F)\n",
+				  phydev->mdio.addr, devnum);
+			return -EINVAL;
+		}
+		if (reg > 0xFFFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of CL45 range (0x0000~0xFFFF)\n",
+				  phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
+		if (val > 0xFFFF) {
+			pr_notice("\nphy%d: val(0x%x) out of 16-bit range\n",
+				  phydev->mdio.addr, val);
+			return -EINVAL;
+		}
+
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x\n",
 			  phydev_addr(phydev), devnum, reg, val);
 		ret = phy_write_mmd(phydev, devnum, reg, val);
@@ -3323,6 +3378,17 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 	} else if (buf[0] == 'r') {
 		if (sscanf(buf, "r %15x %15x", &devnum, &reg) != 2)
 			return -EFAULT;
+
+		if (devnum > 0xFF) {
+			pr_notice("\nphy%d: devnum(0x%x) out of CL45 range (0x00~0x1F)\n",
+				  phydev->mdio.addr, devnum);
+			return -EINVAL;
+		}
+		if (reg > 0xFFFF) {
+			pr_notice("\nphy%d: reg(0x%x) out of CL45 range (0x0000~0xFFFF)\n",
+				  phydev->mdio.addr, reg);
+			return -EINVAL;
+		}
 
 		val = phy_read_mmd(phydev, devnum, reg);
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x\n",
@@ -3681,6 +3747,138 @@ static ssize_t airphy_led_mode(struct file *file, const char __user *ptr,
 	return count;
 }
 
+static int airphy_read_snr_show(struct seq_file *seq, void *v)
+{
+	struct phy_device *phydev = seq->private;
+	struct an8811hb_priv *priv = phydev->priv;
+	int i, ret = 0;
+	u32 val_80d54 = 0, val_80d58 = 0;
+
+	seq_printf(seq, "\n[read_snr] Start SNR loop read, count=%d\n",
+		   AIR_SNR_MSE_LOOP_COUNT);
+
+	ret = air_read_status(phydev);
+	if (ret < 0) {
+		seq_printf(seq, "[read_snr] air_read_status failed: %d\n", ret);
+		return ret;
+	}
+	seq_printf(seq, "[read_snr] Link Status: %s\n",
+		   priv->link ? "UP" : "DOWN");
+	if (priv->link) {
+		seq_printf(seq, "[read_snr] Speed: %uMb/s, Duplex: %s\n",
+			   priv->speed,
+			   priv->duplex ? "Full" : "Half");
+	}
+
+	if (!priv->link || priv->speed != SPEED_2500) {
+		seq_printf(seq,
+			   "[read_snr] FAIL: link=%s, speed=%uMb/s (require link UP and 2500M)\n",
+			   priv->link ? "UP" : "DOWN", priv->speed);
+		return 0;
+	}
+
+	for (i = 0; i < AIR_SNR_MSE_LOOP_COUNT; i++) {
+		ret = air_buckpbus_reg_read(phydev, 0x80d54, &val_80d54);
+		if (ret < 0) {
+			seq_printf(seq,
+				   "[read_snr] loop[%d] read 0x80d54 failed: %d\n",
+				   i, ret);
+			return ret;
+		}
+
+		ret = air_buckpbus_reg_read(phydev, 0x80d58, &val_80d58);
+		if (ret < 0) {
+			seq_printf(seq,
+				   "[read_snr] loop[%d] read 0x80d58 failed: %d\n",
+				   i, ret);
+			return ret;
+		}
+
+		seq_printf(seq,
+			   "[read_snr] Loop %d/%d\n reg=0x80d54, val=0x%08x\n reg=0x80d58, val=0x%08x\n",
+			   i + 1, AIR_SNR_MSE_LOOP_COUNT, val_80d54, val_80d58);
+	}
+
+	seq_puts(seq, "[read_snr] SNR loop read done.\n");
+
+	return 0;
+}
+
+static int airphy_read_snr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, airphy_read_snr_show, inode->i_private);
+}
+
+static int airphy_read_mse_show(struct seq_file *seq, void *v)
+{
+	struct phy_device *phydev = seq->private;
+	struct an8811hb_priv *priv = phydev->priv;
+	int i, ret = 0;
+	int val_9b, val_9c, val_a2;
+
+	seq_printf(seq, "\n[read_mse] Start MSE loop read, count=%d\n",
+		   AIR_SNR_MSE_LOOP_COUNT);
+
+	ret = air_read_status(phydev);
+	if (ret < 0) {
+		seq_printf(seq, "[read_mse] air_read_status failed: %d\n", ret);
+		return ret;
+	}
+	seq_printf(seq, "[read_mse] Link Status: %s\n",
+		   priv->link ? "UP" : "DOWN");
+	if (priv->link) {
+		seq_printf(seq, "[read_mse] Speed: %uMb/s, Duplex: %s\n",
+			   priv->speed,
+			   priv->duplex ? "Full" : "Half");
+	}
+
+	if (!priv->link || priv->speed == SPEED_2500) {
+		seq_printf(seq,
+			   "[read_mse] FAIL: link=%s, speed=%uMb/s (require link UP and speed != 2500M)\n",
+			   priv->link ? "UP" : "DOWN", priv->speed);
+		return 0;
+	}
+
+	for (i = 0; i < AIR_SNR_MSE_LOOP_COUNT; i++) {
+		val_9b = phy_read_mmd(phydev, 0x1e, 0x9b);
+		if (val_9b < 0) {
+			seq_printf(seq,
+				   "[read_mse] loop[%d] read 0x1e/0x9b failed: %d\n",
+				   i, val_9b);
+			return val_9b;
+		}
+
+		val_9c = phy_read_mmd(phydev, 0x1e, 0x9c);
+		if (val_9c < 0) {
+			seq_printf(seq,
+				   "[read_mse] loop[%d] read 0x1e/0x9c failed: %d\n",
+				   i, val_9c);
+			return val_9c;
+		}
+
+		val_a2 = phy_read_mmd(phydev, 0x1e, 0xa2);
+		if (val_a2 < 0) {
+			seq_printf(seq,
+				   "[read_mse] loop[%d] read 0x1e/0xa2 failed: %d\n",
+				   i, val_a2);
+			return val_a2;
+		}
+
+		seq_printf(seq,
+			   "[read_mse] Loop %d/%d devnum=0x1e, reg=0x9b, val=0x%04x\n devnum=0x1e, reg=0x9c, val=0x%04x\n devnum=0x1e, reg=0xa2, val=0x%04x\n",
+			   i + 1, AIR_SNR_MSE_LOOP_COUNT, val_9b, val_9c, val_a2);
+	}
+
+	seq_puts(seq, "[read_mse] MSE loop read done.\n");
+
+	return 0;
+}
+
+static int airphy_read_mse_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, airphy_read_mse_show, inode->i_private);
+}
+
 static const struct file_operations airphy_info_fops = {
 	.owner = THIS_MODULE,
 	.open = airphy_info_open,
@@ -3777,6 +3975,22 @@ static const struct file_operations airphy_temp_fops = {
 	.release = single_release,
 };
 
+static const struct file_operations airphy_read_snr_fops = {
+	.owner = THIS_MODULE,
+	.open = airphy_read_snr_open,
+	.read = seq_read,
+	.llseek = noop_llseek,
+	.release = single_release,
+};
+
+static const struct file_operations airphy_read_mse_fops = {
+	.owner = THIS_MODULE,
+	.open = airphy_read_mse_open,
+	.read = seq_read,
+	.llseek = noop_llseek,
+	.release = single_release,
+};
+
 int airphy_debugfs_init(struct phy_device *phydev)
 {
 	int ret = 0;
@@ -3830,6 +4044,12 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_TEMPERATURE, S_IFREG | 0444,
 			    dir, phydev,
 			    &airphy_temp_fops);
+	debugfs_create_file(DEBUGFS_READ_SNR, S_IFREG | 0444,
+			    dir, phydev,
+			    &airphy_read_snr_fops);
+	debugfs_create_file(DEBUGFS_READ_MSE, S_IFREG | 0444,
+			    dir, phydev,
+			    &airphy_read_mse_fops);
 
 	priv->debugfs_root = dir;
 
