@@ -1,0 +1,48 @@
+From adfba73fce964122706f12f8ef6674263f68b04c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 21 Jul 2026 18:59:45 +0800
+Subject: [PATCH] mtk: mt76: mt7996: check if link BSS is initialized before
+ dofing vif_link_remove
+
+Problem:
+Crash happens on switching an interface to MLD and then to legacy.
+
+Root Cause:
+A crash issue could occur with the following command sequence:
+
+change_vif_links: old=0x0, new=0x1
+change_vif_links: old=0x1, new=0x0
+
+Since mvif->link[0] always points to vif->drv_priv, if the above command
+sequence occurs, mt7996_vif_link_remove() will be called again without
+a previous mt7996_vif_link_add().
+
+Solution:
+Add a check to ensure mlink->wcid is not NULL before proceeding with
+vif link removal operations.
+
+Feature:
+Stability
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index d6bd168af..8c0cbc541 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -472,6 +472,9 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 	};
+ 	int idx = msta_link->wcid.idx;
+ 
++	if (!mlink->wcid)
++		return;
++
+ 	cancel_delayed_work(&link->sta_chsw_work);
+ 
+ 	if (dev->recovery.hw_full_reset)
+-- 
+2.45.2
+
