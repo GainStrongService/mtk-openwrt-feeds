@@ -1,0 +1,64 @@
+From 71270be2f6b56de28c32e321860ca40aed68b690 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 2 Jul 2026 19:37:01 +0800
+Subject: [PATCH] mtk: mac80211: fix __ieee80211_link_copy_chanctx_to_vlans()
+ warning
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Problem: 
+The following warning trace happens on doing wifi down while the CAC
+countdown hasn't finished yet.
+[  503.244931]  __ieee80211_link_copy_chanctx_to_vlans+0x12c/0x140 [mac80211]
+[  503.244972]  ieee80211_link_copy_chanctx_to_vlans+0xc/0x18 [mac80211]
+[  503.245012]  ieee80211_stop_ap+0x2b4/0x4a8 [mac80211]
+
+Root Cause: 
+A normal link BSS disabled flow is:
+ieee80211_stop_ap
+...
+ieee80211_link_copy_chanctx_to_vlans
+ieee80211_link_release_channel
+
+However, if there's still doing CAC countdown, the flow becomes:
+cfg80211_stop_radar_detection
+ieee80211_end_cac
+ieee80211_link_release_channel
+ieee80211_stop_ap
+...
+ieee80211_link_copy_chanctx_to_vlans
+ieee80211_link_release_channel
+
+In the CAC case, ieee80211_link_release_channel is executed before
+ieee80211_link_copy_chanctx_to_vlans, causing the warning trace.
+
+Solution: 
+Fix this by only doing the CAC ieee80211_link_release_channel if it's a
+bootup CAC. Otherwise, leave the channel release to ieee80211_stop_ap.
+
+Feature:
+DFS
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ net/mac80211/cfg.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 09809d7a..73d11d2e 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -3998,7 +3998,8 @@ static void ieee80211_end_cac(struct wiphy *wiphy,
+ 					  &link_data->dfs_cac_timer_work);
+ 
+ 		if (sdata->wdev.links[link_id].cac_started) {
+-			ieee80211_link_release_channel(link_data);
++			if (!sdata->wdev.links[link_id].ap.beacon_interval)
++				ieee80211_link_release_channel(link_data);
+ 			sdata->wdev.links[link_id].cac_started = false;
+ 		}
+ 	}
+-- 
+2.45.2
+
